@@ -26,16 +26,9 @@ void Chronicle::OnPostLoadGame()
     // Confirm the message pipeline is working end-to-end.
     SendMessage("system", "Chronicle", "Ready — dialogue will appear here during conversations.");
 
-    // Start the subtitle poller if HUD Menu is already open.
-    // In many load scenarios the HUD Menu is already open before kPostLoadGame fires,
-    // so the MenuOpenCloseEvent for it never fires and the poller would never start.
-    // The MenuEventSink also starts it on HUD Menu open as a fallback for the first load.
-    auto* ui = RE::UI::GetSingleton();
-    const bool hudOpen = ui && ui->IsMenuOpen("HUD Menu");
-    spdlog::info("Chronicle: OnPostLoadGame — HUD Menu open={}", hudOpen);
-    if (hudOpen) {
-        SubtitlePoller::GetSingleton().Start();
-    }
+    // NOTE: SubtitlePoller is started by MenuEventSink when "HUD Menu" opens.
+    // Do NOT start it here — OnPostLoadGame fires mid-transition and AddTask
+    // loops started at that point cause a freeze on the first rendered frame.
 }
 
 void Chronicle::RegisterEventSinks()
