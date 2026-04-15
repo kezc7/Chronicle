@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chronicle Settings</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: rgba(10, 10, 15, 0.92);
+      color: #e2e8f0;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 13px;
+      overflow: hidden;
+    }
+
+    #settings-panel {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    /* Header */
+    #settings-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: rgba(0,0,0,0.5);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      flex-shrink: 0;
+    }
+
+    #settings-header h1 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      letter-spacing: 0.03em;
+    }
+
+    #close-btn {
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,0.5);
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+    #close-btn:hover { color: #fff; background: rgba(255,255,255,0.08); }
+
+    /* Tab bar */
+    #settings-tabs {
+      display: flex;
+      background: rgba(0,0,0,0.3);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      flex-shrink: 0;
+    }
+
+    .s-tab {
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,0.45);
+      padding: 8px 16px;
+      font-size: 12px;
+      font-family: inherit;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+    .s-tab:hover { color: rgba(255,255,255,0.75); }
+    .s-tab.active { color: #fff; border-bottom-color: #4a9eff; }
+
+    /* Content */
+    #settings-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.1) transparent;
+    }
+
+    .section { display: none; }
+    .section.active { display: block; }
+
+    /* Field rows */
+    .field-group {
+      margin-bottom: 16px;
+    }
+
+    .field-group h3 {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .field-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 0;
+      gap: 12px;
+    }
+
+    .field-row label {
+      color: rgba(255,255,255,0.75);
+      flex: 1;
+    }
+
+    .field-row .hint {
+      font-size: 11px;
+      color: rgba(255,255,255,0.3);
+      display: block;
+    }
+
+    /* Toggle switch */
+    .toggle {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-track {
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.12);
+      border-radius: 10px;
+      transition: background 0.2s;
+      cursor: pointer;
+    }
+    .toggle-track::after {
+      content: '';
+      position: absolute;
+      left: 2px;
+      top: 2px;
+      width: 16px;
+      height: 16px;
+      background: rgba(255,255,255,0.5);
+      border-radius: 50%;
+      transition: transform 0.2s, background 0.2s;
+    }
+    .toggle input:checked + .toggle-track {
+      background: #3b82f6;
+    }
+    .toggle input:checked + .toggle-track::after {
+      transform: translateX(16px);
+      background: #fff;
+    }
+
+    /* Slider */
+    .slider-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .slider-wrap input[type=range] {
+      width: 100px;
+      accent-color: #4a9eff;
+    }
+    .slider-wrap .slider-val {
+      font-size: 11px;
+      color: rgba(255,255,255,0.5);
+      min-width: 28px;
+      text-align: right;
+    }
+
+    /* Text / number input */
+    .field-row input[type=text],
+    .field-row input[type=number] {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 3px;
+      color: #fff;
+      font-size: 12px;
+      font-family: inherit;
+      padding: 3px 7px;
+      width: 80px;
+      outline: none;
+    }
+    .field-row input[type=text]:focus,
+    .field-row input[type=number]:focus {
+      border-color: rgba(74,158,255,0.5);
+    }
+
+    /* Colour picker */
+    .field-row input[type=color] {
+      width: 36px;
+      height: 24px;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 3px;
+      background: transparent;
+      cursor: pointer;
+      padding: 1px;
+    }
+
+    /* Channel rows in Channels tab */
+    .channel-row {
+      display: grid;
+      grid-template-columns: 80px 1fr 80px 36px 1fr;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .channel-row:last-child { border-bottom: none; }
+    .channel-name {
+      font-weight: 600;
+      font-size: 12px;
+    }
+
+    /* Footer */
+    #settings-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 10px 14px;
+      background: rgba(0,0,0,0.3);
+      border-top: 1px solid rgba(255,255,255,0.07);
+      flex-shrink: 0;
+    }
+
+    button.action-btn {
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 4px;
+      color: #e2e8f0;
+      font-size: 12px;
+      font-family: inherit;
+      padding: 5px 14px;
+      cursor: pointer;
+    }
+    button.action-btn:hover { background: rgba(255,255,255,0.12); }
+    button.action-btn.primary {
+      background: #3b82f6;
+      border-color: #3b82f6;
+      color: #fff;
+    }
+    button.action-btn.primary:hover { background: #2563eb; }
+  </style>
+</head>
+<body>
+
+<div id="settings-panel">
+
+  <!-- Header -->
+  <div id="settings-header">
+    <h1>Chronicle Settings</h1>
+    <button id="close-btn" title="Close (Escape)">&#x2715;</button>
+  </div>
+
+  <!-- Tabs -->
+  <div id="settings-tabs">
+    <button class="s-tab active" data-section="general">General</button>
+    <button class="s-tab" data-section="window">Window</button>
+    <button class="s-tab" data-section="channels">Channels</button>
+  </div>
+
+  <!-- Content -->
+  <div id="settings-content">
+
+    <!-- General -->
+    <div id="section-general" class="section active">
+      <div class="field-group">
+        <h3>Behaviour</h3>
+
+        <div class="field-row">
+          <label>Enabled<span class="hint">Master on/off switch</span></label>
+          <label class="toggle">
+            <input type="checkbox" id="cfg-enabled" checked />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="field-row">
+          <label>Hide in menus<span class="hint">Hide when any game menu is open</span></label>
+          <label class="toggle">
+            <input type="checkbox" id="cfg-hide-in-menus" checked />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="field-row">
+          <label>Hide in Photo Mode<span class="hint">Hide when Photo Mode is active</span></label>
+          <label class="toggle">
+            <input type="checkbox" id="cfg-hide-in-photo" checked />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <h3>Input</h3>
+
+        <div class="field-row">
+          <label>Input hotkey<span class="hint">Key to open the chat input (default: Enter)</span></label>
+          <input type="text" id="cfg-input-hotkey" value="Enter" maxlength="20" />
+        </div>
+      </div>
+
+      <div class="field-group">
+        <h3>History</h3>
+
+        <div class="field-row">
+          <label>Max messages<span class="hint">Lines kept in scroll-back (1–500)</span></label>
+          <input type="number" id="cfg-max-messages" value="100" min="1" max="500" />
+        </div>
+
+        <div class="field-row">
+          <label>Message fade time (s)<span class="hint">0 = never fade</span></label>
+          <div class="slider-wrap">
+            <input type="range" id="cfg-fade-time" min="0" max="60" step="1" value="0" />
+            <span class="slider-val" id="cfg-fade-time-val">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Window -->
+    <div id="section-window" class="section">
+      <div class="field-group">
+        <h3>Appearance</h3>
+
+        <div class="field-row">
+          <label>Opacity<span class="hint">Background transparency</span></label>
+          <div class="slider-wrap">
+            <input type="range" id="cfg-opacity" min="0" max="1" step="0.05" value="0.65" />
+            <span class="slider-val" id="cfg-opacity-val">0.65</span>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <label>Font size<span class="hint">Message text size (px)</span></label>
+          <div class="slider-wrap">
+            <input type="range" id="cfg-font-size" min="10" max="24" step="1" value="13" />
+            <span class="slider-val" id="cfg-font-size-val">13</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <h3>Size &amp; Position</h3>
+
+        <div class="field-row">
+          <label>Width (px)</label>
+          <input type="number" id="cfg-width" value="520" min="280" max="1920" />
+        </div>
+
+        <div class="field-row">
+          <label>Height (px)</label>
+          <input type="number" id="cfg-height" value="240" min="120" max="1080" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Channels -->
+    <div id="section-channels" class="section">
+      <div class="field-group">
+        <h3>Channel configuration</h3>
+        <div id="channel-list">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /settings-content -->
+
+  <!-- Footer -->
+  <div id="settings-footer">
+    <button class="action-btn" id="reset-btn">Reset defaults</button>
+    <button class="action-btn primary" id="apply-btn">Apply</button>
+  </div>
+
+</div><!-- /settings-panel -->
+
+<script>
+'use strict';
+
+// ---- Tab switching -------------------------------------------------------
+
+document.getElementById('settings-tabs').addEventListener('click', e => {
+  const tab = e.target.closest('.s-tab');
+  if (!tab) return;
+  const section = tab.dataset.section;
+  document.querySelectorAll('.s-tab').forEach(t => t.classList.toggle('active', t === tab));
+  document.querySelectorAll('.section').forEach(s => {
+    s.classList.toggle('active', s.id === 'section-' + section);
+  });
+});
+
+// ---- Close button / Escape -----------------------------------------------
+
+document.getElementById('close-btn').addEventListener('click', closeSettings);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettings(); });
+
+function closeSettings() {
+  if (window.skse && typeof window.skse.sendEvent === 'function') {
+    window.skse.sendEvent('closeSettings', '');
+  } else if (window.opener) {
+    window.close();
+  }
+}
+
+// ---- Slider live labels --------------------------------------------------
+
+function bindSlider(id, valId, transform) {
+  const slider = document.getElementById(id);
+  const label  = document.getElementById(valId);
+  slider.addEventListener('input', () => {
+    label.textContent = transform ? transform(slider.value) : slider.value;
+    broadcastLive();
+  });
+}
+
+bindSlider('cfg-opacity',   'cfg-opacity-val',   v => parseFloat(v).toFixed(2));
+bindSlider('cfg-font-size', 'cfg-font-size-val', v => v);
+bindSlider('cfg-fade-time', 'cfg-fade-time-val', v => v);
+
+// ---- Channel rows --------------------------------------------------------
+
+const CHANNEL_LABELS = {
+  all:       'All',
+  dialogue:  'Dialogue',
+  system:    'System',
+  skyrimnet: 'SkyrimNet',
+  narrator:  'Narrator',
+  player:    'Player',
+  combat:    'Combat',
+  console:   'Console',
+};
+
+const DEFAULT_CHANNELS = {
+  all:       { enabled: true,  colour: null,       prefix: '',         show_timestamp: false },
+  dialogue:  { enabled: true,  colour: '#ffffff',  prefix: '',         show_timestamp: false },
+  system:    { enabled: true,  colour: '#f5c518',  prefix: '[SYSTEM]', show_timestamp: false },
+  skyrimnet: { enabled: true,  colour: '#7ec8f5',  prefix: '',         show_timestamp: false },
+  narrator:  { enabled: true,  colour: '#c084fc',  prefix: '[NARR]',   show_timestamp: false },
+  player:    { enabled: true,  colour: '#86efac',  prefix: '',         show_timestamp: false },
+  combat:    { enabled: true,  colour: '#fb923c',  prefix: '[COMBAT]', show_timestamp: false },
+  console:   { enabled: false, colour: '#94a3b8',  prefix: '[CON]',    show_timestamp: false },
+};
+
+function buildChannelRows(channelConfig) {
+  const container = document.getElementById('channel-list');
+  container.innerHTML = '';
+
+  for (const [ch, label] of Object.entries(CHANNEL_LABELS)) {
+    const cfg = channelConfig[ch] || DEFAULT_CHANNELS[ch];
+    const row = document.createElement('div');
+    row.className = 'channel-row';
+    row.dataset.channel = ch;
+
+    const noColour = ch === 'all';
+
+    row.innerHTML = `
+      <span class="channel-name">${label}</span>
+      <label class="toggle" title="Show/hide channel">
+        <input type="checkbox" class="ch-enabled" ${cfg.enabled ? 'checked' : ''} />
+        <span class="toggle-track"></span>
+      </label>
+      <input type="text" class="ch-prefix" value="${cfg.prefix || ''}" placeholder="Prefix" maxlength="16" />
+      <input type="color" class="ch-colour" value="${cfg.colour || '#ffffff'}" ${noColour ? 'disabled' : ''} />
+      <label class="toggle" title="Show timestamp per message">
+        <input type="checkbox" class="ch-timestamp" ${cfg.show_timestamp ? 'checked' : ''} />
+        <span class="toggle-track"></span>
+      </label>
+    `;
+
+    container.appendChild(row);
+  }
+
+  container.querySelectorAll('input').forEach(el => el.addEventListener('change', broadcastLive));
+}
+
+buildChannelRows(DEFAULT_CHANNELS);
+
+// ---- Read current config from main window --------------------------------
+
+function readConfig() {
+  // Main window passes config via URL param or postMessage — try postMessage
+  window.addEventListener('message', e => {
+    if (e.data && e.data.type === 'chronicle-config') {
+      applyToForm(e.data.config);
+    }
+  });
+
+  // Also request it from the game side
+  if (window.skse && typeof window.skse.sendEvent === 'function') {
+    window.skse.sendEvent('requestConfig', '');
+  }
+}
+
+function applyToForm(config) {
+  const g = config.general || {};
+  const w = config.window  || {};
+  const c = config.channels || {};
+
+  if (g.enabled      != null) document.getElementById('cfg-enabled').checked = g.enabled;
+  if (g.hide_in_menus   != null) document.getElementById('cfg-hide-in-menus').checked = g.hide_in_menus;
+  if (g.hide_in_photo_mode != null) document.getElementById('cfg-hide-in-photo').checked = g.hide_in_photo_mode;
+  if (g.input_hotkey != null) document.getElementById('cfg-input-hotkey').value = g.input_hotkey;
+  if (g.max_messages != null) document.getElementById('cfg-max-messages').value = g.max_messages;
+  if (g.message_fade_time != null) {
+    document.getElementById('cfg-fade-time').value = g.message_fade_time;
+    document.getElementById('cfg-fade-time-val').textContent = g.message_fade_time;
+  }
+
+  if (w.width   != null) document.getElementById('cfg-width').value  = w.width;
+  if (w.height  != null) document.getElementById('cfg-height').value = w.height;
+  if (w.opacity != null) {
+    document.getElementById('cfg-opacity').value = w.opacity;
+    document.getElementById('cfg-opacity-val').textContent = parseFloat(w.opacity).toFixed(2);
+  }
+  if (w.font_size != null) {
+    document.getElementById('cfg-font-size').value = w.font_size;
+    document.getElementById('cfg-font-size-val').textContent = w.font_size;
+  }
+
+  if (Object.keys(c).length > 0) buildChannelRows(c);
+}
+
+// ---- Collect form values into config object ------------------------------
+
+function collectConfig() {
+  const channels = {};
+  document.querySelectorAll('.channel-row').forEach(row => {
+    const ch = row.dataset.channel;
+    channels[ch] = {
+      enabled:        row.querySelector('.ch-enabled').checked,
+      colour:         ch === 'all' ? null : row.querySelector('.ch-colour').value,
+      prefix:         row.querySelector('.ch-prefix').value,
+      show_timestamp: row.querySelector('.ch-timestamp').checked,
+    };
+  });
+
+  return {
+    general: {
+      enabled:           document.getElementById('cfg-enabled').checked,
+      input_hotkey:      document.getElementById('cfg-input-hotkey').value || 'Enter',
+      max_messages:      parseInt(document.getElementById('cfg-max-messages').value, 10) || 100,
+      message_fade_time: parseInt(document.getElementById('cfg-fade-time').value, 10) || 0,
+      hide_in_menus:     document.getElementById('cfg-hide-in-menus').checked,
+      hide_in_photo_mode: document.getElementById('cfg-hide-in-photo').checked,
+    },
+    window: {
+      width:    parseInt(document.getElementById('cfg-width').value, 10)  || 520,
+      height:   parseInt(document.getElementById('cfg-height').value, 10) || 240,
+      opacity:  parseFloat(document.getElementById('cfg-opacity').value)  || 0.65,
+      font_size: parseInt(document.getElementById('cfg-font-size').value, 10) || 13,
+    },
+    channels,
+  };
+}
+
+// ---- Live preview --------------------------------------------------------
+
+function broadcastLive() {
+  const cfg = collectConfig();
+  // Send to the main Chronicle view
+  if (window.skse && typeof window.skse.sendEvent === 'function') {
+    window.skse.sendEvent('settingsChanged', JSON.stringify(cfg));
+  }
+  if (window.opener) {
+    window.opener.postMessage({ type: 'chronicle-settings-live', config: cfg }, '*');
+  }
+}
+
+// ---- Apply / Reset buttons -----------------------------------------------
+
+document.getElementById('apply-btn').addEventListener('click', () => {
+  broadcastLive();
+  if (window.skse && typeof window.skse.sendEvent === 'function') {
+    window.skse.sendEvent('settingsSave', JSON.stringify(collectConfig()));
+  }
+  closeSettings();
+});
+
+document.getElementById('reset-btn').addEventListener('click', () => {
+  const activeSection = document.querySelector('.s-tab.active').dataset.section;
+
+  if (activeSection === 'general') {
+    document.getElementById('cfg-enabled').checked = true;
+    document.getElementById('cfg-hide-in-menus').checked = true;
+    document.getElementById('cfg-hide-in-photo').checked = true;
+    document.getElementById('cfg-input-hotkey').value = 'Enter';
+    document.getElementById('cfg-max-messages').value = 100;
+    document.getElementById('cfg-fade-time').value = 0;
+    document.getElementById('cfg-fade-time-val').textContent = '0';
+  } else if (activeSection === 'window') {
+    document.getElementById('cfg-opacity').value = 0.65;
+    document.getElementById('cfg-opacity-val').textContent = '0.65';
+    document.getElementById('cfg-font-size').value = 13;
+    document.getElementById('cfg-font-size-val').textContent = '13';
+    document.getElementById('cfg-width').value  = 520;
+    document.getElementById('cfg-height').value = 240;
+  } else if (activeSection === 'channels') {
+    buildChannelRows(DEFAULT_CHANNELS);
+  }
+
+  broadcastLive();
+});
+
+// ---- Init ----------------------------------------------------------------
+
+readConfig();
+</script>
+
+</body>
+</html>
