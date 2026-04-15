@@ -10,9 +10,9 @@ void Chronicle::OnDataLoaded()
     spdlog::info("Chronicle: OnDataLoaded");
     RegisterEventSinks();
     InitPrismaUI();
-    // Start subtitle polling immediately — follower ambient dialogue shows subtitles
-    // without opening DialogueMenu, so we must poll regardless of menu state.
-    SubtitlePoller::GetSingleton().Start();
+    // Do NOT start SubtitlePoller here — kDataLoaded fires at the main menu before
+    // any save is loaded. Starting a recurring AddTask loop at that point causes a
+    // freeze. Polling starts in OnPostLoadGame instead.
 }
 
 void Chronicle::OnPostLoadGame()
