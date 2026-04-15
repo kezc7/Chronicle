@@ -23,8 +23,11 @@ void Chronicle::OnPostLoadGame()
         m_prismaUI->Show(m_view);
         m_hidden = false;
     }
-    // Re-start subtitle polling in case it stopped between loads.
-    SubtitlePoller::GetSingleton().Start();
+    // SubtitlePoller is NOT started here. kPostLoadGame fires during the
+    // loading→world transition before rendering is active; starting the
+    // self-re-enqueueing AddTask loop at that point stalls the first frame.
+    // The poller is started by MenuEventSink when "HUD Menu" opens, which
+    // is a reliable signal that the world is fully rendered.
 }
 
 void Chronicle::RegisterEventSinks()
@@ -156,11 +159,13 @@ void Chronicle::SendMessage(std::string_view a_channel,
 void Chronicle::ForceCloseInput()
 {
     // Release PrismaUI focus and tell JS to close the input bar.
-    // Called whenever a game menu opens so Chronicle cannot hold focus hostage.
-    if (m_prismaUI && m_view) {
-        m_prismaUI->Unfocus(m_view);
-        InvokeUI("closeInput()");
+    // Guard on m_hidden: no-op while the view is hidden during loading so we
+    // don't call into PrismaUI during the loading→world transition.
+    if (m_hidden || !m_prismaUI || !m_view) {
+        return;
     }
+    m_prismaUI->Unfocus(m_view);
+    InvokeUI("closeInput()");
 }
 
 void Chronicle::OnMenuOpenClose(std::string_view a_menuName, bool a_opening)
