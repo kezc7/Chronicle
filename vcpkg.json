@@ -1,0 +1,14 @@
+{
+    "name": "chronicle",
+    "version-string": "1.0.0",
+    "description": "MMO-style chat system for Skyrim SE",
+    "features": {
+        "plugin": {
+            "description": "Default Plugin",
+            "dependencies": [ "commonlibsse-ng", "nlohmann-json" ]
+        }
+    },
+    "default-features": [
+        "plugin"
+    ]
+}

@@ -1,0 +1,207 @@
+/* ============================================================
+   Chronicle — MMO-Style Chat Window
+   ============================================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: transparent;
+  overflow: hidden;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  user-select: none;
+}
+
+/* ---- Main window ------------------------------------------------ */
+
+#chronicle-window {
+  position: fixed;
+  left: var(--win-x, 20px);
+  top: var(--win-y, 60vh);
+  width: var(--win-width, 520px);
+  height: var(--win-height, 240px);
+  min-width: 280px;
+  min-height: 120px;
+  background: rgba(0, 0, 0, var(--opacity, 0.65));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: opacity 0.3s ease;
+}
+
+#chronicle-window.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#chronicle-window.fading-in {
+  animation: fadeIn 0.25s ease forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ---- Channel tabs ----------------------------------------------- */
+
+#channel-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: rgba(0, 0, 0, 0.4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  flex-shrink: 0;
+}
+
+#channel-tabs::-webkit-scrollbar { display: none; }
+
+.tab {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.45);
+  padding: 4px 10px;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tab:hover {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.tab.active {
+  color: #fff;
+  border-bottom-color: #4a9eff;
+}
+
+.tab.hidden-channel {
+  opacity: 0.3;
+  font-style: italic;
+}
+
+/* ---- Message list ----------------------------------------------- */
+
+#message-list {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.15) transparent;
+}
+
+#message-list::-webkit-scrollbar { width: 4px; }
+#message-list::-webkit-scrollbar-track { background: transparent; }
+#message-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+.message {
+  font-size: var(--font-size, 13px);
+  line-height: 1.4;
+  word-break: break-word;
+  color: rgba(255, 255, 255, 0.88);
+  transition: opacity 0.6s ease;
+}
+
+.message.fading {
+  opacity: 0;
+}
+
+.message .speaker {
+  font-weight: 600;
+}
+
+.message .timestamp {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.8em;
+  margin-right: 4px;
+}
+
+.message .prefix {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.85em;
+  margin-right: 3px;
+}
+
+/* Channel colours — applied to .speaker */
+.message[data-channel="dialogue"]  .speaker { color: #ffffff; }
+.message[data-channel="system"]    .speaker { color: #f5c518; }
+.message[data-channel="skyrimnet"] .speaker { color: #7ec8f5; }
+.message[data-channel="narrator"]  .speaker { color: #c084fc; }
+.message[data-channel="player"]    .speaker { color: #86efac; }
+.message[data-channel="combat"]    .speaker { color: #fb923c; }
+.message[data-channel="console"]   .speaker { color: #94a3b8; }
+
+/* ---- Input bar -------------------------------------------------- */
+
+#input-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: rgba(0, 0, 0, 0.5);
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  flex-shrink: 0;
+}
+
+#input-bar.hidden {
+  display: none;
+}
+
+#input-channel-label {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 11px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+#chat-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  color: #fff;
+  font-size: var(--font-size, 13px);
+  font-family: inherit;
+  padding: 3px 7px;
+  outline: none;
+}
+
+#chat-input:focus {
+  border-color: rgba(74, 158, 255, 0.5);
+  background: rgba(255, 255, 255, 0.09);
+}
+
+#chat-input::placeholder {
+  color: rgba(255, 255, 255, 0.2);
+}
+
+/* ---- Resize handle --------------------------------------------- */
+
+#resize-handle {
+  position: fixed;
+  width: 14px;
+  height: 14px;
+  right: 0;
+  bottom: 0;
+  cursor: se-resize;
+  opacity: 0;
+  background: linear-gradient(135deg, transparent 50%, rgba(255,255,255,0.2) 50%);
+}
+
+#chronicle-window:hover ~ #resize-handle,
+#chronicle-window:hover #resize-handle {
+  opacity: 1;
+}
