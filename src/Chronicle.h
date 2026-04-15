@@ -28,6 +28,8 @@ public:
     // Called when any game menu opens so we can release focus and close the input bar.
     void ForceCloseInput();
 
+    bool IsGameLoaded() const { return m_gameLoaded.load(); }
+
     // Called by JS listener callbacks (bare function pointers — no captures)
     void OnPlayerInput(std::string_view a_text);
     void OnConsoleCommand(std::string_view a_command);
@@ -49,8 +51,9 @@ private:
     PRISMA_UI_API::IVPrismaUI2* m_prismaUI{ nullptr };
     bool m_hasV2{ false };  // true only when we got a real IVPrismaUI2, not a V1 cast
 
-    std::atomic<bool> m_hidden{ false };     // true while loading — gates SendMessage
-    std::atomic<int>  m_menuDepth{ 0 };    // depth of blocking game menus currently open
+    std::atomic<bool> m_hidden{ false };       // true while loading — gates SendMessage
+    std::atomic<bool> m_gameLoaded{ false };  // set true by OnPostLoadGame
+    std::atomic<int>  m_menuDepth{ 0 };       // depth of blocking game menus currently open
 
     struct LastMessage
     {

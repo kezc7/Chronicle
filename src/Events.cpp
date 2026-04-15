@@ -19,13 +19,15 @@ RE::BSEventNotifyControl MenuEventSink::ProcessEvent(
         // Any menu opening: release Chronicle focus so it cannot hold input
         // hostage when another mod's menu or a game menu opens.
         chronicle->ForceCloseInput();
+    }
 
-        // "HUD Menu" opening means the world is fully loaded and rendering —
-        // safe point to start the subtitle poller.
-        if (menuName == "HUD Menu") {
-            spdlog::info("Chronicle: HUD Menu opened — starting subtitle poller");
-            SubtitlePoller::GetSingleton().Start();
-        }
+    // Start the subtitle poller on the first MenuOpenCloseEvent after the game
+    // has loaded a save. "HUD Menu" never fires MenuOpenCloseEvent (it is
+    // always-open), so we use the first real menu event as the safe trigger.
+    if (chronicle->IsGameLoaded() && !SubtitlePoller::GetSingleton().IsRunning()) {
+        spdlog::info("Chronicle: first post-load menu event '{}' — starting subtitle poller",
+                     menuName);
+        SubtitlePoller::GetSingleton().Start();
     }
 
     // Route to OnMenuOpenClose — it filters to the known hide-list internally

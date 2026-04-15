@@ -23,12 +23,13 @@ void Chronicle::OnPostLoadGame()
         m_prismaUI->Show(m_view);
         m_hidden = false;
     }
+    // Mark the game as loaded. The next MenuOpenCloseEvent in MenuEventSink will
+    // start the subtitle poller — this avoids relying on "HUD Menu" which never
+    // fires a MenuOpenCloseEvent (it is always-open and skips the event dispatch).
+    m_gameLoaded = true;
+
     // Confirm the message pipeline is working end-to-end.
     SendMessage("system", "Chronicle", "Ready — dialogue will appear here during conversations.");
-
-    // NOTE: SubtitlePoller is started by MenuEventSink when "HUD Menu" opens.
-    // Do NOT start it here — OnPostLoadGame fires mid-transition and AddTask
-    // loops started at that point cause a freeze on the first rendered frame.
 }
 
 void Chronicle::RegisterEventSinks()

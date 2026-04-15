@@ -70,6 +70,7 @@ public:
 
     void Start();
     void Stop();
+    bool IsRunning() const { return m_running.load(); }
 
 private:
     SubtitlePoller() = default;
