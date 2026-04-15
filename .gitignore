@@ -1,0 +1,33 @@
+# Build output
+out/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.VC.db
+*.VC.opendb
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+
+# Compiled binaries
+*.dll
+*.lib
+*.exp
+*.pdb
+*.obj
+*.ilk
+
+# vcpkg installed packages (restored by vcpkg on build)
+vcpkg_installed/
+
+# Logs
+*.log
+
+# Windows
+Thumbs.db
+Desktop.ini
