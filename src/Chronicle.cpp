@@ -23,6 +23,9 @@ void Chronicle::OnPostLoadGame()
         m_prismaUI->Show(m_view);
         m_hidden = false;
     }
+    // Confirm the message pipeline is working end-to-end.
+    SendMessage("system", "Chronicle", "Ready — dialogue will appear here during conversations.");
+
     // SubtitlePoller is NOT started here. kPostLoadGame fires during the
     // loading→world transition before rendering is active; starting the
     // self-re-enqueueing AddTask loop at that point stalls the first frame.
@@ -170,18 +173,51 @@ void Chronicle::ForceCloseInput()
 
 void Chronicle::OnMenuOpenClose(std::string_view a_menuName, bool a_opening)
 {
-    if (a_menuName == "PhotoMenu") {
-        m_hidden = a_opening;
-        if (m_prismaUI && m_view) {
-            if (a_opening) {
-                m_prismaUI->Hide(m_view);
-            } else {
+    // Menus that should hide Chronicle while open.
+    // We use a depth counter so nested menus (e.g. pause inside inventory) work correctly.
+    static constexpr std::array kHideMenus{
+        std::string_view{ "SystemMenu"    },
+        std::string_view{ "TweenMenu"     },
+        std::string_view{ "InventoryMenu" },
+        std::string_view{ "MagicMenu"     },
+        std::string_view{ "MapMenu"       },
+        std::string_view{ "ContainerMenu" },
+        std::string_view{ "Journal Menu"  },
+        std::string_view{ "LevelUpMenu"   },
+        std::string_view{ "StatsMenu"     },
+        std::string_view{ "SleepWaitMenu" },
+        std::string_view{ "FavoritesMenu" },
+        std::string_view{ "BarterMenu"    },
+        std::string_view{ "CraftingMenu"  },
+        std::string_view{ "AlchemyMenu"   },
+        std::string_view{ "PhotoMenu"     },
+    };
+
+    const bool isHideMenu = std::find(kHideMenus.begin(), kHideMenus.end(), a_menuName)
+                            != kHideMenus.end();
+    if (!isHideMenu) {
+        return;
+    }
+
+    if (!m_prismaUI || !m_view) {
+        return;
+    }
+
+    if (a_opening) {
+        if (m_menuDepth.fetch_add(1) == 0) {
+            // First blocking menu — hide the view
+            m_prismaUI->Hide(m_view);
+            spdlog::debug("Chronicle: hiding for menu '{}'", a_menuName);
+        }
+    } else {
+        if (m_menuDepth.fetch_sub(1) <= 1) {
+            // Last blocking menu closed — show the view (unless still loading)
+            m_menuDepth = 0;  // clamp against underflow
+            if (!m_hidden) {
                 m_prismaUI->Show(m_view);
+                spdlog::debug("Chronicle: showing after menu '{}' closed", a_menuName);
             }
         }
-        spdlog::info("Chronicle: photo mode {} — window {}",
-                     a_opening ? "opened" : "closed",
-                     a_opening ? "hidden" : "shown");
     }
 }
 

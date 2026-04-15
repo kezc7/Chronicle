@@ -27,10 +27,8 @@ RE::BSEventNotifyControl MenuEventSink::ProcessEvent(
         }
     }
 
-    // Photo Mode: hide/show the whole Chronicle window
-    if (menuName == "PhotoMenu") {
-        chronicle->OnMenuOpenClose(menuName, a_event->opening);
-    }
+    // Route to OnMenuOpenClose — it filters to the known hide-list internally
+    chronicle->OnMenuOpenClose(menuName, a_event->opening);
 
     return RE::BSEventNotifyControl::kContinue;
 }
