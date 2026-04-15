@@ -80,4 +80,9 @@ private:
 
     std::string m_lastText;
     std::atomic<bool> m_running{ false };
+    int m_skipCounter{ 0 };
+
+    // Poll once every N frames. At 60fps, 6 = ~10Hz — fast enough to catch
+    // any subtitle change, slow enough not to spam the task queue.
+    static constexpr int kPollEveryNFrames = 6;
 };
