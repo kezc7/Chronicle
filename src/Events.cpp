@@ -13,19 +13,19 @@ RE::BSEventNotifyControl MenuEventSink::ProcessEvent(
 
     std::string_view menuName = a_event->menuName.c_str();
 
+    // Any menu opening: release Chronicle focus so it cannot hold input hostage
+    // when the player interacts with another mod's menu or any game menu.
+    if (a_event->opening) {
+        Chronicle::GetSingleton()->ForceCloseInput();
+    }
+
     // Photo Mode: hide/show the whole Chronicle window
     if (menuName == "PhotoMenu") {
         Chronicle::GetSingleton()->OnMenuOpenClose(menuName, a_event->opening);
     }
 
-    // DialogueMenu: drive subtitle polling
-    if (menuName == "Dialogue Menu") {
-        if (a_event->opening) {
-            SubtitlePoller::GetSingleton().Start();
-        } else {
-            SubtitlePoller::GetSingleton().Stop();
-        }
-    }
+    // NOTE: subtitle polling is started unconditionally in OnDataLoaded/OnPostLoadGame
+    // so that follower ambient dialogue (which has no DialogueMenu) is also captured.
 
     return RE::BSEventNotifyControl::kContinue;
 }
