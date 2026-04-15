@@ -5,13 +5,14 @@
 'use strict';
 
 // ---------------------------------------------------------------------------
-// Config — loaded from config.json, then applied
+// Config defaults
 // ---------------------------------------------------------------------------
 
 const DEFAULT_CONFIG = {
   general: {
     enabled: true,
     input_hotkey: 'Enter',
+    config_hotkey: 'N',       // Shift + this key opens the settings panel
     max_messages: 100,
     message_fade_time: 0,
     hide_in_menus: true,
@@ -26,14 +27,14 @@ const DEFAULT_CONFIG = {
     font_size: 13,
   },
   channels: {
-    all:       { enabled: true,  colour: null,      prefix: '',        show_timestamp: false },
-    dialogue:  { enabled: true,  colour: '#ffffff',  prefix: '',        show_timestamp: false },
+    all:       { enabled: true,  colour: null,       prefix: '',         show_timestamp: false },
+    dialogue:  { enabled: true,  colour: '#ffffff',  prefix: '',         show_timestamp: false },
     system:    { enabled: true,  colour: '#f5c518',  prefix: '[SYSTEM]', show_timestamp: false },
-    skyrimnet: { enabled: true,  colour: '#7ec8f5',  prefix: '',        show_timestamp: false },
-    narrator:  { enabled: true,  colour: '#c084fc',  prefix: '[NARR]',  show_timestamp: false },
-    player:    { enabled: true,  colour: '#86efac',  prefix: '',        show_timestamp: false },
+    skyrimnet: { enabled: true,  colour: '#7ec8f5',  prefix: '',         show_timestamp: false },
+    narrator:  { enabled: true,  colour: '#c084fc',  prefix: '[NARR]',   show_timestamp: false },
+    player:    { enabled: true,  colour: '#86efac',  prefix: '',         show_timestamp: false },
     combat:    { enabled: true,  colour: '#fb923c',  prefix: '[COMBAT]', show_timestamp: false },
-    console:   { enabled: false, colour: '#94a3b8',  prefix: '[CON]',   show_timestamp: false },
+    console:   { enabled: false, colour: '#94a3b8',  prefix: '[CON]',    show_timestamp: false },
   },
 };
 
@@ -72,7 +73,7 @@ function escapeHtml(str) {
 }
 
 // ---------------------------------------------------------------------------
-// Config loading
+// Config loading / saving
 // ---------------------------------------------------------------------------
 
 async function loadConfig() {
@@ -89,7 +90,7 @@ async function loadConfig() {
 }
 
 function applyConfig() {
-  const { window: win, general } = config;
+  const { window: win } = config;
   const root = document.documentElement;
 
   if (win.position_x != null) root.style.setProperty('--win-x', win.position_x + 'px');
@@ -99,15 +100,15 @@ function applyConfig() {
   root.style.setProperty('--opacity',    win.opacity);
   root.style.setProperty('--font-size',  win.font_size + 'px');
 
-  // Update channel tab visibility
+  // Channel tab visibility
   document.querySelectorAll('.tab').forEach(tab => {
     const ch = tab.dataset.channel;
-    if (ch === 'all') return; // All is always visible
+    if (!ch) return;
     const chCfg = config.channels[ch];
     tab.classList.toggle('hidden-channel', chCfg ? !chCfg.enabled : false);
   });
 
-  // Apply dynamic speaker colours from config
+  // Dynamic channel colours injected as a <style> block
   const styleId = 'chronicle-channel-colours';
   let styleEl = document.getElementById(styleId);
   if (!styleEl) {
@@ -119,6 +120,14 @@ function applyConfig() {
     .filter(([, v]) => v.colour)
     .map(([ch, v]) => `.message[data-channel="${ch}"] .speaker { color: ${v.colour}; }`);
   styleEl.textContent = rules.join('\n');
+}
+
+function persistConfig() {
+  if (window.skse && typeof window.skse.writeFile === 'function') {
+    window.skse.writeFile('config.json', JSON.stringify(config, null, 2));
+  } else {
+    localStorage.setItem('chronicle_config', JSON.stringify(config));
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -138,13 +147,11 @@ function addMessage(data) {
   const { channel, speaker, message, timestamp } = data;
   const chCfg = config.channels[channel];
 
-  // Drop if channel is disabled (console is disabled by default)
   if (chCfg && !chCfg.enabled) return;
 
   const entry = { channel, speaker, message, timestamp: timestamp || Date.now(), el: null };
   messages.push(entry);
 
-  // Trim history
   while (messages.length > config.general.max_messages) {
     const old = messages.shift();
     old.el?.remove();
@@ -152,18 +159,13 @@ function addMessage(data) {
 
   const el = buildMessageEl(entry, chCfg);
   entry.el = el;
-
-  // Only show if current tab matches
   el.classList.toggle('hidden', !shouldShowMessage(channel));
 
   document.getElementById('message-list').appendChild(el);
   scrollToBottom();
 
-  // Schedule fade-out if configured
   if (config.general.message_fade_time > 0) {
-    setTimeout(() => {
-      el.classList.add('fading');
-    }, config.general.message_fade_time * 1000);
+    setTimeout(() => el.classList.add('fading'), config.general.message_fade_time * 1000);
   }
 }
 
@@ -174,23 +176,15 @@ function buildMessageEl(entry, chCfg) {
   div.dataset.channel = channel;
 
   let html = '';
-
-  // Timestamp
   if (chCfg?.show_timestamp) {
     html += `<span class="timestamp">${escapeHtml(formatTimestamp(timestamp))}</span>`;
   }
-
-  // Prefix
   if (chCfg?.prefix) {
     html += `<span class="prefix">${escapeHtml(chCfg.prefix)}</span>`;
   }
-
-  // Speaker
   if (speaker) {
     html += `<span class="speaker">${escapeHtml(speaker)}: </span>`;
   }
-
-  // Message text
   html += `<span class="text">${escapeHtml(message)}</span>`;
 
   div.innerHTML = html;
@@ -198,10 +192,7 @@ function buildMessageEl(entry, chCfg) {
 }
 
 function shouldShowMessage(channel) {
-  if (activeChannel === 'all') {
-    // All tab shows everything except console
-    return channel !== 'console';
-  }
+  if (activeChannel === 'all') return channel !== 'console';
   return channel === activeChannel;
 }
 
@@ -217,16 +208,13 @@ function scrollToBottom() {
 function switchChannel(channel) {
   activeChannel = channel;
 
-  // Update tab styles
   document.querySelectorAll('.tab').forEach(tab => {
     tab.classList.toggle('active', tab.dataset.channel === channel);
   });
 
-  // Update input label
   document.getElementById('input-channel-label').textContent =
     '[' + channel.charAt(0).toUpperCase() + channel.slice(1) + ']';
 
-  // Show/hide messages
   document.querySelectorAll('.message').forEach(el => {
     el.classList.toggle('hidden', !shouldShowMessage(el.dataset.channel));
   });
@@ -241,7 +229,7 @@ function switchChannel(channel) {
 let inputOpen = false;
 
 function openInput() {
-  if (inputOpen) return;
+  if (inputOpen || settingsOpen) return;
   inputOpen = true;
 
   const bar = document.getElementById('input-bar');
@@ -250,7 +238,6 @@ function openInput() {
   input.value = '';
   input.focus();
 
-  // Notify C++ to acquire focus (fixes mouse stuck bug)
   sendToGame('focusAcquired', '');
 }
 
@@ -258,12 +245,9 @@ function closeInput() {
   if (!inputOpen) return;
   inputOpen = false;
 
-  const bar = document.getElementById('input-bar');
-  const input = document.getElementById('chat-input');
-  bar.classList.add('hidden');
-  input.blur();
+  document.getElementById('input-bar').classList.add('hidden');
+  document.getElementById('chat-input').blur();
 
-  // Notify C++ to release focus
   sendToGame('focusReleased', '');
 }
 
@@ -283,6 +267,183 @@ function submitInput() {
 
   closeInput();
 }
+
+// ---------------------------------------------------------------------------
+// Settings panel
+// ---------------------------------------------------------------------------
+
+let settingsOpen = false;
+
+const CHANNEL_LABELS = {
+  all: 'All', dialogue: 'Dialogue', system: 'System',
+  skyrimnet: 'SkyrimNet', narrator: 'Narrator',
+  player: 'Player', combat: 'Combat', console: 'Console',
+};
+
+function openSettings() {
+  if (settingsOpen) return;
+  // Close input bar first if open
+  closeInput();
+  settingsOpen = true;
+
+  populateSettingsForm();
+  document.getElementById('settings-overlay').classList.remove('hidden');
+  sendToGame('focusAcquired', '');
+}
+
+function closeSettings() {
+  if (!settingsOpen) return;
+  settingsOpen = false;
+
+  document.getElementById('settings-overlay').classList.add('hidden');
+  sendToGame('focusReleased', '');
+}
+
+function toggleSettings() {
+  if (settingsOpen) closeSettings();
+  else openSettings();
+}
+
+function populateSettingsForm() {
+  const g = config.general;
+  const w = config.window;
+
+  document.getElementById('sp-enabled').checked     = g.enabled;
+  document.getElementById('sp-hide-menus').checked  = g.hide_in_menus;
+  document.getElementById('sp-hide-photo').checked  = g.hide_in_photo_mode;
+  document.getElementById('sp-config-hotkey').value = g.config_hotkey || 'N';
+  document.getElementById('sp-input-hotkey').value  = g.input_hotkey  || 'Enter';
+  document.getElementById('sp-max-messages').value  = g.max_messages;
+
+  const fadeEl = document.getElementById('sp-fade-time');
+  fadeEl.value = g.message_fade_time;
+  document.getElementById('sp-fade-time-val').textContent = g.message_fade_time;
+
+  const opEl = document.getElementById('sp-opacity');
+  opEl.value = w.opacity;
+  document.getElementById('sp-opacity-val').textContent = parseFloat(w.opacity).toFixed(2);
+
+  const fsEl = document.getElementById('sp-font-size');
+  fsEl.value = w.font_size;
+  document.getElementById('sp-font-size-val').textContent = w.font_size;
+
+  document.getElementById('sp-width').value  = w.width;
+  document.getElementById('sp-height').value = w.height;
+
+  buildChannelRows();
+}
+
+function buildChannelRows() {
+  const container = document.getElementById('sp-channel-list');
+  container.innerHTML = '';
+
+  for (const [ch, label] of Object.entries(CHANNEL_LABELS)) {
+    const cfg = config.channels[ch] || DEFAULT_CONFIG.channels[ch];
+    const row = document.createElement('div');
+    row.className = 'sp-ch-row';
+    row.dataset.channel = ch;
+
+    row.innerHTML = `
+      <span class="sp-ch-name">${label}</span>
+      <label class="sp-toggle">
+        <input type="checkbox" class="ch-enabled" ${cfg.enabled ? 'checked' : ''} />
+        <span class="sp-track"></span>
+      </label>
+      <input type="text" class="ch-prefix" value="${escapeHtml(cfg.prefix || '')}"
+             placeholder="Prefix" maxlength="16" />
+      <input type="color" class="ch-colour" value="${cfg.colour || '#ffffff'}"
+             ${ch === 'all' ? 'disabled' : ''} />
+    `;
+
+    container.appendChild(row);
+  }
+}
+
+function collectSettingsFromForm() {
+  const channels = {};
+  document.querySelectorAll('.sp-ch-row').forEach(row => {
+    const ch = row.dataset.channel;
+    channels[ch] = {
+      enabled:        row.querySelector('.ch-enabled').checked,
+      colour:         ch === 'all' ? null : row.querySelector('.ch-colour').value,
+      prefix:         row.querySelector('.ch-prefix').value,
+      show_timestamp: (config.channels[ch] || {}).show_timestamp || false,
+    };
+  });
+
+  return {
+    general: {
+      enabled:            document.getElementById('sp-enabled').checked,
+      config_hotkey:      document.getElementById('sp-config-hotkey').value || 'N',
+      input_hotkey:       document.getElementById('sp-input-hotkey').value  || 'Enter',
+      max_messages:       parseInt(document.getElementById('sp-max-messages').value, 10) || 100,
+      message_fade_time:  parseInt(document.getElementById('sp-fade-time').value, 10) || 0,
+      hide_in_menus:      document.getElementById('sp-hide-menus').checked,
+      hide_in_photo_mode: document.getElementById('sp-hide-photo').checked,
+    },
+    window: {
+      width:     parseInt(document.getElementById('sp-width').value, 10)      || 520,
+      height:    parseInt(document.getElementById('sp-height').value, 10)     || 240,
+      opacity:   parseFloat(document.getElementById('sp-opacity').value)      || 0.65,
+      font_size: parseInt(document.getElementById('sp-font-size').value, 10)  || 13,
+      position_x: config.window.position_x,
+      position_y: config.window.position_y,
+    },
+    channels,
+  };
+}
+
+function applyAndSaveSettings() {
+  const newCfg = collectSettingsFromForm();
+  config = deepMerge(config, newCfg);
+  applyConfig();
+  persistConfig();
+  sendToGame('settingsChanged', JSON.stringify(config));
+}
+
+// Settings panel tab switching
+document.getElementById('sp-tabs').addEventListener('click', e => {
+  const tab = e.target.closest('.sp-tab');
+  if (!tab) return;
+  const section = tab.dataset.sp;
+  document.querySelectorAll('.sp-tab').forEach(t => t.classList.toggle('active', t === tab));
+  document.querySelectorAll('.sp-section').forEach(s => {
+    s.classList.toggle('active', s.id === 'sp-' + section);
+  });
+});
+
+// Slider live labels
+function bindSlider(id, valId, fmt) {
+  const slider = document.getElementById(id);
+  const label  = document.getElementById(valId);
+  slider.addEventListener('input', () => {
+    label.textContent = fmt ? fmt(slider.value) : slider.value;
+  });
+}
+bindSlider('sp-opacity',   'sp-opacity-val',   v => parseFloat(v).toFixed(2));
+bindSlider('sp-font-size', 'sp-font-size-val', v => v);
+bindSlider('sp-fade-time', 'sp-fade-time-val', v => v);
+
+// Settings close button
+document.getElementById('sp-close').addEventListener('click', closeSettings);
+
+// Settings Apply / Reset
+document.getElementById('sp-apply').addEventListener('click', () => {
+  applyAndSaveSettings();
+  closeSettings();
+});
+
+document.getElementById('sp-reset').addEventListener('click', () => {
+  config = deepMerge({}, DEFAULT_CONFIG);
+  populateSettingsForm();
+  applyConfig();
+});
+
+// Gear icon button
+document.getElementById('settings-btn').addEventListener('click', e => {
+  e.stopPropagation();
+  toggleSettings();
+});
 
 // ---------------------------------------------------------------------------
 // PrismaUI bridge
@@ -321,15 +482,6 @@ function saveWindowState(x, y, w, h) {
   persistConfig();
 }
 
-function persistConfig() {
-  // PrismaUI exposes a file-write API; fall back to localStorage in dev
-  if (window.skse && typeof window.skse.writeFile === 'function') {
-    window.skse.writeFile('config.json', JSON.stringify(config, null, 2));
-  } else {
-    localStorage.setItem('chronicle_config', JSON.stringify(config));
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Drag to move
 // ---------------------------------------------------------------------------
@@ -339,11 +491,10 @@ function persistConfig() {
   let dragging = false;
   let startX, startY, origX, origY;
 
-  // Drag only from the tabs bar (not message area)
   const handle = document.getElementById('channel-tabs');
 
   handle.addEventListener('mousedown', e => {
-    if (e.target.classList.contains('tab')) return; // clicking a tab, not dragging
+    if (e.target.classList.contains('tab') || e.target.id === 'settings-btn') return;
     dragging = true;
     startX = e.clientX;
     startY = e.clientY;
@@ -355,23 +506,17 @@ function persistConfig() {
 
   document.addEventListener('mousemove', e => {
     if (!dragging) return;
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
-    const newX = origX + dx;
-    const newY = origY + dy;
-    win.style.left = newX + 'px';
-    win.style.top  = newY + 'px';
+    win.style.left = (origX + e.clientX - startX) + 'px';
+    win.style.top  = (origY + e.clientY - startY) + 'px';
   });
 
-  document.addEventListener('mouseup', e => {
+  document.addEventListener('mouseup', () => {
     if (!dragging) return;
     dragging = false;
     const style = getComputedStyle(win);
     saveWindowState(
-      parseInt(style.left, 10),
-      parseInt(style.top, 10),
-      parseInt(style.width, 10),
-      parseInt(style.height, 10),
+      parseInt(style.left, 10), parseInt(style.top, 10),
+      parseInt(style.width, 10), parseInt(style.height, 10),
     );
   });
 })();
@@ -386,7 +531,6 @@ function persistConfig() {
   let resizing = false;
   let startX, startY, origW, origH;
 
-  // Keep the handle positioned at the window's bottom-right corner
   function positionHandle() {
     const r = win.getBoundingClientRect();
     handle.style.left = (r.right - 14) + 'px';
@@ -397,19 +541,15 @@ function persistConfig() {
 
   handle.addEventListener('mousedown', e => {
     resizing = true;
-    startX = e.clientX;
-    startY = e.clientY;
-    origW = win.offsetWidth;
-    origH = win.offsetHeight;
+    startX = e.clientX; startY = e.clientY;
+    origW = win.offsetWidth; origH = win.offsetHeight;
     e.preventDefault();
   });
 
   document.addEventListener('mousemove', e => {
     if (!resizing) return;
-    const newW = Math.max(280, origW + (e.clientX - startX));
-    const newH = Math.max(120, origH + (e.clientY - startY));
-    win.style.width  = newW + 'px';
-    win.style.height = newH + 'px';
+    win.style.width  = Math.max(280, origW + (e.clientX - startX)) + 'px';
+    win.style.height = Math.max(120, origH + (e.clientY - startY)) + 'px';
     positionHandle();
   });
 
@@ -418,10 +558,8 @@ function persistConfig() {
     resizing = false;
     const style = getComputedStyle(win);
     saveWindowState(
-      parseInt(style.left, 10),
-      parseInt(style.top, 10),
-      parseInt(style.width, 10),
-      parseInt(style.height, 10),
+      parseInt(style.left, 10), parseInt(style.top, 10),
+      parseInt(style.width, 10), parseInt(style.height, 10),
     );
   });
 })();
@@ -431,6 +569,16 @@ function persistConfig() {
 // ---------------------------------------------------------------------------
 
 document.addEventListener('keydown', e => {
+  // Settings panel takes priority when open
+  if (settingsOpen) {
+    if (e.key === 'Escape') {
+      closeSettings();
+      e.preventDefault();
+    }
+    return;
+  }
+
+  // Input bar
   if (inputOpen) {
     if (e.key === 'Escape') {
       closeInput();
@@ -439,19 +587,25 @@ document.addEventListener('keydown', e => {
       submitInput();
       e.preventDefault();
     } else if (e.key === 'Tab') {
-      // Cycle channel tabs
-      const tabs = [...document.querySelectorAll('.tab')];
+      const tabs = [...document.querySelectorAll('.tab[data-channel]')];
       const current = tabs.findIndex(t => t.dataset.channel === activeChannel);
-      const next = tabs[(current + 1) % tabs.length];
-      switchChannel(next.dataset.channel);
+      switchChannel(tabs[(current + 1) % tabs.length].dataset.channel);
       e.preventDefault();
     }
-    return; // Suppress all other keys while input is open
+    return;
   }
 
-  // Input hotkey (default Enter) — open the input bar
-  const hotkey = config.general.input_hotkey || 'Enter';
-  if (e.key === hotkey) {
+  // Shift + config_hotkey → open settings
+  const cfgKey = (config.general.config_hotkey || 'N').toUpperCase();
+  if (e.shiftKey && e.key === cfgKey) {
+    openSettings();
+    e.preventDefault();
+    return;
+  }
+
+  // Input hotkey → open input bar
+  const inputKey = config.general.input_hotkey || 'Enter';
+  if (e.key === inputKey) {
     openInput();
     e.preventDefault();
   }
@@ -462,7 +616,7 @@ document.addEventListener('keydown', e => {
 // ---------------------------------------------------------------------------
 
 document.getElementById('channel-tabs').addEventListener('click', e => {
-  const tab = e.target.closest('.tab');
+  const tab = e.target.closest('.tab[data-channel]');
   if (tab) switchChannel(tab.dataset.channel);
 });
 
@@ -471,7 +625,6 @@ document.getElementById('channel-tabs').addEventListener('click', e => {
 // ---------------------------------------------------------------------------
 
 loadConfig().then(() => {
-  // Restore any config saved in localStorage during dev (no-op in production)
   const saved = localStorage.getItem('chronicle_config');
   if (saved) {
     try { config = deepMerge(config, JSON.parse(saved)); applyConfig(); } catch (_) {}

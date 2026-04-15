@@ -25,6 +25,9 @@ public:
 
     void OnMenuOpenClose(std::string_view a_menuName, bool a_opening);
 
+    // Called when any game menu opens so we can release focus and close the input bar.
+    void ForceCloseInput();
+
     // Called by JS listener callbacks (bare function pointers — no captures)
     void OnPlayerInput(std::string_view a_text);
     void OnConsoleCommand(std::string_view a_command);

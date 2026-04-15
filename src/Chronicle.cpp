@@ -2,11 +2,17 @@
 #include "Events.h"
 #include "MessageBuilder.h"
 
+// Forward declaration needed for SubtitlePoller::Start() in OnDataLoaded
+// (definition is in Events.h which Chronicle.h pulls in via PCH)
+
 void Chronicle::OnDataLoaded()
 {
     spdlog::info("Chronicle: OnDataLoaded");
     RegisterEventSinks();
     InitPrismaUI();
+    // Start subtitle polling immediately — follower ambient dialogue shows subtitles
+    // without opening DialogueMenu, so we must poll regardless of menu state.
+    SubtitlePoller::GetSingleton().Start();
 }
 
 void Chronicle::OnPostLoadGame()
@@ -17,6 +23,8 @@ void Chronicle::OnPostLoadGame()
         m_prismaUI->Show(m_view);
         m_hidden = false;
     }
+    // Re-start subtitle polling in case it stopped between loads.
+    SubtitlePoller::GetSingleton().Start();
 }
 
 void Chronicle::RegisterEventSinks()
@@ -143,6 +151,16 @@ void Chronicle::SendMessage(std::string_view a_channel,
 
     auto json = MessageBuilder::Build(a_channel, a_speaker, a_message);
     InvokeUI(std::string("addMessage(") + json + ")");
+}
+
+void Chronicle::ForceCloseInput()
+{
+    // Release PrismaUI focus and tell JS to close the input bar.
+    // Called whenever a game menu opens so Chronicle cannot hold focus hostage.
+    if (m_prismaUI && m_view) {
+        m_prismaUI->Unfocus(m_view);
+        InvokeUI("closeInput()");
+    }
 }
 
 void Chronicle::OnMenuOpenClose(std::string_view a_menuName, bool a_opening)
