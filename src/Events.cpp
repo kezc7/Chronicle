@@ -104,6 +104,24 @@ void SubtitlePoller::Stop()
     spdlog::info("Chronicle: subtitle polling stopped");
 }
 
+// Strip HTML tags from subtitle text (GFx returns htmlText with <font> etc.)
+static std::string StripHtmlTags(const std::string& a_input)
+{
+    std::string out;
+    out.reserve(a_input.size());
+    bool inTag = false;
+    for (char c : a_input) {
+        if (c == '<') {
+            inTag = true;
+        } else if (c == '>') {
+            inTag = false;
+        } else if (!inTag) {
+            out += c;
+        }
+    }
+    return out;
+}
+
 void SubtitlePoller::PollOnce()
 {
     // This runs on the main game thread. Do NOT call AddTask here.
@@ -111,26 +129,98 @@ void SubtitlePoller::PollOnce()
         return;
     }
 
-    auto* mgr = RE::SubtitleManager::GetSingleton();
-    if (!mgr || mgr->subtitles.empty()) {
-        return;
-    }
+    // --- Path 1: SubtitleManager ---
+    // Populated during formal NPC→player dialogue (DialogueMenu open).
+    // In AE 1.6.1170 ambient/idle follower lines do NOT go through this path.
+    {
+        auto* mgr = RE::SubtitleManager::GetSingleton();
+        if (mgr && !mgr->subtitles.empty()) {
+            const auto& info = mgr->subtitles[0];
+            std::string text = info.subtitle.c_str();
+            if (!text.empty() && text != m_lastText) {
+                m_lastText = text;
+                spdlog::debug("Chronicle: subtitle (mgr): '{}'", text);
 
-    const auto& info = mgr->subtitles[0];
-    std::string text = info.subtitle.c_str();
-    if (text.empty() || text == m_lastText) {
-        return;
-    }
+                std::string speakerName;
+                if (auto speakerRef = info.speaker.get()) {
+                    if (auto* name = speakerRef->GetDisplayFullName()) {
+                        speakerName = name;
+                    }
+                }
 
-    m_lastText = text;
-    spdlog::debug("Chronicle: subtitle: '{}'", text);
-
-    std::string speakerName;
-    if (auto speakerRef = info.speaker.get()) {
-        if (auto* name = speakerRef->GetDisplayFullName()) {
-            speakerName = name;
+                Chronicle::GetSingleton()->SendMessage("dialogue", speakerName, text);
+                return;
+            }
         }
     }
 
-    Chronicle::GetSingleton()->SendMessage("dialogue", speakerName, text);
+    // --- Path 2: HUD Menu GFx movie ---
+    // The HUD displays subtitles for ALL speech (ambient, idle, scene dialogue)
+    // by writing directly into the Scaleform movie — bypassing SubtitleManager.
+    // We read the live text field value to capture what the player sees.
+    {
+        auto* ui = RE::UI::GetSingleton();
+        if (!ui) {
+            return;
+        }
+
+        auto hudMenuPtr = ui->GetMenu("HUD Menu");
+        if (!hudMenuPtr || !hudMenuPtr->uiMovie) {
+            return;
+        }
+
+        auto* movie = hudMenuPtr->uiMovie.get();
+
+        // Try known ActionScript paths for the subtitle TextField.
+        // Vanilla HUD uses the first; some replacer mods use alternate names.
+        static constexpr const char* kPaths[] = {
+            "_root.HUDMovieBaseInstance.SubtitleTextHolder.SubtitleText.htmlText",
+            "_root.HUDMovieBaseInstance.SubtitleTextHolder.SubtitleText.text",
+            "_root.HUDMovieBaseInstance.subtitleTextHolder.subtitleText.htmlText",
+            "_root.HUDMovieBaseInstance.subtitleTextHolder.subtitleText.text",
+        };
+
+        bool pathResolved = false;
+        for (auto* path : kPaths) {
+            RE::GFxValue gfxVal;
+            if (!movie->GetVariable(&gfxVal, path)) {
+                continue;
+            }
+            if (!gfxVal.IsString()) {
+                continue;
+            }
+
+            // We found the right path (GetVariable succeeded and returned a string).
+            pathResolved = true;
+
+            const char* raw = gfxVal.GetString();
+            if (!raw || raw[0] == '\0') {
+                // Subtitle field is empty — no subtitle on screen right now.
+                // Clear m_lastText so we don't suppress the same line if it repeats.
+                m_lastText.clear();
+                break;
+            }
+
+            std::string text = StripHtmlTags(raw);
+            if (text.empty() || text == m_lastText) {
+                break;
+            }
+
+            m_lastText = text;
+            spdlog::debug("Chronicle: subtitle (hud): '{}'", text);
+            // No speaker name available from this path
+            Chronicle::GetSingleton()->SendMessage("dialogue", "", text);
+            return;
+        }
+
+        // If no GFx path resolved at all, log once at debug level so we can diagnose
+        if (!pathResolved) {
+            static bool s_warned = false;
+            if (!s_warned) {
+                s_warned = true;
+                spdlog::warn("Chronicle: HUD subtitle GFx paths not found — "
+                             "subtitle capture may be incomplete");
+            }
+        }
+    }
 }
