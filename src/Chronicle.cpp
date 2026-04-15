@@ -1,117 +1,156 @@
 #include "Chronicle.h"
 #include "Events.h"
 #include "MessageBuilder.h"
-#include "PrismaUI.h"
+
+// Forward declaration needed for SubtitlePoller::Start() in OnDataLoaded
+// (definition is in Events.h which Chronicle.h pulls in via PCH)
 
 void Chronicle::OnDataLoaded()
 {
-    spdlog::info("Chronicle: OnDataLoaded — registering event sinks");
+    spdlog::info("Chronicle: OnDataLoaded");
     RegisterEventSinks();
-    LoadConfig();
+    InitPrismaUI();
+    // Do NOT start SubtitlePoller here — kDataLoaded fires at the main menu before
+    // any save is loaded. Starting a recurring AddTask loop at that point causes a
+    // freeze. Polling starts in OnPostLoadGame instead.
 }
 
 void Chronicle::OnPostLoadGame()
 {
-    spdlog::info("Chronicle: OnPostLoadGame — registering JS listeners");
-    RegisterJSListeners();
+    spdlog::info("Chronicle: OnPostLoadGame");
+    // Show the view now that the game is fully loaded.
+    if (m_prismaUI && m_view && m_hidden) {
+        m_prismaUI->Show(m_view);
+        m_hidden = false;
+    }
+    // Mark the game as loaded. The next MenuOpenCloseEvent in MenuEventSink will
+    // start the subtitle poller — this avoids relying on "HUD Menu" which never
+    // fires a MenuOpenCloseEvent (it is always-open and skips the event dispatch).
+    m_gameLoaded = true;
+
+    // Confirm the message pipeline is working end-to-end.
+    SendMessage("system", "Chronicle", "Ready — dialogue will appear here during conversations.");
 }
 
 void Chronicle::RegisterEventSinks()
 {
     auto* ui = RE::UI::GetSingleton();
     if (!ui) {
-        spdlog::error("Chronicle: RE::UI singleton unavailable");
+        spdlog::error("Chronicle: RE::UI unavailable");
         return;
     }
 
-    // Menu open/close — photo mode hiding + dialogue subtitle polling
     ui->AddEventSink<RE::MenuOpenCloseEvent>(&MenuEventSink::GetSingleton());
 
-    // SkyrimNet mod events (SKSE::ModCallbackEvent, not RE::TESModCallbackEvent)
     if (auto* modEvents = SKSE::GetModCallbackEventSource()) {
         modEvents->AddEventSink(&SkyrimNetEventSink::GetSingleton());
     } else {
-        spdlog::warn("Chronicle: SKSE mod callback event source unavailable — SkyrimNet integration disabled");
+        spdlog::warn("Chronicle: SKSE mod callback source unavailable — SkyrimNet disabled");
     }
 
     spdlog::info("Chronicle: event sinks registered");
 }
 
-void Chronicle::RegisterJSListeners()
+void Chronicle::InitPrismaUI()
 {
-    auto* prisma = PrismaUI::GetSingleton();
-    if (!prisma) {
-        spdlog::error("Chronicle: PrismaUI not available");
+    m_prismaUI = PRISMA_UI_API::RequestPluginAPI<PRISMA_UI_API::IVPrismaUI2>();
+    if (m_prismaUI) {
+        m_hasV2 = true;
+    } else {
+        // Try v1 fallback (no console callback support)
+        spdlog::warn("Chronicle: PrismaUI v2 unavailable, trying v1");
+        auto* v1 = PRISMA_UI_API::RequestPluginAPI<PRISMA_UI_API::IVPrismaUI1>();
+        m_prismaUI = reinterpret_cast<PRISMA_UI_API::IVPrismaUI2*>(v1);
+        m_hasV2 = false;
+    }
+
+    if (!m_prismaUI) {
+        spdlog::error("Chronicle: PrismaUI not found — UI will not render. "
+                      "Is PrismaUI installed and loaded before Chronicle?");
         return;
     }
 
-    m_view = prisma->GetView("Chronicle");
+    spdlog::info("Chronicle: PrismaUI API acquired, creating view");
+
+    // CreateView path is relative to Data/PrismaUI/views/
+    m_view = m_prismaUI->CreateView("Chronicle/index.html", [](PrismaView) {
+        Chronicle::GetSingleton()->OnViewReady();
+    });
+
     if (!m_view) {
-        spdlog::error("Chronicle: failed to get PrismaUI view 'Chronicle'");
+        spdlog::error("Chronicle: CreateView returned 0 — check that Chronicle/index.html exists");
+    } else {
+        spdlog::info("Chronicle: view created (handle={})", m_view);
+        // Hide immediately — OnPostLoadGame will show it once the game is fully loaded.
+        // Without this the view renders on the loading screen.
+        m_prismaUI->Hide(m_view);
+        m_hidden = true;
+    }
+}
+
+void Chronicle::OnViewReady()
+{
+    spdlog::info("Chronicle: DOM ready — registering JS listeners");
+
+    if (!m_prismaUI || !m_view) {
         return;
     }
 
     // Player sends a message to SkyrimNet
-    prisma->RegisterJSListener(m_view, "playerInput", [](const char* a_text) {
+    m_prismaUI->RegisterJSListener(m_view, "playerInput", [](const char* a_text) {
         Chronicle::GetSingleton()->OnPlayerInput(a_text);
     });
 
-    // Console command typed in Console channel
-    prisma->RegisterJSListener(m_view, "consoleCommand", [](const char* a_command) {
-        Chronicle::GetSingleton()->OnConsoleCommand(a_command);
+    // Console command from the Console channel
+    m_prismaUI->RegisterJSListener(m_view, "consoleCommand", [](const char* a_cmd) {
+        Chronicle::GetSingleton()->OnConsoleCommand(a_cmd);
     });
 
     // Settings changed live from the settings panel
-    prisma->RegisterJSListener(m_view, "settingsChanged", [](const char* a_json) {
-        try {
-            auto j = nlohmann::json::parse(a_json);
-            Chronicle::GetSingleton()->OnSettingsChanged(j);
-        } catch (const nlohmann::json::exception& e) {
-            spdlog::error("Chronicle: invalid settings JSON — {}", e.what());
+    m_prismaUI->RegisterJSListener(m_view, "settingsChanged", [](const char* a_json) {
+        Chronicle::GetSingleton()->OnSettingsChanged(a_json);
+    });
+
+    // Focus acquired — kUsesCursor handled by PrismaUI's own Focus() call
+    m_prismaUI->RegisterJSListener(m_view, "focusAcquired", [](const char*) {
+        auto* c = Chronicle::GetSingleton();
+        if (c->m_prismaUI) {
+            c->m_prismaUI->Focus(c->m_view);
         }
     });
 
-    // Focus acquired/released by the input bar
-    prisma->RegisterJSListener(m_view, "focusAcquired", [](const char*) {
-        // Ensure the PrismaUI focus menu has kUsesCursor so the mouse doesn't get stuck
-        auto focusMenu = RE::UI::GetSingleton()->GetMenu("PrismaUI_FocusMenu");
-        if (focusMenu) {
-            focusMenu->menuFlags.set(
-                RE::UI_MENU_FLAGS::kUsesCursor,
-                RE::UI_MENU_FLAGS::kAllowSaving);
+    m_prismaUI->RegisterJSListener(m_view, "focusReleased", [](const char*) {
+        auto* c = Chronicle::GetSingleton();
+        if (c->m_prismaUI) {
+            c->m_prismaUI->Unfocus(c->m_view);
         }
-        PrismaUI::GetSingleton()->Focus(Chronicle::GetSingleton()->m_view);
     });
 
-    prisma->RegisterJSListener(m_view, "focusReleased", [](const char*) {
-        PrismaUI::GetSingleton()->Unfocus(Chronicle::GetSingleton()->m_view);
-    });
+    // Console output → Console channel (v2 only)
+    // Guard with m_hasV2: if we fell back to V1, m_prismaUI is a V1 pointer cast to V2*
+    // and calling RegisterConsoleCallback would access an invalid vtable slot → crash.
+    if (m_hasV2) {
+        m_prismaUI->RegisterConsoleCallback(m_view,
+            [](PrismaView, PRISMA_UI_API::ConsoleMessageLevel, const char* a_msg) {
+                Chronicle::GetSingleton()->SendMessage("console", "", a_msg);
+            });
+    } else {
+        spdlog::info("Chronicle: skipping RegisterConsoleCallback (V1 API — no console channel)");
+    }
 
-    // Console output → Console channel
-    prisma->RegisterConsoleCallback([](const char* a_output) {
-        Chronicle::GetSingleton()->SendMessage("console", "", a_output);
-    });
-
-    spdlog::info("Chronicle: JS listeners registered");
-}
-
-void Chronicle::LoadConfig()
-{
-    // Config is owned and persisted by the web UI (config.json).
-    // The UI sends an initial settingsChanged event on startup.
-    spdlog::info("Chronicle: config will be loaded by the web UI on startup");
+    spdlog::info("Chronicle: JS listeners registered — UI ready");
 }
 
 void Chronicle::SendMessage(std::string_view a_channel,
                             std::string_view a_speaker,
                             std::string_view a_message)
 {
-    if (m_hidden) {
+    if (m_hidden || !m_prismaUI || !m_view) {
         return;
     }
 
     if (IsDuplicate(a_channel, a_message)) {
-        spdlog::debug("Chronicle: dropping duplicate on channel '{}'", a_channel);
+        spdlog::debug("Chronicle: dropping duplicate on '{}'", a_channel);
         return;
     }
 
@@ -119,23 +158,72 @@ void Chronicle::SendMessage(std::string_view a_channel,
     InvokeUI(std::string("addMessage(") + json + ")");
 }
 
+void Chronicle::ForceCloseInput()
+{
+    // Release PrismaUI focus and tell JS to close the input bar.
+    // Guard on m_hidden: no-op while the view is hidden during loading so we
+    // don't call into PrismaUI during the loading→world transition.
+    if (m_hidden || !m_prismaUI || !m_view) {
+        return;
+    }
+    m_prismaUI->Unfocus(m_view);
+    InvokeUI("closeInput()");
+}
+
 void Chronicle::OnMenuOpenClose(std::string_view a_menuName, bool a_opening)
 {
-    if (a_menuName == "PhotoMenu") {
-        m_hidden = a_opening;
-        InvokeUI(a_opening ? "hideWindow()" : "showWindow()");
-        spdlog::info("Chronicle: photo mode {} — window {}",
-                     a_opening ? "opened" : "closed",
-                     a_opening ? "hidden" : "shown");
+    // Menus that should hide Chronicle while open.
+    // We use a depth counter so nested menus (e.g. pause inside inventory) work correctly.
+    static constexpr std::array kHideMenus{
+        std::string_view{ "SystemMenu"    },
+        std::string_view{ "TweenMenu"     },
+        std::string_view{ "InventoryMenu" },
+        std::string_view{ "MagicMenu"     },
+        std::string_view{ "MapMenu"       },
+        std::string_view{ "ContainerMenu" },
+        std::string_view{ "Journal Menu"  },
+        std::string_view{ "LevelUpMenu"   },
+        std::string_view{ "StatsMenu"     },
+        std::string_view{ "SleepWaitMenu" },
+        std::string_view{ "FavoritesMenu" },
+        std::string_view{ "BarterMenu"    },
+        std::string_view{ "CraftingMenu"  },
+        std::string_view{ "AlchemyMenu"   },
+        std::string_view{ "PhotoMenu"     },
+    };
+
+    const bool isHideMenu = std::find(kHideMenus.begin(), kHideMenus.end(), a_menuName)
+                            != kHideMenus.end();
+    if (!isHideMenu) {
+        return;
+    }
+
+    if (!m_prismaUI || !m_view) {
+        return;
+    }
+
+    if (a_opening) {
+        if (m_menuDepth.fetch_add(1) == 0) {
+            // First blocking menu — hide the view
+            m_prismaUI->Hide(m_view);
+            spdlog::debug("Chronicle: hiding for menu '{}'", a_menuName);
+        }
+    } else {
+        if (m_menuDepth.fetch_sub(1) <= 1) {
+            // Last blocking menu closed — show the view (unless still loading)
+            m_menuDepth = 0;  // clamp against underflow
+            if (!m_hidden) {
+                m_prismaUI->Show(m_view);
+                spdlog::debug("Chronicle: showing after menu '{}' closed", a_menuName);
+            }
+        }
     }
 }
 
 void Chronicle::OnPlayerInput(std::string_view a_text)
 {
-    // Echo locally to Player channel
     SendMessage("player", "Player", a_text);
 
-    // Fire SkyrimNet_PlayerInput as an SKSE mod callback event
     auto* src = SKSE::GetModCallbackEventSource();
     if (src) {
         SKSE::ModCallbackEvent evt{
@@ -151,15 +239,13 @@ void Chronicle::OnPlayerInput(std::string_view a_text)
 void Chronicle::OnConsoleCommand(std::string_view a_command)
 {
     std::string cmd(a_command);
-    // Strip a leading '/' if the user typed one
     if (!cmd.empty() && cmd.front() == '/') {
         cmd = cmd.substr(1);
     }
 
-    // Execute via RE::Script (the only way in CommonLibSSE-NG without raw trampolines)
     const auto scriptFactory = RE::IFormFactory::GetConcreteFormFactoryByType<RE::Script>();
     if (!scriptFactory) {
-        spdlog::error("Chronicle: could not get Script factory for console command");
+        spdlog::error("Chronicle: Script factory unavailable");
         return;
     }
     const auto script = scriptFactory->Create();
@@ -170,24 +256,21 @@ void Chronicle::OnConsoleCommand(std::string_view a_command)
     }
 }
 
-void Chronicle::OnSettingsChanged(const nlohmann::json&)
+void Chronicle::OnSettingsChanged(std::string_view a_json)
 {
-    // Runtime settings are handled entirely in JS.
-    // If we need to act on specific flags (e.g. hide_in_photo_mode),
-    // pull them here and store in member variables.
     spdlog::info("Chronicle: settings updated from UI");
+    // Settings are handled in JS; nothing for C++ to act on yet.
+    (void)a_json;
 }
 
 bool Chronicle::IsDuplicate(std::string_view a_channel, std::string_view a_message)
 {
     std::lock_guard lock(m_dedupMutex);
-
     auto now = std::chrono::steady_clock::now();
 
     if (m_lastMessage.has_value()) {
         auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                           now - m_lastMessage->time)
-                           .count();
+                           now - m_lastMessage->time).count();
         if (elapsed < 500 &&
             m_lastMessage->channel == a_channel &&
             m_lastMessage->message == a_message) {
@@ -201,10 +284,7 @@ bool Chronicle::IsDuplicate(std::string_view a_channel, std::string_view a_messa
 
 void Chronicle::InvokeUI(std::string_view a_js)
 {
-    if (!m_view) {
-        return;
-    }
-    if (auto* prisma = PrismaUI::GetSingleton()) {
-        prisma->Invoke(m_view, a_js.data());
+    if (m_prismaUI && m_view) {
+        m_prismaUI->Invoke(m_view, a_js.data());
     }
 }
