@@ -79,73 +79,58 @@ void SubtitlePoller::Start()
     m_lastText.clear();
     spdlog::info("Chronicle: subtitle polling started");
 
-    // Schedule a recurring main-thread task via SKSE::GetTaskInterface
-    auto* tasks = SKSE::GetTaskInterface();
-    if (!tasks) {
-        spdlog::warn("Chronicle: SKSE task interface unavailable — subtitle polling disabled");
-        m_running = false;
-        return;
-    }
+    // Spawn a background thread that sleeps kPollInterval then schedules a
+    // one-shot AddTask to read SubtitleManager on the main thread.
+    // We never re-enqueue from inside the task — that would drain SKSE's
+    // while(!empty) task queue infinitely and freeze the game.
+    std::thread([this]() {
+        while (m_running) {
+            std::this_thread::sleep_for(kPollInterval);
+            if (!m_running) break;
 
-    // Enqueue the first poll; each poll re-enqueues itself while running.
-    tasks->AddTask([this]() { Poll(); });
+            auto* tasks = SKSE::GetTaskInterface();
+            if (tasks) {
+                tasks->AddTask([this]() { PollOnce(); });
+            }
+        }
+        spdlog::info("Chronicle: subtitle polling thread exiting");
+    }).detach();
 }
 
 void SubtitlePoller::Stop()
 {
     m_running = false;
     m_lastText.clear();
-    spdlog::debug("Chronicle: subtitle polling stopped");
+    spdlog::info("Chronicle: subtitle polling stopped");
 }
 
-void SubtitlePoller::Poll()
+void SubtitlePoller::PollOnce()
 {
+    // This runs on the main game thread. Do NOT call AddTask here.
     if (!m_running) {
         return;
     }
 
-    // Only do real work every kPollEveryNFrames frames (~10Hz at 60fps).
-    // Re-enqueue every frame so we don't drift, but skip the subtitle read
-    // on intermediate frames to keep task overhead negligible.
-    if (++m_skipCounter < kPollEveryNFrames) {
-        auto* tasks = SKSE::GetTaskInterface();
-        if (tasks) {
-            tasks->AddTask([this]() { Poll(); });
-        }
+    auto* mgr = RE::SubtitleManager::GetSingleton();
+    if (!mgr || mgr->subtitles.empty()) {
         return;
     }
-    m_skipCounter = 0;
 
-    auto* mgr = RE::SubtitleManager::GetSingleton();
-    spdlog::debug("Chronicle: Poll — mgr={} count={}",
-                  mgr ? "ok" : "null",
-                  mgr ? static_cast<int>(mgr->subtitles.size()) : -1);
-    if (mgr && !mgr->subtitles.empty()) {
-        // Take the first subtitle — that's the active one
-        const auto& info = mgr->subtitles[0];
-        std::string text = info.subtitle.c_str();
-        spdlog::debug("Chronicle: Poll — subtitle text='{}'", text);
+    const auto& info = mgr->subtitles[0];
+    std::string text = info.subtitle.c_str();
+    if (text.empty() || text == m_lastText) {
+        return;
+    }
 
-        if (!text.empty() && text != m_lastText) {
-            m_lastText = text;
+    m_lastText = text;
+    spdlog::debug("Chronicle: subtitle: '{}'", text);
 
-            // Resolve speaker name from handle
-            std::string speakerName;
-            auto speakerRef = info.speaker.get();
-            if (speakerRef) {
-                auto* name = speakerRef->GetDisplayFullName();
-                if (name) {
-                    speakerName = name;
-                }
-            }
-
-            Chronicle::GetSingleton()->SendMessage("dialogue", speakerName, text);
+    std::string speakerName;
+    if (auto speakerRef = info.speaker.get()) {
+        if (auto* name = speakerRef->GetDisplayFullName()) {
+            speakerName = name;
         }
     }
 
-    // Re-enqueue for next frame if still active
-    auto* tasks = SKSE::GetTaskInterface();
-    if (tasks && m_running) {
-        tasks->AddTask([this]() { Poll(); });
-    }
+    Chronicle::GetSingleton()->SendMessage("dialogue", speakerName, text);
 }
