@@ -1,7 +1,7 @@
 #pragma once
 
-#include "PCH.h"
 #include "PrismaUI.h"
+#include "PCH.h"
 
 class Chronicle
 {
@@ -25,24 +25,28 @@ public:
 
     void OnMenuOpenClose(std::string_view a_menuName, bool a_opening);
 
-    // Called by JS listener callbacks
+    // Called by JS listener callbacks (bare function pointers — no captures)
     void OnPlayerInput(std::string_view a_text);
     void OnConsoleCommand(std::string_view a_command);
-    void OnSettingsChanged(const nlohmann::json& a_settings);
+    void OnSettingsChanged(std::string_view a_json);
 
-    // PrismaUI view handle — exposed for lambda capture in RegisterJSListeners
-    void* m_view{ nullptr };
+    // PrismaUI view handle — set in CreateView DOM-ready callback
+    PrismaView m_view{ 0 };
 
 private:
     Chronicle() = default;
 
     void RegisterEventSinks();
-    void RegisterJSListeners();
-    void LoadConfig();
+    void InitPrismaUI();        // called on kDataLoaded — gets API + creates view
+    void OnViewReady();         // called by DOM-ready callback — registers JS listeners
 
     bool IsDuplicate(std::string_view a_channel, std::string_view a_message);
-
     void InvokeUI(std::string_view a_js);
+
+    PRISMA_UI_API::IVPrismaUI2* m_prismaUI{ nullptr };
+    bool m_hasV2{ false };  // true only when we got a real IVPrismaUI2, not a V1 cast
+
+    std::atomic<bool> m_hidden{ false };
 
     struct LastMessage
     {
@@ -52,7 +56,4 @@ private:
     };
     std::optional<LastMessage> m_lastMessage;
     std::mutex m_dedupMutex;
-
-    // Whether to suppress messages (e.g. photo mode active)
-    std::atomic<bool> m_hidden{ false };
 };
