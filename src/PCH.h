@@ -1,5 +1,8 @@
 #pragma once
 
+// PrismaUI must come first — it sets WIN32_LEAN_AND_MEAN before <Windows.h>
+#include "PrismaUI_API.h"
+
 #include <RE/Skyrim.h>
 #include <SKSE/SKSE.h>
 
@@ -13,6 +16,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <unordered_map>
 #include <vector>
 

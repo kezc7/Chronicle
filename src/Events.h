@@ -52,9 +52,12 @@ private:
 };
 
 // ---- Subtitle Poller ------------------------------------------------------
-// SubtitleManager has no event dispatch. We poll its subtitle array on the
-// main thread whenever the DialogueMenu is open and forward new lines to
-// Chronicle. The MenuEventSink drives start/stop.
+// SubtitleManager has no event dispatch so we poll it periodically.
+//
+// IMPORTANT: SKSE's AddTask queue is drained with while(!empty), so any task
+// that re-enqueues itself causes an infinite loop and freezes the game.
+// We therefore use a background thread for timing and fire one-shot AddTask
+// calls that read SubtitleManager on the main thread without re-enqueueing.
 
 class SubtitlePoller
 {
@@ -75,15 +78,13 @@ public:
 private:
     SubtitlePoller() = default;
 
-    // Runs on the SKSE task thread — reads SubtitleManager and forwards
-    // any new (speaker, text) pair to Chronicle.
-    void Poll();
+    // Called on the main thread (via AddTask) — reads SubtitleManager once.
+    // Does NOT re-enqueue itself; the background thread schedules the next call.
+    void PollOnce();
 
     std::string m_lastText;
     std::atomic<bool> m_running{ false };
-    int m_skipCounter{ 0 };
 
-    // Poll once every N frames. At 60fps, 6 = ~10Hz — fast enough to catch
-    // any subtitle change, slow enough not to spam the task queue.
-    static constexpr int kPollEveryNFrames = 6;
+    // How long to sleep between polls. 100ms = ~10 Hz.
+    static constexpr auto kPollInterval = std::chrono::milliseconds(100);
 };
