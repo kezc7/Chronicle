@@ -97,6 +97,18 @@ void SubtitlePoller::Poll()
         return;
     }
 
+    // Only do real work every kPollEveryNFrames frames (~10Hz at 60fps).
+    // Re-enqueue every frame so we don't drift, but skip the subtitle read
+    // on intermediate frames to keep task overhead negligible.
+    if (++m_skipCounter < kPollEveryNFrames) {
+        auto* tasks = SKSE::GetTaskInterface();
+        if (tasks) {
+            tasks->AddTask([this]() { Poll(); });
+        }
+        return;
+    }
+    m_skipCounter = 0;
+
     auto* mgr = RE::SubtitleManager::GetSingleton();
     if (mgr && !mgr->subtitles.empty()) {
         // Take the first subtitle — that's the active one
