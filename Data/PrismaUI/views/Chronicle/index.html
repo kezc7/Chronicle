@@ -9,7 +9,7 @@
 <body>
   <div id="chronicle-window">
 
-    <!-- Channel tabs -->
+    <!-- Channel tabs + settings button -->
     <div id="channel-tabs">
       <button class="tab active" data-channel="all">All</button>
       <button class="tab" data-channel="dialogue">Dialogue</button>
@@ -19,6 +19,7 @@
       <button class="tab" data-channel="player">Player</button>
       <button class="tab" data-channel="combat">Combat</button>
       <button class="tab" data-channel="console">Console</button>
+      <button id="settings-btn" title="Settings (Shift+N)">&#9881;</button>
     </div>
 
     <!-- Message list -->
@@ -35,6 +36,123 @@
 
   <!-- Resize handle -->
   <div id="resize-handle"></div>
+
+  <!-- Settings overlay (hidden; opened with Shift+N or the gear button) -->
+  <div id="settings-overlay" class="hidden">
+    <div id="settings-panel">
+
+      <div id="sp-header">
+        <span>Chronicle Settings</span>
+        <button id="sp-close" title="Close (Escape)">&#x2715;</button>
+      </div>
+
+      <div id="sp-tabs">
+        <button class="sp-tab active" data-sp="general">General</button>
+        <button class="sp-tab" data-sp="channels">Channels</button>
+      </div>
+
+      <div id="sp-content">
+
+        <!-- General -->
+        <div id="sp-general" class="sp-section active">
+
+          <div class="sp-group">
+            <h3>Behaviour</h3>
+            <div class="sp-row">
+              <label>Enabled<span class="sp-hint">Master on/off switch</span></label>
+              <label class="sp-toggle">
+                <input type="checkbox" id="sp-enabled" checked />
+                <span class="sp-track"></span>
+              </label>
+            </div>
+            <div class="sp-row">
+              <label>Hide in menus<span class="sp-hint">Auto-hide when any game menu opens</span></label>
+              <label class="sp-toggle">
+                <input type="checkbox" id="sp-hide-menus" checked />
+                <span class="sp-track"></span>
+              </label>
+            </div>
+            <div class="sp-row">
+              <label>Hide in Photo Mode<span class="sp-hint">Auto-hide during Photo Mode</span></label>
+              <label class="sp-toggle">
+                <input type="checkbox" id="sp-hide-photo" checked />
+                <span class="sp-track"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="sp-group">
+            <h3>Hotkeys</h3>
+            <div class="sp-row">
+              <label>Settings hotkey<span class="sp-hint">Shift + this key opens settings</span></label>
+              <input type="text" id="sp-config-hotkey" value="N" maxlength="8" />
+            </div>
+            <div class="sp-row">
+              <label>Input hotkey<span class="sp-hint">Key to open the chat input bar</span></label>
+              <input type="text" id="sp-input-hotkey" value="Enter" maxlength="20" />
+            </div>
+          </div>
+
+          <div class="sp-group">
+            <h3>History</h3>
+            <div class="sp-row">
+              <label>Max messages<span class="sp-hint">Lines kept in scroll-back (1–500)</span></label>
+              <input type="number" id="sp-max-messages" value="100" min="1" max="500" />
+            </div>
+            <div class="sp-row">
+              <label>Fade time (s)<span class="sp-hint">0 = never fade</span></label>
+              <div class="sp-slider">
+                <input type="range" id="sp-fade-time" min="0" max="60" step="1" value="0" />
+                <span class="sp-slider-val" id="sp-fade-time-val">0</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-group">
+            <h3>Appearance</h3>
+            <div class="sp-row">
+              <label>Opacity</label>
+              <div class="sp-slider">
+                <input type="range" id="sp-opacity" min="0" max="1" step="0.05" value="0.65" />
+                <span class="sp-slider-val" id="sp-opacity-val">0.65</span>
+              </div>
+            </div>
+            <div class="sp-row">
+              <label>Font size (px)</label>
+              <div class="sp-slider">
+                <input type="range" id="sp-font-size" min="10" max="24" step="1" value="13" />
+                <span class="sp-slider-val" id="sp-font-size-val">13</span>
+              </div>
+            </div>
+            <div class="sp-row">
+              <label>Width (px)</label>
+              <input type="number" id="sp-width" value="520" min="280" max="1920" />
+            </div>
+            <div class="sp-row">
+              <label>Height (px)</label>
+              <input type="number" id="sp-height" value="240" min="120" max="1080" />
+            </div>
+          </div>
+
+        </div><!-- /sp-general -->
+
+        <!-- Channels -->
+        <div id="sp-channels" class="sp-section">
+          <div class="sp-group">
+            <h3>Channel configuration</h3>
+            <div id="sp-channel-list"><!-- populated by JS --></div>
+          </div>
+        </div>
+
+      </div><!-- /sp-content -->
+
+      <div id="sp-footer">
+        <button class="sp-btn" id="sp-reset">Reset</button>
+        <button class="sp-btn sp-primary" id="sp-apply">Apply</button>
+      </div>
+
+    </div><!-- /settings-panel -->
+  </div><!-- /settings-overlay -->
 
   <script src="script.js"></script>
 </body>
