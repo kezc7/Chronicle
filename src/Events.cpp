@@ -23,6 +23,7 @@ RE::BSEventNotifyControl MenuEventSink::ProcessEvent(
         // "HUD Menu" opening means the world is fully loaded and rendering —
         // safe point to start the subtitle poller.
         if (menuName == "HUD Menu") {
+            spdlog::info("Chronicle: HUD Menu opened — starting subtitle poller");
             SubtitlePoller::GetSingleton().Start();
         }
     }
@@ -69,11 +70,12 @@ RE::BSEventNotifyControl SkyrimNetEventSink::ProcessEvent(
 void SubtitlePoller::Start()
 {
     if (m_running.exchange(true)) {
-        return; // already running
+        spdlog::info("Chronicle: SubtitlePoller::Start called but already running");
+        return;
     }
 
     m_lastText.clear();
-    spdlog::debug("Chronicle: subtitle polling started");
+    spdlog::info("Chronicle: subtitle polling started");
 
     // Schedule a recurring main-thread task via SKSE::GetTaskInterface
     auto* tasks = SKSE::GetTaskInterface();
@@ -113,10 +115,14 @@ void SubtitlePoller::Poll()
     m_skipCounter = 0;
 
     auto* mgr = RE::SubtitleManager::GetSingleton();
+    spdlog::debug("Chronicle: Poll — mgr={} count={}",
+                  mgr ? "ok" : "null",
+                  mgr ? static_cast<int>(mgr->subtitles.size()) : -1);
     if (mgr && !mgr->subtitles.empty()) {
         // Take the first subtitle — that's the active one
         const auto& info = mgr->subtitles[0];
         std::string text = info.subtitle.c_str();
+        spdlog::debug("Chronicle: Poll — subtitle text='{}'", text);
 
         if (!text.empty() && text != m_lastText) {
             m_lastText = text;
