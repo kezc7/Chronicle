@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chronicle</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="chronicle-window">
+
+    <!-- Channel tabs -->
+    <div id="channel-tabs">
+      <button class="tab active" data-channel="all">All</button>
+      <button class="tab" data-channel="dialogue">Dialogue</button>
+      <button class="tab" data-channel="system">System</button>
+      <button class="tab" data-channel="skyrimnet">SkyrimNet</button>
+      <button class="tab" data-channel="narrator">Narrator</button>
+      <button class="tab" data-channel="player">Player</button>
+      <button class="tab" data-channel="combat">Combat</button>
+      <button class="tab" data-channel="console">Console</button>
+    </div>
+
+    <!-- Message list -->
+    <div id="message-list"></div>
+
+    <!-- Input bar (hidden until activated) -->
+    <div id="input-bar" class="hidden">
+      <span id="input-channel-label">[All]</span>
+      <input id="chat-input" type="text" autocomplete="off" spellcheck="false"
+             placeholder="Type a message… (Escape to cancel)" />
+    </div>
+
+  </div>
+
+  <!-- Resize handle -->
+  <div id="resize-handle"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
