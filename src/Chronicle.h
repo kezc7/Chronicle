@@ -49,7 +49,8 @@ private:
     PRISMA_UI_API::IVPrismaUI2* m_prismaUI{ nullptr };
     bool m_hasV2{ false };  // true only when we got a real IVPrismaUI2, not a V1 cast
 
-    std::atomic<bool> m_hidden{ false };
+    std::atomic<bool> m_hidden{ false };     // true while loading — gates SendMessage
+    std::atomic<int>  m_menuDepth{ 0 };    // depth of blocking game menus currently open
 
     struct LastMessage
     {
