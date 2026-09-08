@@ -243,26 +243,6 @@ function applyConfig() {
   requestAnimationFrame(updateResizeHandlePosition);
 }
 
-function persistConfig() {
-  const serialized = JSON.stringify(config, null, 2);
-
-  // localStorage is reliable for PrismaUI views. Keep the file write as a
-  // best-effort export for hosts that expose it.
-  try {
-    localStorage.setItem('chronicle_config', serialized);
-  } catch (_) {}
-
-  settingsSaveInFlight = serialized;
-  statusText('Saving settings…');
-  if (!sendToGame('settingsChanged', serialized)) {
-    settingsSaveInFlight = null;
-    const cached = savePendingSettings(serialized);
-    saveResult(false, cached
-      ? 'Settings pending native save; will retry on the next connection'
-      : 'Settings are active for this session only; native save unavailable');
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Message rendering
 // ---------------------------------------------------------------------------
