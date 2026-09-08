@@ -49,7 +49,7 @@ namespace
 
 void Chronicle::OnDataLoaded()
 {
-    spdlog::info("Chronicle 1.1.0: OnDataLoaded");
+    spdlog::info("Chronicle 1.2.0: OnDataLoaded");
     RegisterEventSinks();
     InitPrismaUI();
 }
@@ -177,7 +177,7 @@ void Chronicle::Bootstrap()
     }
     m_bootstrapped = true;
     m_state.ready = true;
-    InvokeUI("nativeBootstrap(" + Json({{"settings", settings}, {"warning", warning}, {"version", "1.1.0"}, {"nativeHotkeys", true}}) + ")");
+    InvokeUI("nativeBootstrap(" + Json({{"settings", settings}, {"warning", warning}, {"version", "1.2.0"}, {"nativeHotkeys", true}}) + ")");
     PublishRuntime();
     UpdateVisibility();
     FlushPendingUI();
@@ -190,7 +190,10 @@ void Chronicle::UpdateVisibility()
         static constexpr std::string_view names[] = {
             "Main Menu", "Loading Menu", "LoadWaitSpinner", "Fader Menu", "SystemMenu", "TweenMenu",
             "InventoryMenu", "MagicMenu", "MapMenu", "ContainerMenu", "Journal Menu", "LevelUpMenu",
-            "StatsMenu", "SleepWaitMenu", "FavoritesMenu", "BarterMenu", "CraftingMenu", "AlchemyMenu", "PhotoMenu"
+            "StatsMenu", "SleepWaitMenu", "FavoritesMenu", "BarterMenu",
+            "CraftingMenu", "Crafting Menu", "SmithingMenu", "Smithing Menu",
+            "AlchemyMenu", "Alchemy Menu", "EnchantingMenu", "Enchanting Menu",
+            "CookingMenu", "Cooking Menu", "PhotoMenu"
         };
         for (auto name : names) m_state.Menu(name, ui->IsMenuOpen(name));
     }
@@ -357,6 +360,13 @@ void Chronicle::ApplyNativeSettings(const nlohmann::json& settings)
     const bool hidePhoto = general.value("hide_in_photo_mode", true);
     m_state.hideMenus = hideMenus;
     m_state.hidePhoto = hidePhoto;
+    std::vector<std::string> extraHudPaths;
+    if (const auto it = settings.find("hud_subtitle_paths"); it != settings.end() && it->is_array()) {
+        for (const auto& value : *it) {
+            if (value.is_string()) extraHudPaths.push_back(value.get<std::string>());
+        }
+    }
+    SubtitlePoller::GetSingleton().SetExtraHudPaths(std::move(extraHudPaths));
     auto key = [](std::string value, std::uint32_t fallback) -> std::uint32_t {
         std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
         if (value == "ENTER") return VK_RETURN;
@@ -394,10 +404,10 @@ void Chronicle::OnSettingsChanged(std::string_view text)
         ApplyNativeSettings(settings);
         AtomicWrite(kSettingsPath, settings.dump(2));
         UpdateVisibility();
-        InvokeUI("saveResult(true, 'Saved to Data/SKSE/Plugins/Chronicle.json')");
+        InvokeUI("settingsSaveResult(true, 'Saved to Data/SKSE/Plugins/Chronicle.json')");
     } catch (const std::exception& e) {
         spdlog::error("Chronicle: settings save failed: {}", e.what());
-        InvokeUI("saveResult(false, " + Json(std::string("Settings not saved: ") + e.what()) + ")");
+        InvokeUI("settingsSaveResult(false, " + Json(std::string("Settings not saved: ") + e.what()) + ")");
     }
 }
 
@@ -418,10 +428,11 @@ void Chronicle::ExportHistory(std::string_view text)
 void Chronicle::Diagnostics()
 {
     InvokeUI("diagnosticsResult(" + Json({
-        {"version", "1.1.0"}, {"bridge", m_bootstrapped}, {"gameLoaded", m_gameLoaded.load()},
+        {"version", "1.2.0"}, {"bridge", m_bootstrapped}, {"gameLoaded", m_gameLoaded.load()},
         {"visible", !m_hidden}, {"focus", m_prismaUI && m_prismaUI->HasFocus(m_view)},
         {"poller", SubtitlePoller::GetSingleton().IsRunning()}, {"messages", m_messageCount},
         {"lastSubtitle", m_lastSubtitle}, {"api", m_hasV2 ? 2 : 1},
+        {"hudPath", SubtitlePoller::GetSingleton().LastHudPath()},
         {"settingsFile", kSettingsPath.string()}
     }) + ")");
 }

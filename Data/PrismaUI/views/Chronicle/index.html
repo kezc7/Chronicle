@@ -186,6 +186,15 @@
             </div>
           </div>
 
+          <div class="sp-group">
+            <h3>HUD subtitle compatibility</h3>
+            <div class="sp-row sp-row-stacked">
+              <label>Additional GFx paths<span class="sp-hint">Optional: one Scaleform path per line. Vanilla paths stay enabled.</span></label>
+              <textarea id="sp-hud-subtitle-paths" rows="3"
+                placeholder="_root.SomeHud.Subtitle.text"></textarea>
+            </div>
+          </div>
+
         </div><!-- /sp-general -->
 
         <!-- Channels -->
@@ -193,6 +202,22 @@
           <div class="sp-group">
             <h3>Channel configuration</h3>
             <div id="sp-channel-list"><!-- populated by JS --></div>
+          </div>
+          <div class="sp-group">
+            <h3>NPC speaker name colours</h3>
+            <div class="sp-hint sp-section-hint">
+              Add an exact NPC display name. Matching speaker labels use this colour.
+              Names seen in your current history are suggested as you type.
+            </div>
+            <div class="sp-speaker-add">
+              <input id="sp-speaker-name" type="text" list="sp-speaker-options"
+                     placeholder="NPC display name" maxlength="80" />
+              <datalist id="sp-speaker-options"></datalist>
+              <input id="sp-speaker-new-colour" type="color" value="#c084fc"
+                     title="New speaker colour" />
+              <button type="button" class="sp-btn" id="sp-speaker-add">Add / Update</button>
+            </div>
+            <div id="sp-speaker-colour-list"><!-- populated by JS --></div>
           </div>
         </div>
 
