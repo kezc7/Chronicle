@@ -9,12 +9,15 @@
 // ---------------------------------------------------------------------------
 
 const DEFAULT_CONFIG = {
+  version: 2,
   general: {
     enabled: true,
     input_hotkey: 'Enter',
+    interact_hotkey: 'F8',
     config_hotkey: 'N',       // Shift + this key opens the settings panel
     max_messages: 100,
     message_fade_time: 0,
+    persist_history: true,
     hide_in_menus: true,
     hide_in_photo_mode: true,
   },
@@ -25,15 +28,18 @@ const DEFAULT_CONFIG = {
     height: 240,
     opacity: 0.65,
     font_size: 13,
+    theme: 'skyrim',
+    anchor: 'custom',
   },
   channels: {
     all:       { enabled: true,  colour: null,       prefix: '',         show_timestamp: false },
     dialogue:  { enabled: true,  colour: '#ffffff',  prefix: '',         show_timestamp: false },
     system:    { enabled: true,  colour: '#f5c518',  prefix: '[SYSTEM]', show_timestamp: false },
-    skyrimnet: { enabled: true,  colour: '#7ec8f5',  prefix: '',         show_timestamp: false },
-    narrator:  { enabled: true,  colour: '#c084fc',  prefix: '[NARR]',   show_timestamp: false },
-    player:    { enabled: true,  colour: '#86efac',  prefix: '',         show_timestamp: false },
-    combat:    { enabled: true,  colour: '#fb923c',  prefix: '[COMBAT]', show_timestamp: false },
+    notification: { enabled: true, colour: '#facc15', prefix: '[INFO]', show_timestamp: false },
+    skyrimnet: { enabled: false,  colour: '#7ec8f5',  prefix: '',         show_timestamp: false },
+    narrator:  { enabled: false,  colour: '#c084fc',  prefix: '[NARR]',   show_timestamp: false },
+    player:    { enabled: false,  colour: '#86efac',  prefix: '',         show_timestamp: false },
+    combat:    { enabled: false,  colour: '#fb923c',  prefix: '[COMBAT]', show_timestamp: false },
     console:   { enabled: false, colour: '#94a3b8',  prefix: '[CON]',    show_timestamp: false },
   },
 };
@@ -41,6 +47,12 @@ const DEFAULT_CONFIG = {
 let config = deepMerge({}, DEFAULT_CONFIG);
 let activeChannel = 'all';
 const messages = [];
+let updateResizeHandlePosition = () => {};
+let userScrolledUp = false;
+let unreadCount = 0;
+const inputHistory = [];
+let inputHistoryIndex = -1;
+
 
 // ---------------------------------------------------------------------------
 // Utility
@@ -48,6 +60,7 @@ const messages = [];
 
 function deepMerge(target, source) {
   for (const key of Object.keys(source)) {
+    if (['__proto__', 'constructor', 'prototype'].includes(key)) continue;
     if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
       target[key] = deepMerge(target[key] || {}, source[key]);
     } else {
@@ -55,6 +68,52 @@ function deepMerge(target, source) {
     }
   }
   return target;
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function normalizeConfig() {
+  config.version = 2;
+  for (const section of ['general', 'window', 'channels']) {
+    if (!config[section] || typeof config[section] !== 'object' || Array.isArray(config[section])) {
+      config[section] = deepMerge({}, DEFAULT_CONFIG[section]);
+    }
+  }
+  for (const [channel, defaults] of Object.entries(DEFAULT_CONFIG.channels)) {
+    if (!config.channels[channel] || typeof config.channels[channel] !== 'object') {
+      config.channels[channel] = { ...defaults };
+    }
+  }
+  const g = config.general;
+  const w = config.window;
+
+  g.enabled = g.enabled !== false;
+  g.max_messages = clamp(Number(g.max_messages) || 100, 1, 500);
+  g.message_fade_time = clamp(Number(g.message_fade_time) || 0, 0, 60);
+  g.persist_history = g.persist_history !== false;
+  for (const key of ['input_hotkey', 'config_hotkey', 'interact_hotkey']) {
+    if (typeof g[key] !== 'string' || !g[key].trim()) g[key] = DEFAULT_CONFIG.general[key];
+    if (!/^(Enter|[a-z0-9]|F([1-9]|1[0-2]))$/i.test(g[key])) g[key] = DEFAULT_CONFIG.general[key];
+  }
+  config.channels.all.enabled = true;
+
+  w.width = clamp(Number(w.width) || 520, 280, 1920);
+  w.height = clamp(Number(w.height) || 240, 120, 1080);
+  w.font_size = clamp(Number(w.font_size) || 13, 10, 24);
+  const opacity = Number(w.opacity);
+  w.opacity = Number.isFinite(opacity) ? clamp(opacity, 0, 1) : 0.65;
+  if (!['skyrim', 'minimal', 'transparent', 'high-contrast'].includes(w.theme)) {
+    w.theme = 'skyrim';
+  }
+  if (!['custom', 'bottom-left', 'bottom-right', 'top-left', 'top-right'].includes(w.anchor)) {
+    w.anchor = 'custom';
+  }
+  w.width = Math.min(w.width, window.innerWidth - 20);
+  w.height = Math.min(w.height, window.innerHeight - 20);
+  if (w.position_x != null) w.position_x = clamp(Number(w.position_x) || 0, 0, window.innerWidth - w.width);
+  if (w.position_y != null) w.position_y = clamp(Number(w.position_y) || 0, 0, window.innerHeight - w.height);
 }
 
 function formatTimestamp(ts) {
@@ -86,19 +145,31 @@ async function loadConfig() {
   } catch (_) {
     // First run or file missing — defaults apply
   }
+  normalizeConfig();
   applyConfig();
 }
 
 function applyConfig() {
   const { window: win } = config;
   const root = document.documentElement;
+  document.body.dataset.theme = win.theme || 'skyrim';
+  document.body.dataset.anchor = win.anchor || 'custom';
+  document.getElementById('settings-btn').title = 'Settings (Shift+' + config.general.config_hotkey.toUpperCase() + ')';
+  document.getElementById('chronicle-window')
+    .classList.toggle('hidden', !config.general.enabled);
 
   if (win.position_x != null) root.style.setProperty('--win-x', win.position_x + 'px');
   if (win.position_y != null) root.style.setProperty('--win-y', win.position_y + 'px');
+  else root.style.removeProperty('--win-y');
   root.style.setProperty('--win-width',  win.width  + 'px');
   root.style.setProperty('--win-height', win.height + 'px');
   root.style.setProperty('--opacity',    win.opacity);
   root.style.setProperty('--font-size',  win.font_size + 'px');
+
+  while (messages.length > config.general.max_messages) {
+    const old = messages.shift();
+    old.el?.remove();
+  }
 
   // Channel tab visibility
   document.querySelectorAll('.tab').forEach(tab => {
@@ -107,6 +178,9 @@ function applyConfig() {
     const chCfg = config.channels[ch];
     tab.classList.toggle('hidden-channel', chCfg ? !chCfg.enabled : false);
   });
+
+  if (!config.channels[activeChannel]?.enabled) activeChannel = 'all';
+  switchChannel(activeChannel);
 
   // Dynamic channel colours injected as a <style> block
   const styleId = 'chronicle-channel-colours';
@@ -117,17 +191,26 @@ function applyConfig() {
     document.head.appendChild(styleEl);
   }
   const rules = Object.entries(config.channels)
-    .filter(([, v]) => v.colour)
+    .filter(([ch, v]) => DEFAULT_CONFIG.channels[ch] && v && /^#[0-9a-f]{6}$/i.test(v.colour))
     .map(([ch, v]) => `.message[data-channel="${ch}"] .speaker { color: ${v.colour}; }`);
   styleEl.textContent = rules.join('\n');
+
+  // The resize handle is a fixed-position sibling. Reposition it after
+  // applying saved window coordinates, not only after a resize.
+  requestAnimationFrame(updateResizeHandlePosition);
 }
 
 function persistConfig() {
-  if (window.skse && typeof window.skse.writeFile === 'function') {
-    window.skse.writeFile('config.json', JSON.stringify(config, null, 2));
-  } else {
-    localStorage.setItem('chronicle_config', JSON.stringify(config));
-  }
+  const serialized = JSON.stringify(config, null, 2);
+
+  // localStorage is reliable for PrismaUI views. Keep the file write as a
+  // best-effort export for hosts that expose it.
+  try {
+    localStorage.setItem('chronicle_config', serialized);
+  } catch (_) {}
+
+  statusText('Saving settings…');
+  if (!sendToGame('settingsChanged', serialized)) saveResult(false, 'Settings cached locally; game connection unavailable');
 }
 
 // ---------------------------------------------------------------------------
@@ -139,17 +222,20 @@ function persistConfig() {
  * @param {object} data - { channel, speaker, message, timestamp }
  */
 function addMessage(data) {
-  if (!config.general.enabled) return;
+  const persist = arguments.length < 2 || arguments[1] !== false;
   if (typeof data === 'string') {
     try { data = JSON.parse(data); } catch (_) { return; }
   }
 
+  if (!data || typeof data !== 'object') return;
   const { channel, speaker, message, timestamp } = data;
+  if (!DEFAULT_CONFIG.channels[channel] || typeof message !== 'string') return;
   const chCfg = config.channels[channel];
 
-  if (chCfg && !chCfg.enabled) return;
 
   const entry = { channel, speaker, message, timestamp: timestamp || Date.now(), el: null };
+  const list = document.getElementById('message-list');
+  const shouldStick = !userScrolledUp;
   messages.push(entry);
 
   while (messages.length > config.general.max_messages) {
@@ -159,14 +245,18 @@ function addMessage(data) {
 
   const el = buildMessageEl(entry, chCfg);
   entry.el = el;
-  el.classList.toggle('hidden', !shouldShowMessage(channel));
+  el.classList.toggle('hidden', !shouldShowMessage(channel) || !matchesFilters(entry));
 
-  document.getElementById('message-list').appendChild(el);
-  scrollToBottom();
-
-  if (config.general.message_fade_time > 0) {
-    setTimeout(() => el.classList.add('fading'), config.general.message_fade_time * 1000);
+  list.appendChild(el);
+  if (shouldShowMessage(channel) && matchesFilters(entry)) {
+    if (shouldStick) scrollToBottom();
+    else showUnread(++unreadCount);
   }
+
+
+
+  if (persist && config.general.persist_history) persistHistory();
+  if (interactionOpen) refreshSpeakerOptions();
 }
 
 function buildMessageEl(entry, chCfg) {
@@ -192,6 +282,7 @@ function buildMessageEl(entry, chCfg) {
 }
 
 function shouldShowMessage(channel) {
+  if (!config.channels[channel]?.enabled) return false;
   if (activeChannel === 'all') return channel !== 'console';
   return channel === activeChannel;
 }
@@ -199,6 +290,46 @@ function shouldShowMessage(channel) {
 function scrollToBottom() {
   const list = document.getElementById('message-list');
   list.scrollTop = list.scrollHeight;
+  userScrolledUp = false;
+  unreadCount = 0;
+  showUnread(0);
+}
+
+function showUnread(count) {
+  const button = document.getElementById('new-messages');
+  button.textContent = count > 0 ? `${count} new message${count === 1 ? '' : 's'}` : 'New messages';
+  button.classList.toggle('hidden', count === 0);
+}
+
+function persistHistory() { scheduleHistorySave(); }
+
+function restoreHistory() {
+  if (!config.general.persist_history || !runtime.profile) return;
+  try {
+    const saved = JSON.parse(localStorage.getItem(historyKey()) || '[]');
+    if (Array.isArray(saved)) {
+      saved.slice(-config.general.max_messages).forEach(entry => addMessage(entry, false));
+    }
+  } catch (_) {}
+}
+
+function clearHistory() {
+  clearTimeout(historySaveTimer);
+  historySaveTimer = null;
+  messages.length = 0;
+  document.getElementById('message-list').replaceChildren();
+  try { localStorage.removeItem(historyKey()); } catch (_) {}
+  unreadCount = 0;
+  userScrolledUp = false;
+  showUnread(0);
+  refreshSpeakerOptions();
+}
+
+function runDiagnostics() {
+  document.getElementById('diagnostics-output').textContent = 'Checking the game connection…';
+  if (!sendToGame('diagnostics', '')) {
+    document.getElementById('diagnostics-output').textContent = 'Game connection unavailable. Native callbacks are missing.';
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -215,9 +346,7 @@ function switchChannel(channel) {
   document.getElementById('input-channel-label').textContent =
     '[' + channel.charAt(0).toUpperCase() + channel.slice(1) + ']';
 
-  document.querySelectorAll('.message').forEach(el => {
-    el.classList.toggle('hidden', !shouldShowMessage(el.dataset.channel));
-  });
+  refreshFilters();
 
   scrollToBottom();
 }
@@ -229,7 +358,8 @@ function switchChannel(channel) {
 let inputOpen = false;
 
 function openInput() {
-  if (inputOpen || settingsOpen) return;
+  if (inputOpen || settingsOpen || !config.general.enabled) return;
+  if (!beginInteraction()) return;
   inputOpen = true;
 
   const bar = document.getElementById('input-bar');
@@ -238,7 +368,7 @@ function openInput() {
   input.value = '';
   input.focus();
 
-  sendToGame('focusAcquired', '');
+
 }
 
 function closeInput() {
@@ -248,7 +378,7 @@ function closeInput() {
   document.getElementById('input-bar').classList.add('hidden');
   document.getElementById('chat-input').blur();
 
-  sendToGame('focusReleased', '');
+
 }
 
 function submitInput() {
@@ -256,8 +386,15 @@ function submitInput() {
   const text = input.value.trim();
   if (!text) {
     closeInput();
+    closeInteraction();
     return;
   }
+
+  if (inputHistory[inputHistory.length - 1] !== text) {
+    inputHistory.push(text);
+    if (inputHistory.length > 50) inputHistory.shift();
+  }
+  inputHistoryIndex = -1;
 
   if (activeChannel === 'console') {
     sendToGame('consoleCommand', text);
@@ -266,6 +403,7 @@ function submitInput() {
   }
 
   closeInput();
+  closeInteraction();
 }
 
 // ---------------------------------------------------------------------------
@@ -276,19 +414,21 @@ let settingsOpen = false;
 
 const CHANNEL_LABELS = {
   all: 'All', dialogue: 'Dialogue', system: 'System',
+  notification: 'Notifications',
   skyrimnet: 'SkyrimNet', narrator: 'Narrator',
   player: 'Player', combat: 'Combat', console: 'Console',
 };
 
 function openSettings() {
   if (settingsOpen) return;
+  if (!beginInteraction()) return;
   // Close input bar first if open
   closeInput();
   settingsOpen = true;
 
   populateSettingsForm();
   document.getElementById('settings-overlay').classList.remove('hidden');
-  sendToGame('focusAcquired', '');
+
 }
 
 function closeSettings() {
@@ -296,7 +436,8 @@ function closeSettings() {
   settingsOpen = false;
 
   document.getElementById('settings-overlay').classList.add('hidden');
-  sendToGame('focusReleased', '');
+  closeInteraction();
+
 }
 
 function toggleSettings() {
@@ -305,6 +446,7 @@ function toggleSettings() {
 }
 
 function populateSettingsForm() {
+  document.getElementById('sp-interact-hotkey').value = config.general.interact_hotkey;
   const g = config.general;
   const w = config.window;
 
@@ -314,6 +456,7 @@ function populateSettingsForm() {
   document.getElementById('sp-config-hotkey').value = g.config_hotkey || 'N';
   document.getElementById('sp-input-hotkey').value  = g.input_hotkey  || 'Enter';
   document.getElementById('sp-max-messages').value  = g.max_messages;
+  document.getElementById('sp-persist-history').checked = g.persist_history !== false;
 
   const fadeEl = document.getElementById('sp-fade-time');
   fadeEl.value = g.message_fade_time;
@@ -329,6 +472,9 @@ function populateSettingsForm() {
 
   document.getElementById('sp-width').value  = w.width;
   document.getElementById('sp-height').value = w.height;
+  document.getElementById('sp-theme').value = w.theme || 'skyrim';
+  document.getElementById('sp-anchor').value = w.anchor || 'custom';
+  syncPositionControls();
 
   buildChannelRows();
 }
@@ -351,6 +497,9 @@ function buildChannelRows() {
       </label>
       <input type="text" class="ch-prefix" value="${escapeHtml(cfg.prefix || '')}"
              placeholder="Prefix" maxlength="16" />
+      <label title="Show timestamps">
+        <input type="checkbox" class="ch-timestamp" ${cfg.show_timestamp ? 'checked' : ''} />
+      </label>
       <input type="color" class="ch-colour" value="${cfg.colour || '#ffffff'}"
              ${ch === 'all' ? 'disabled' : ''} />
     `;
@@ -367,7 +516,7 @@ function collectSettingsFromForm() {
       enabled:        row.querySelector('.ch-enabled').checked,
       colour:         ch === 'all' ? null : row.querySelector('.ch-colour').value,
       prefix:         row.querySelector('.ch-prefix').value,
-      show_timestamp: (config.channels[ch] || {}).show_timestamp || false,
+      show_timestamp: row.querySelector('.ch-timestamp').checked,
     };
   });
 
@@ -375,19 +524,29 @@ function collectSettingsFromForm() {
     general: {
       enabled:            document.getElementById('sp-enabled').checked,
       config_hotkey:      document.getElementById('sp-config-hotkey').value || 'N',
+      interact_hotkey:    document.getElementById('sp-interact-hotkey').value || 'F8',
       input_hotkey:       document.getElementById('sp-input-hotkey').value  || 'Enter',
-      max_messages:       parseInt(document.getElementById('sp-max-messages').value, 10) || 100,
+      max_messages:       Math.min(500, Math.max(1,
+        parseInt(document.getElementById('sp-max-messages').value, 10) || 100)),
       message_fade_time:  parseInt(document.getElementById('sp-fade-time').value, 10) || 0,
+      persist_history:    document.getElementById('sp-persist-history').checked,
       hide_in_menus:      document.getElementById('sp-hide-menus').checked,
       hide_in_photo_mode: document.getElementById('sp-hide-photo').checked,
     },
     window: {
-      width:     parseInt(document.getElementById('sp-width').value, 10)      || 520,
-      height:    parseInt(document.getElementById('sp-height').value, 10)     || 240,
-      opacity:   parseFloat(document.getElementById('sp-opacity').value)      || 0.65,
-      font_size: parseInt(document.getElementById('sp-font-size').value, 10)  || 13,
-      position_x: config.window.position_x,
-      position_y: config.window.position_y,
+      width:     Math.min(1920, Math.max(280,
+        parseInt(document.getElementById('sp-width').value, 10) || 520)),
+      height:    Math.min(1080, Math.max(120,
+        parseInt(document.getElementById('sp-height').value, 10) || 240)),
+      opacity:   Math.min(1, Math.max(0,
+        Number.isFinite(parseFloat(document.getElementById('sp-opacity').value))
+          ? parseFloat(document.getElementById('sp-opacity').value) : 0.65)),
+      font_size: Math.min(24, Math.max(10,
+        parseInt(document.getElementById('sp-font-size').value, 10) || 13)),
+      theme:     document.getElementById('sp-theme').value || 'skyrim',
+      anchor:    document.getElementById('sp-anchor').value || 'custom',
+      position_x: Number(document.getElementById('sp-position-x').value),
+      position_y: Number(document.getElementById('sp-position-y').value),
     },
     channels,
   };
@@ -396,9 +555,15 @@ function collectSettingsFromForm() {
 function applyAndSaveSettings() {
   const newCfg = collectSettingsFromForm();
   config = deepMerge(config, newCfg);
+  normalizeConfig();
   applyConfig();
   persistConfig();
-  sendToGame('settingsChanged', JSON.stringify(config));
+  if (config.general.persist_history) {
+    persistHistory();
+  } else {
+    try { localStorage.removeItem(historyKey()); } catch (_) {}
+  }
+
 }
 
 // Settings panel tab switching
@@ -430,14 +595,17 @@ document.getElementById('sp-close').addEventListener('click', closeSettings);
 // Settings Apply / Reset
 document.getElementById('sp-apply').addEventListener('click', () => {
   applyAndSaveSettings();
-  closeSettings();
 });
 
 document.getElementById('sp-reset').addEventListener('click', () => {
   config = deepMerge({}, DEFAULT_CONFIG);
   populateSettingsForm();
+  normalizeConfig();
   applyConfig();
+  statusText('Defaults restored in preview — click Apply to save');
 });
+
+document.getElementById('sp-test').addEventListener('click', runDiagnostics);
 
 // Gear icon button
 document.getElementById('settings-btn').addEventListener('click', e => {
@@ -445,15 +613,31 @@ document.getElementById('settings-btn').addEventListener('click', e => {
   toggleSettings();
 });
 
+document.getElementById('clear-history').addEventListener('click', e => {
+  e.stopPropagation();
+  clearHistory();
+});
+
+document.getElementById('new-messages').addEventListener('click', e => {
+  e.stopPropagation();
+  scrollToBottom();
+});
+
+document.getElementById('message-list').addEventListener('scroll', e => {
+  const list = e.currentTarget;
+  const distanceFromBottom = list.scrollHeight - list.scrollTop - list.clientHeight;
+  userScrolledUp = distanceFromBottom > 12;
+  if (!userScrolledUp) {
+    unreadCount = 0;
+    showUnread(0);
+  }
+});
+
 // ---------------------------------------------------------------------------
 // PrismaUI bridge
 // ---------------------------------------------------------------------------
 
-function sendToGame(eventName, data) {
-  if (window.skse && typeof window.skse.sendEvent === 'function') {
-    window.skse.sendEvent(eventName, typeof data === 'string' ? data : JSON.stringify(data));
-  }
-}
+// sendToGame is provided by bridge.js.
 
 // ---------------------------------------------------------------------------
 // Window visibility (called by C++ plugin)
@@ -479,7 +663,43 @@ function saveWindowState(x, y, w, h) {
   config.window.position_y = y;
   config.window.width = w;
   config.window.height = h;
+  syncPositionControls();
   persistConfig();
+}
+
+function syncPositionControls() {
+  const xSlider = document.getElementById('sp-position-x');
+  const ySlider = document.getElementById('sp-position-y');
+  if (!xSlider || !ySlider) return;
+
+  const win = document.getElementById('chronicle-window');
+  const rect = win.getBoundingClientRect();
+  const width = Number(config.window.width) || 520;
+  const height = Number(config.window.height) || 240;
+  const maxX = Math.max(0, window.innerWidth - width);
+  const maxY = Math.max(0, window.innerHeight - height);
+  const useSavedPosition = config.window.anchor === 'custom';
+  const xValue = !useSavedPosition || config.window.position_x == null ? rect.left : Number(config.window.position_x);
+  const yValue = !useSavedPosition || config.window.position_y == null ? rect.top : Number(config.window.position_y);
+  const x = clamp(Number.isFinite(xValue) ? xValue : 20, 0, maxX);
+  const y = clamp(Number.isFinite(yValue) ? yValue : Math.max(0, window.innerHeight - height - 40), 0, maxY);
+
+  xSlider.max = maxX;
+  ySlider.max = maxY;
+  xSlider.value = Math.round(x);
+  ySlider.value = Math.round(y);
+  document.getElementById('sp-position-x-val').textContent = Math.round(x);
+  document.getElementById('sp-position-y-val').textContent = Math.round(y);
+}
+
+function previewPosition(axis, value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return;
+  config.window.anchor = 'custom';
+  config.window[axis] = numeric;
+  document.body.dataset.anchor = 'custom';
+  document.documentElement.style.setProperty(axis === 'position_x' ? '--win-x' : '--win-y', numeric + 'px');
+  document.getElementById(axis === 'position_x' ? 'sp-position-x-val' : 'sp-position-y-val').textContent = Math.round(numeric);
 }
 
 // ---------------------------------------------------------------------------
@@ -494,7 +714,11 @@ function saveWindowState(x, y, w, h) {
   const handle = document.getElementById('channel-tabs');
 
   handle.addEventListener('mousedown', e => {
-    if (e.target.classList.contains('tab') || e.target.id === 'settings-btn') return;
+    if (!interactionOpen || e.target.closest('button')) return;
+    const rect = win.getBoundingClientRect();
+    config.window.anchor = 'custom';
+    document.body.dataset.anchor = 'custom';
+    win.style.left = rect.left + 'px'; win.style.top = rect.top + 'px';
     dragging = true;
     startX = e.clientX;
     startY = e.clientY;
@@ -506,13 +730,15 @@ function saveWindowState(x, y, w, h) {
 
   document.addEventListener('mousemove', e => {
     if (!dragging) return;
-    win.style.left = (origX + e.clientX - startX) + 'px';
-    win.style.top  = (origY + e.clientY - startY) + 'px';
+    win.style.left = clamp(origX + e.clientX - startX, 0, window.innerWidth - win.offsetWidth) + 'px';
+    win.style.top  = clamp(origY + e.clientY - startY, 0, window.innerHeight - win.offsetHeight) + 'px';
   });
 
   document.addEventListener('mouseup', () => {
     if (!dragging) return;
     dragging = false;
+    config.window.anchor = 'custom';
+    document.body.dataset.anchor = 'custom';
     const style = getComputedStyle(win);
     saveWindowState(
       parseInt(style.left, 10), parseInt(style.top, 10),
@@ -536,10 +762,12 @@ function saveWindowState(x, y, w, h) {
     handle.style.left = (r.right - 14) + 'px';
     handle.style.top  = (r.bottom - 14) + 'px';
   }
+  updateResizeHandlePosition = positionHandle;
   positionHandle();
   new ResizeObserver(positionHandle).observe(win);
 
   handle.addEventListener('mousedown', e => {
+    if (!interactionOpen) return;
     resizing = true;
     startX = e.clientX; startY = e.clientY;
     origW = win.offsetWidth; origH = win.offsetHeight;
@@ -548,8 +776,9 @@ function saveWindowState(x, y, w, h) {
 
   document.addEventListener('mousemove', e => {
     if (!resizing) return;
-    win.style.width  = Math.max(280, origW + (e.clientX - startX)) + 'px';
-    win.style.height = Math.max(120, origH + (e.clientY - startY)) + 'px';
+    const rect = win.getBoundingClientRect();
+    win.style.width = Math.min(window.innerWidth - rect.left, Math.max(280, origW + e.clientX - startX)) + 'px';
+    win.style.height = Math.min(window.innerHeight - rect.top, Math.max(120, origH + e.clientY - startY)) + 'px';
     positionHandle();
   });
 
@@ -569,6 +798,20 @@ function saveWindowState(x, y, w, h) {
 // ---------------------------------------------------------------------------
 
 document.addEventListener('keydown', e => {
+  if (!runtime.visible || !runtime.loaded || e.repeat) return;
+  if (runtime.nativeHotkeys && !interactionOpen) return;
+  if (e.key === 'Escape' && interactionOpen) {
+    closeInteraction();
+    document.getElementById('copy-output').hidden = true;
+    e.preventDefault(); return;
+  }
+  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
+  if (!typing && e.key.toUpperCase() === config.general.interact_hotkey.toUpperCase()) {
+    if (interactionOpen) closeInteraction();
+    else { beginInteraction(); refreshSpeakerOptions(); }
+    e.preventDefault(); return;
+  }
+  if (typing && !inputOpen) return;
   // Settings panel takes priority when open
   if (settingsOpen) {
     if (e.key === 'Escape') {
@@ -586,8 +829,18 @@ document.addEventListener('keydown', e => {
     } else if (e.key === 'Enter') {
       submitInput();
       e.preventDefault();
+    } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      if (inputHistory.length === 0) return;
+      if (e.key === 'ArrowUp') {
+        inputHistoryIndex = Math.min(inputHistoryIndex + 1, inputHistory.length - 1);
+      } else {
+        inputHistoryIndex = Math.max(inputHistoryIndex - 1, -1);
+      }
+      e.target.value = inputHistoryIndex < 0
+        ? '' : inputHistory[inputHistory.length - 1 - inputHistoryIndex];
+      e.preventDefault();
     } else if (e.key === 'Tab') {
-      const tabs = [...document.querySelectorAll('.tab[data-channel]')];
+      const tabs = [...document.querySelectorAll('.tab[data-channel]')].filter(tab => config.channels[tab.dataset.channel].enabled);
       const current = tabs.findIndex(t => t.dataset.channel === activeChannel);
       switchChannel(tabs[(current + 1) % tabs.length].dataset.channel);
       e.preventDefault();
@@ -597,7 +850,7 @@ document.addEventListener('keydown', e => {
 
   // Shift + config_hotkey → open settings
   const cfgKey = (config.general.config_hotkey || 'N').toUpperCase();
-  if (e.shiftKey && e.key === cfgKey) {
+  if (e.shiftKey && e.key.toUpperCase() === cfgKey) {
     openSettings();
     e.preventDefault();
     return;
@@ -605,7 +858,7 @@ document.addEventListener('keydown', e => {
 
   // Input hotkey → open input bar
   const inputKey = config.general.input_hotkey || 'Enter';
-  if (e.key === inputKey) {
+  if (e.key.toUpperCase() === inputKey.toUpperCase()) {
     openInput();
     e.preventDefault();
   }
@@ -625,8 +878,34 @@ document.getElementById('channel-tabs').addEventListener('click', e => {
 // ---------------------------------------------------------------------------
 
 loadConfig().then(() => {
-  const saved = localStorage.getItem('chronicle_config');
+  let saved = null;
+  try { saved = localStorage.getItem('chronicle_config'); } catch (_) {}
   if (saved) {
-    try { config = deepMerge(config, JSON.parse(saved)); applyConfig(); } catch (_) {}
+    try { config = deepMerge(config, JSON.parse(saved)); } catch (_) {}
   }
+
+  normalizeConfig();
+  applyConfig();
+  startHandshake();
+
+  // The native handshake supplies the authoritative settings file and profile.
+
 });
+document.getElementById('history-search').addEventListener('input', refreshFilters);
+document.getElementById('speaker-filter').addEventListener('change', refreshFilters);
+document.getElementById('copy-history').addEventListener('click', copyHistory);
+document.getElementById('export-history').addEventListener('click', () => {
+  if (!sendToGame('exportHistory', visibleHistoryText())) statusText('Export unavailable: game connection missing');
+});
+document.getElementById('sp-position').addEventListener('click', resetWindowPosition);
+document.getElementById('sp-position-x').addEventListener('input', event => previewPosition('position_x', event.target.value));
+document.getElementById('sp-position-y').addEventListener('input', event => previewPosition('position_y', event.target.value));
+document.getElementById('sp-width').addEventListener('input', syncPositionControls);
+document.getElementById('sp-height').addEventListener('input', syncPositionControls);
+window.addEventListener('pagehide', flushHistory);
+window.addEventListener('resize', () => { normalizeConfig(); applyConfig(); });
+setInterval(() => {
+  const age = config.general.message_fade_time * 1000;
+  messages.forEach(entry => entry.el.classList.toggle('fading',
+    !interactionOpen && age > 0 && Date.now() - entry.timestamp > age));
+}, 1000);

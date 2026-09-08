@@ -6,7 +6,7 @@
   <title>Chronicle</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
-<body>
+<body class="runtime-hidden">
   <div id="chronicle-window">
 
     <!-- Channel tabs + settings button -->
@@ -14,16 +14,25 @@
       <button class="tab active" data-channel="all">All</button>
       <button class="tab" data-channel="dialogue">Dialogue</button>
       <button class="tab" data-channel="system">System</button>
+      <button class="tab" data-channel="notification">Notifications</button>
       <button class="tab" data-channel="skyrimnet">SkyrimNet</button>
       <button class="tab" data-channel="narrator">Narrator</button>
       <button class="tab" data-channel="player">Player</button>
       <button class="tab" data-channel="combat">Combat</button>
       <button class="tab" data-channel="console">Console</button>
-      <button id="settings-btn" title="Settings (Shift+N)">&#9881;</button>
+      <button id="clear-history" title="Clear this character's history" aria-label="Clear history">Clear</button>
+      <button id="settings-btn" title="Settings (Shift+N)" aria-label="Settings">&#9881;</button>
     </div>
 
+    <div id="interaction-tools">
+      <input id="history-search" type="search" placeholder="Search history" aria-label="Search history" />
+      <select id="speaker-filter" aria-label="Filter by speaker"><option value="">All speakers</option></select>
+      <button id="copy-history">Copy</button><button id="export-history">Export</button>
+    </div>
+    <textarea id="copy-output" hidden readonly aria-label="History to copy"></textarea>
     <!-- Message list -->
     <div id="message-list"></div>
+    <button id="new-messages" class="hidden">New messages</button>
 
     <!-- Input bar (hidden until activated) -->
     <div id="input-bar" class="hidden">
@@ -31,6 +40,8 @@
       <input id="chat-input" type="text" autocomplete="off" spellcheck="false"
              placeholder="Type a message… (Escape to cancel)" />
     </div>
+
+    <div id="status-text" role="status">Connecting to Skyrim…</div>
 
   </div>
 
@@ -59,14 +70,14 @@
           <div class="sp-group">
             <h3>Behaviour</h3>
             <div class="sp-row">
-              <label>Enabled<span class="sp-hint">Master on/off switch</span></label>
+              <label>Show chatbox<span class="sp-hint">History still records while the box is hidden</span></label>
               <label class="sp-toggle">
                 <input type="checkbox" id="sp-enabled" checked />
                 <span class="sp-track"></span>
               </label>
             </div>
             <div class="sp-row">
-              <label>Hide in menus<span class="sp-hint">Auto-hide when any game menu opens</span></label>
+              <label>Hide in menus<span class="sp-hint">Main and loading screens are always hidden</span></label>
               <label class="sp-toggle">
                 <input type="checkbox" id="sp-hide-menus" checked />
                 <span class="sp-track"></span>
@@ -83,6 +94,7 @@
 
           <div class="sp-group">
             <h3>Hotkeys</h3>
+            <div class="sp-row"><label>Interact hotkey<span class="sp-hint">Shows the cursor for tabs, scrolling and dragging</span></label><input id="sp-interact-hotkey" type="text" value="F8" maxlength="20" /></div>
             <div class="sp-row">
               <label>Settings hotkey<span class="sp-hint">Shift + this key opens settings</span></label>
               <input type="text" id="sp-config-hotkey" value="N" maxlength="8" />
@@ -100,6 +112,13 @@
               <input type="number" id="sp-max-messages" value="100" min="1" max="500" />
             </div>
             <div class="sp-row">
+              <label>Keep history<span class="sp-hint">Restore chat messages after restarting Skyrim</span></label>
+              <label class="sp-toggle">
+                <input type="checkbox" id="sp-persist-history" checked />
+                <span class="sp-track"></span>
+              </label>
+            </div>
+            <div class="sp-row">
               <label>Fade time (s)<span class="sp-hint">0 = never fade</span></label>
               <div class="sp-slider">
                 <input type="range" id="sp-fade-time" min="0" max="60" step="1" value="0" />
@@ -110,6 +129,39 @@
 
           <div class="sp-group">
             <h3>Appearance</h3>
+            <div class="sp-row">
+              <label>Theme</label>
+              <select id="sp-theme">
+                <option value="skyrim">Skyrim</option>
+                <option value="minimal">Minimal</option>
+                <option value="transparent">Transparent</option>
+                <option value="high-contrast">High contrast</option>
+              </select>
+            </div>
+            <div class="sp-row">
+              <label>Anchor</label>
+              <select id="sp-anchor">
+                <option value="custom">Custom position</option>
+                <option value="bottom-left">Bottom left</option>
+                <option value="bottom-right">Bottom right</option>
+                <option value="top-left">Top left</option>
+                <option value="top-right">Top right</option>
+              </select>
+            </div>
+            <div class="sp-row">
+              <label>Position X (px)<span class="sp-hint">Move the box left and right in real time</span></label>
+              <div class="sp-slider position-slider">
+                <input type="range" id="sp-position-x" min="0" max="1920" step="1" value="20" />
+                <span class="sp-slider-val" id="sp-position-x-val">20</span>
+              </div>
+            </div>
+            <div class="sp-row">
+              <label>Position Y (px)<span class="sp-hint">Move the box up and down in real time</span></label>
+              <div class="sp-slider position-slider">
+                <input type="range" id="sp-position-y" min="0" max="1080" step="1" value="400" />
+                <span class="sp-slider-val" id="sp-position-y-val">400</span>
+              </div>
+            </div>
             <div class="sp-row">
               <label>Opacity</label>
               <div class="sp-slider">
@@ -147,13 +199,19 @@
       </div><!-- /sp-content -->
 
       <div id="sp-footer">
+        <button class="sp-btn" id="sp-position">Position</button>
         <button class="sp-btn" id="sp-reset">Reset</button>
+        <button class="sp-btn" id="sp-test">Diagnostics</button>
         <button class="sp-btn sp-primary" id="sp-apply">Apply</button>
       </div>
+      <div id="sp-status" role="status"></div>
+      <pre id="diagnostics-output"></pre>
 
     </div><!-- /settings-panel -->
   </div><!-- /settings-overlay -->
 
+  <script src="bridge.js"></script>
+  <script src="controls.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

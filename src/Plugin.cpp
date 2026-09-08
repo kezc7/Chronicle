@@ -56,13 +56,42 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
     spdlog::set_pattern("[%H:%M:%S.%e] [%^%l%$] %v");
     spdlog::info("Chronicle loaded ({} sink(s))", sinks.size());
 
+    // Persist an opaque character identifier in the SKSE co-save. Histories
+    // remain distinct even when two characters have the same display name.
+    if (auto* serial = SKSE::GetSerializationInterface()) {
+        serial->SetUniqueID(0x4348524E); // CHRN
+        serial->SetRevertCallback([](SKSE::SerializationInterface*) {
+            Chronicle::GetSingleton()->profileId = 0;
+        });
+        serial->SetSaveCallback([](SKSE::SerializationInterface* data) {
+            const auto id = Chronicle::GetSingleton()->profileId.load();
+            if (!data->OpenRecord(0x5052464C, 1) || !data->WriteRecordData(id)) {
+                spdlog::error("Chronicle: unable to save character profile");
+            }
+        });
+        serial->SetLoadCallback([](SKSE::SerializationInterface* data) {
+            std::uint32_t type, version, length;
+            while (data->GetNextRecordInfo(type, version, length)) {
+                std::uint64_t id = 0;
+                if (type == 0x5052464C && version == 1 && length == sizeof(id) &&
+                    data->ReadRecordData(id) == sizeof(id)) Chronicle::GetSingleton()->profileId = id;
+            }
+        });
+    }
+
     // ---- Message listeners ---------------------------------------------------
     SKSE::GetMessagingInterface()->RegisterListener([](SKSE::MessagingInterface::Message* a_msg) {
         switch (a_msg->type) {
         case SKSE::MessagingInterface::kDataLoaded:
             Chronicle::GetSingleton()->OnDataLoaded();
             break;
+        case SKSE::MessagingInterface::kPreLoadGame:
+            Chronicle::GetSingleton()->OnPreLoadGame();
+            break;
         case SKSE::MessagingInterface::kPostLoadGame:
+            Chronicle::GetSingleton()->OnPostLoadGame();
+            break;
+        case SKSE::MessagingInterface::kNewGame:
             Chronicle::GetSingleton()->OnPostLoadGame();
             break;
         default:

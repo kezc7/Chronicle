@@ -1,11 +1,19 @@
 #pragma once
 
 #include "PCH.h"
+#include <unordered_set>
+
+class ChronicleInputSink final : public RE::BSTEventSink<RE::InputEvent*>
+{
+public:
+    static ChronicleInputSink& GetSingleton() { static ChronicleInputSink instance; return instance; }
+    RE::BSEventNotifyControl ProcessEvent(RE::InputEvent* const* events,
+        RE::BSTEventSource<RE::InputEvent*>*) override;
+};
 
 // ---- Menu Open/Close Sink -------------------------------------------------
 // Hides Chronicle during Photo Mode (and any other full-screen menu).
-// Also drives subtitle polling: starts when DialogueMenu opens,
-// stops when it closes.
+// Also provides a fallback trigger for subtitle polling after a save loads.
 
 class MenuEventSink final : public RE::BSTEventSink<RE::MenuOpenCloseEvent>
 {
@@ -51,6 +59,48 @@ private:
     SkyrimNetEventSink() = default;
 };
 
+// Native combat/death events involving the player. These keep the Combat
+// channel useful even when no AI integration is installed.
+class CombatEventSink final : public RE::BSTEventSink<RE::TESHitEvent>
+{
+public:
+    static CombatEventSink& GetSingleton()
+    {
+        static CombatEventSink instance;
+        return instance;
+    }
+
+    CombatEventSink(const CombatEventSink&) = delete;
+    CombatEventSink& operator=(const CombatEventSink&) = delete;
+
+    RE::BSEventNotifyControl ProcessEvent(
+        const RE::TESHitEvent* a_event,
+        RE::BSTEventSource<RE::TESHitEvent>* a_eventSource) override;
+
+private:
+    CombatEventSink() = default;
+};
+
+class DeathEventSink final : public RE::BSTEventSink<RE::TESDeathEvent>
+{
+public:
+    static DeathEventSink& GetSingleton()
+    {
+        static DeathEventSink instance;
+        return instance;
+    }
+
+    DeathEventSink(const DeathEventSink&) = delete;
+    DeathEventSink& operator=(const DeathEventSink&) = delete;
+
+    RE::BSEventNotifyControl ProcessEvent(
+        const RE::TESDeathEvent* a_event,
+        RE::BSTEventSource<RE::TESDeathEvent>* a_eventSource) override;
+
+private:
+    DeathEventSink() = default;
+};
+
 // ---- Subtitle Poller ------------------------------------------------------
 // SubtitleManager has no event dispatch so we poll it periodically.
 //
@@ -83,7 +133,13 @@ private:
     void PollOnce();
 
     std::string m_lastText;
+    std::string m_lastNotificationText;
+    std::unordered_set<std::string> m_activeSubtitles;
+    std::atomic<std::uint64_t> m_generation{ 0 };
+    std::atomic<bool> m_pending{ false };
     std::atomic<bool> m_running{ false };
+    // Declared last so it joins before the state it uses is destroyed.
+    std::jthread m_worker;
 
     // How long to sleep between polls. 100ms = ~10 Hz.
     static constexpr auto kPollInterval = std::chrono::milliseconds(100);

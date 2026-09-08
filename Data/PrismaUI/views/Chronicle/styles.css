@@ -1,5 +1,5 @@
 /* ============================================================
-   Chronicle — MMO-Style Chat Window
+   Chronicle — In-Game Chatbox
    ============================================================ */
 
 *, *::before, *::after {
@@ -85,9 +85,31 @@ body {
 }
 
 .tab.hidden-channel {
-  opacity: 0.3;
-  font-style: italic;
+  display: none;
 }
+
+body.runtime-hidden { visibility: hidden; }
+body:not(.interacting) #chronicle-window { pointer-events: none; }
+body:not(.interacting) #resize-handle { display: none; }
+.message.hidden { display: none; }
+#interaction-tools { display: none; gap: 4px; padding: 5px; }
+body.interacting #interaction-tools { display: flex; }
+#history-search { min-width: 70px; flex: 1; }
+#speaker-filter { max-width: 130px; }
+#interaction-tools input, #interaction-tools select, #interaction-tools button {
+  background: #202630; color: #eee; border: 1px solid #56606b; border-radius: 3px;
+  padding: 3px; font: 11px 'Segoe UI', Arial, sans-serif;
+}
+#copy-output { width: 100%; min-height: 70px; color: #fff; background: #171d26; user-select: text; }
+#status-text { color: #a3b1bd; font-size: 10px; padding: 3px 7px; flex-shrink: 0; }
+body.mouse-active #status-text { color: #b9edc9; }
+#sp-status { padding: 5px 12px; color: #b9edc9; font-size: 11px; overflow-wrap: anywhere; }
+#sp-status.error { color: #ffb4a9; }
+#diagnostics-output { white-space: pre-wrap; overflow: auto; max-height: 150px; padding: 5px 12px; color: #ddd; font-size: 11px; user-select: text; }
+#diagnostics-output:empty { display: none; }
+#settings-panel { max-width: 95vw; }
+#sp-footer { flex-wrap: wrap; }
+body.interacting .message.fading { opacity: 1; }
 
 /* ---- Message list ----------------------------------------------- */
 
@@ -138,6 +160,7 @@ body {
 /* Channel colours — applied to .speaker */
 .message[data-channel="dialogue"]  .speaker { color: #ffffff; }
 .message[data-channel="system"]    .speaker { color: #f5c518; }
+.message[data-channel="notification"] .speaker { color: #facc15; }
 .message[data-channel="skyrimnet"] .speaker { color: #7ec8f5; }
 .message[data-channel="narrator"]  .speaker { color: #c084fc; }
 .message[data-channel="player"]    .speaker { color: #86efac; }
@@ -202,6 +225,33 @@ body {
   transition: color 0.15s;
 }
 #settings-btn:hover { color: rgba(255, 255, 255, 0.8); }
+
+#clear-history {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 6px;
+  flex-shrink: 0;
+}
+#clear-history:hover { color: #f87171; }
+
+#new-messages {
+  position: absolute;
+  left: 50%;
+  bottom: 34px;
+  transform: translateX(-50%);
+  z-index: 5;
+  border: 1px solid rgba(74, 158, 255, 0.6);
+  border-radius: 10px;
+  padding: 3px 10px;
+  background: rgba(20, 70, 130, 0.92);
+  color: #fff;
+  font: 11px 'Segoe UI', Arial, sans-serif;
+  cursor: pointer;
+}
+#new-messages.hidden { display: none; }
 
 /* ---- Settings overlay ------------------------------------------ */
 
@@ -365,6 +415,7 @@ body {
   width: 90px;
   accent-color: #4a9eff;
 }
+.position-slider input[type=range] { width: 150px; }
 .sp-slider-val {
   font-size: 11px;
   color: rgba(255,255,255,0.45);
@@ -391,10 +442,76 @@ body {
   border-color: rgba(74,158,255,0.5);
 }
 
+.sp-row .sp-toggle { flex: 0 0 34px; }
+
+.sp-row select {
+  width: 150px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 3px;
+  color: #fff;
+  font-size: 11px;
+  font-family: inherit;
+  padding: 3px 6px;
+  outline: none;
+}
+.sp-row select option { background: #15151d; color: #fff; }
+
+/* ---- Themes ---------------------------------------------------- */
+
+body[data-theme="minimal"] #chronicle-window {
+  background: rgba(0, 0, 0, 0.42);
+  border-color: transparent;
+}
+body[data-theme="minimal"] #channel-tabs,
+body[data-theme="minimal"] #input-bar {
+  background: transparent;
+  border-color: transparent;
+}
+body[data-theme="transparent"] #chronicle-window {
+  background: rgba(0, 0, 0, 0.2);
+  border-color: rgba(255,255,255,0.03);
+}
+body[data-theme="transparent"] #channel-tabs,
+body[data-theme="transparent"] #input-bar {
+  background: rgba(0, 0, 0, 0.15);
+}
+body[data-theme="high-contrast"] #chronicle-window {
+  background: rgba(0, 0, 0, 0.9);
+  border-color: rgba(255,255,255,0.35);
+}
+body[data-theme="high-contrast"] .message { color: #fff; }
+body[data-theme="high-contrast"] .tab { color: rgba(255,255,255,0.75); }
+
+/* ---- Window anchors -------------------------------------------- */
+
+body[data-anchor="bottom-left"] #chronicle-window {
+  left: 20px;
+  top: auto;
+  bottom: 30px;
+}
+body[data-anchor="bottom-right"] #chronicle-window {
+  left: auto;
+  top: auto;
+  right: 20px;
+  bottom: 30px;
+}
+body[data-anchor="top-left"] #chronicle-window {
+  left: 20px;
+  top: 30px;
+  bottom: auto;
+}
+body[data-anchor="top-right"] #chronicle-window {
+  left: auto;
+  top: 30px;
+  right: 20px;
+  bottom: auto;
+}
+
 /* Channel rows */
 .sp-ch-row {
   display: grid;
-  grid-template-columns: 76px 34px 1fr 30px;
+  grid-template-columns: 76px 34px 1fr 28px 30px;
   align-items: center;
   gap: 7px;
   padding: 4px 0;
@@ -424,6 +541,7 @@ body {
   cursor: pointer;
   padding: 1px;
 }
+.sp-ch-row input[type=checkbox] { accent-color: #4a9eff; }
 
 #sp-footer {
   display: flex;

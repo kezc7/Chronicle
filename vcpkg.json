@@ -1,7 +1,7 @@
 {
     "name": "chronicle",
-    "version-string": "1.0.0",
-    "description": "MMO-style chat system for Skyrim SE",
+    "version-string": "1.1.0",
+    "description": "In-game chatbox and message log for Skyrim SE",
     "features": {
         "plugin": {
             "description": "Default Plugin",
