@@ -6,10 +6,12 @@ set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CAC
 
 project(
     Chronicle
-    VERSION 1.0.0
-    DESCRIPTION "MMO-style chat system for Skyrim SE"
+    VERSION 1.1.0
+    DESCRIPTION "In-game chatbox and message log for Skyrim SE"
     LANGUAGES CXX
 )
+
+option(CHRONICLE_BUILD_TESTS "Build Chronicle regression tests" ON)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -20,6 +22,8 @@ set(headers
     src/Chronicle.h
     src/Events.h
     src/MessageBuilder.h
+    src/Utf8.h
+    src/RuntimePolicy.h
     src/PrismaUI.h
 )
 
@@ -52,6 +56,17 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src>
     $<INSTALL_INTERFACE:src>)
+
+if(CHRONICLE_BUILD_TESTS)
+    enable_testing()
+    add_executable(ChronicleUtf8Tests tests/MessageBuilderTests.cpp)
+    target_include_directories(ChronicleUtf8Tests PRIVATE src)
+    target_link_libraries(ChronicleUtf8Tests PRIVATE nlohmann_json::nlohmann_json spdlog::spdlog)
+    add_test(NAME ChronicleUtf8Tests COMMAND ChronicleUtf8Tests)
+    add_executable(ChronicleRuntimeTests tests/RuntimeTests.cpp)
+    target_include_directories(ChronicleRuntimeTests PRIVATE src)
+    add_test(NAME ChronicleRuntimeTests COMMAND ChronicleRuntimeTests)
+endif()
 
 target_precompile_headers(${PROJECT_NAME} PRIVATE src/PCH.h)
 
