@@ -123,7 +123,9 @@ public:
 
     void Start();
     void Stop();
+    void SetExtraHudPaths(std::vector<std::string> paths);
     bool IsRunning() const { return m_running.load(); }
+    std::string LastHudPath() const { return m_lastHudPath.empty() ? "not polled" : m_lastHudPath; }
 
 private:
     SubtitlePoller() = default;
@@ -134,6 +136,8 @@ private:
 
     std::string m_lastText;
     std::string m_lastNotificationText;
+    std::vector<std::string> m_extraHudPaths;
+    std::string m_lastHudPath;
     std::unordered_set<std::string> m_activeSubtitles;
     std::atomic<std::uint64_t> m_generation{ 0 };
     std::atomic<bool> m_pending{ false };
