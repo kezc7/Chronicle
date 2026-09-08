@@ -15,6 +15,13 @@ RE::BSEventNotifyControl ChronicleInputSink::ProcessEvent(RE::InputEvent* const*
 
 namespace
 {
+    constexpr std::array<const char*, 4> kDefaultHudSubtitlePaths = {
+        "_root.HUDMovieBaseInstance.SubtitleTextHolder.SubtitleText.text",
+        "_root.HUDMovieBaseInstance.SubtitleTextHolder.SubtitleText.htmlText",
+        "_root.HUDMovieBaseInstance.subtitleTextHolder.subtitleText.text",
+        "_root.HUDMovieBaseInstance.subtitleTextHolder.subtitleText.htmlText",
+    };
+
     std::string DisplayName(RE::TESObjectREFR* a_ref, std::string_view a_fallback)
     {
         if (a_ref) {
@@ -24,6 +31,21 @@ namespace
         }
         return std::string(a_fallback);
     }
+}
+
+void SubtitlePoller::SetExtraHudPaths(std::vector<std::string> paths)
+{
+    m_extraHudPaths.clear();
+    for (auto& path : paths) {
+        if (path.empty() || path.size() > 256) continue;
+        if (std::find(kDefaultHudSubtitlePaths.begin(), kDefaultHudSubtitlePaths.end(), path) !=
+            kDefaultHudSubtitlePaths.end()) continue;
+        if (std::find(m_extraHudPaths.begin(), m_extraHudPaths.end(), path) == m_extraHudPaths.end()) {
+            m_extraHudPaths.push_back(std::move(path));
+        }
+        if (m_extraHudPaths.size() >= 32) break;
+    }
+    spdlog::info("Chronicle: {} additional HUD subtitle path(s) configured", m_extraHudPaths.size());
 }
 
 // ---- MenuEventSink --------------------------------------------------------
@@ -306,8 +328,10 @@ void SubtitlePoller::PollOnce()
     // by writing directly into the Scaleform movie — bypassing SubtitleManager.
     // We read the live text field value to capture what the player sees.
     {
+        m_lastHudPath = m_activeSubtitles.empty() ? "none resolved" : "SubtitleManager";
         auto* ui = RE::UI::GetSingleton();
         if (!ui) {
+            m_lastHudPath = "HUD Menu unavailable";
             return;
         }
 
@@ -352,17 +376,15 @@ void SubtitlePoller::PollOnce()
 
         // Try known ActionScript paths for the subtitle TextField.
         // Vanilla HUD uses the first; some replacer mods use alternate names.
-        static constexpr const char* kPaths[] = {
-            "_root.HUDMovieBaseInstance.SubtitleTextHolder.SubtitleText.text",
-            "_root.HUDMovieBaseInstance.SubtitleTextHolder.SubtitleText.htmlText",
-            "_root.HUDMovieBaseInstance.subtitleTextHolder.subtitleText.text",
-            "_root.HUDMovieBaseInstance.subtitleTextHolder.subtitleText.htmlText",
-        };
-
         bool pathResolved = false;
-        for (auto* path : kPaths) {
+        std::vector<std::string_view> paths;
+        paths.reserve(kDefaultHudSubtitlePaths.size() + m_extraHudPaths.size());
+        for (auto* path : kDefaultHudSubtitlePaths) paths.emplace_back(path);
+        for (const auto& path : m_extraHudPaths) paths.emplace_back(path);
+
+        for (const auto path : paths) {
             RE::GFxValue gfxVal;
-            if (!movie->GetVariable(&gfxVal, path)) {
+            if (!movie->GetVariable(&gfxVal, path.data())) {
                 continue;
             }
             if (!gfxVal.IsString()) {
@@ -371,6 +393,7 @@ void SubtitlePoller::PollOnce()
 
             // We found the right path (GetVariable succeeded and returned a string).
             pathResolved = true;
+            m_lastHudPath = std::string(path);
 
             const char* raw = gfxVal.GetString();
             if (!raw || raw[0] == '\0') {
@@ -394,6 +417,7 @@ void SubtitlePoller::PollOnce()
 
         // If no GFx path resolved at all, log once at debug level so we can diagnose
         if (!pathResolved) {
+            m_lastHudPath = "none resolved";
             static bool s_warned = false;
             if (!s_warned) {
                 s_warned = true;

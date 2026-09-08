@@ -11,14 +11,22 @@ namespace ChronicleRuntime
                name == "LoadWaitSpinner" || name == "Fader Menu";
     }
 
+    inline bool IsCrafting(std::string_view name)
+    {
+        return name == "CraftingMenu" || name == "Crafting Menu" ||
+            name == "SmithingMenu" || name == "Smithing Menu" ||
+            name == "AlchemyMenu" || name == "Alchemy Menu" ||
+            name == "EnchantingMenu" || name == "Enchanting Menu" ||
+            name == "CookingMenu" || name == "Cooking Menu";
+    }
+
     inline bool IsBlocking(std::string_view name)
     {
         return IsTransition(name) || name == "SystemMenu" || name == "TweenMenu" ||
             name == "InventoryMenu" || name == "MagicMenu" || name == "MapMenu" ||
             name == "ContainerMenu" || name == "Journal Menu" || name == "LevelUpMenu" ||
             name == "StatsMenu" || name == "SleepWaitMenu" || name == "FavoritesMenu" ||
-            name == "BarterMenu" || name == "CraftingMenu" || name == "AlchemyMenu" ||
-            name == "PhotoMenu";
+            name == "BarterMenu" || IsCrafting(name) || name == "PhotoMenu";
     }
 
     inline bool InterruptsFocus(std::string_view name)

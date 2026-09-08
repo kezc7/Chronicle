@@ -11,9 +11,9 @@ window.settingsChanged = value => { previewCalls.push('settingsChanged'); window
 window.playerInput = value => previewCalls.push(['playerInput',value]);
 window.consoleCommand = value => previewCalls.push(['consoleCommand',value]);
 window.exportHistory = value => { previewCalls.push(['exportHistory',value]); saveResult(true, 'Preview: export accepted'); };
-window.diagnostics = () => diagnosticsResult({version:'1.1.0 (preview)',api:1,bridge:true,gameLoaded:true,visible:true,focus:true,poller:true,messages:3,lastSubtitle:'I am right behind you.',settingsFile:'Preview only'});
+window.diagnostics = () => diagnosticsResult({version:'1.2.0 (preview)',api:1,bridge:true,gameLoaded:true,visible:true,focus:true,poller:true,hudPath:'Preview HUD path',messages:3,lastSubtitle:'I am right behind you.',settingsFile:'Preview only'});
 window.uiReady = () => setTimeout(() => {
-  nativeBootstrap({settings:null,warning:'',version:'1.1.0 (preview)'});
+  nativeBootstrap({settings:null,warning:'',version:'1.2.0 (preview)'});
   setRuntime({loaded:true,profile:'preview-lydia',character:'Preview'}); setVisibility(true);
   if (messages.length===0) {
     addMessage({channel:'dialogue',speaker:'Lydia',message:'I am right behind you.'});
