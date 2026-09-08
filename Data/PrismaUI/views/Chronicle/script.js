@@ -42,6 +42,10 @@ const DEFAULT_CONFIG = {
     combat:    { enabled: false,  colour: '#fb923c',  prefix: '[COMBAT]', show_timestamp: false },
     console:   { enabled: false, colour: '#94a3b8',  prefix: '[CON]',    show_timestamp: false },
   },
+  // Exact display-name overrides for speaker labels.
+  speaker_colours: {},
+  // Extra Scaleform paths for HUD subtitle replacers, one per line in settings.
+  hud_subtitle_paths: [],
 };
 
 let config = deepMerge({}, DEFAULT_CONFIG);
@@ -86,6 +90,13 @@ function normalizeConfig() {
       config.channels[channel] = { ...defaults };
     }
   }
+  normalizeSpeakerColours();
+  config.hud_subtitle_paths = Array.isArray(config.hud_subtitle_paths)
+    ? [...new Set(config.hud_subtitle_paths
+      .filter(path => typeof path === 'string')
+      .map(path => path.trim())
+      .filter(path => path.length > 0 && path.length <= 256))].slice(0, 32)
+    : [];
   const g = config.general;
   const w = config.window;
 
@@ -129,6 +140,37 @@ function escapeHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function normalizeSpeakerColours() {
+  if (!config.speaker_colours || typeof config.speaker_colours !== 'object' ||
+      Array.isArray(config.speaker_colours)) {
+    config.speaker_colours = {};
+    return;
+  }
+
+  const clean = {};
+  const names = new Map();
+  for (const [rawName, rawColour] of Object.entries(config.speaker_colours)) {
+    const name = String(rawName).trim();
+    const colour = String(rawColour || '');
+    if (!name || !/^#[0-9a-f]{6}$/i.test(colour)) continue;
+    const folded = name.toLowerCase();
+    if (names.has(folded)) delete clean[names.get(folded)];
+    clean[name] = colour.toLowerCase();
+    names.set(folded, name);
+  }
+  config.speaker_colours = clean;
+}
+
+function speakerColour(speaker) {
+  const name = String(speaker || '').trim();
+  if (!name) return '';
+  if (config.speaker_colours[name]) return config.speaker_colours[name];
+  const folded = name.toLowerCase();
+  const match = Object.entries(config.speaker_colours)
+    .find(([savedName]) => savedName.toLowerCase() === folded);
+  return match ? match[1] : '';
 }
 
 // ---------------------------------------------------------------------------
@@ -194,6 +236,7 @@ function applyConfig() {
     .filter(([ch, v]) => DEFAULT_CONFIG.channels[ch] && v && /^#[0-9a-f]{6}$/i.test(v.colour))
     .map(([ch, v]) => `.message[data-channel="${ch}"] .speaker { color: ${v.colour}; }`);
   styleEl.textContent = rules.join('\n');
+  applySpeakerColours();
 
   // The resize handle is a fixed-position sibling. Reposition it after
   // applying saved window coordinates, not only after a resize.
@@ -209,8 +252,15 @@ function persistConfig() {
     localStorage.setItem('chronicle_config', serialized);
   } catch (_) {}
 
+  settingsSaveInFlight = serialized;
   statusText('Saving settings…');
-  if (!sendToGame('settingsChanged', serialized)) saveResult(false, 'Settings cached locally; game connection unavailable');
+  if (!sendToGame('settingsChanged', serialized)) {
+    settingsSaveInFlight = null;
+    const cached = savePendingSettings(serialized);
+    saveResult(false, cached
+      ? 'Settings pending native save; will retry on the next connection'
+      : 'Settings are active for this session only; native save unavailable');
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -278,7 +328,21 @@ function buildMessageEl(entry, chCfg) {
   html += `<span class="text">${escapeHtml(message)}</span>`;
 
   div.innerHTML = html;
+  const speakerEl = div.querySelector('.speaker');
+  const colour = speakerColour(speaker);
+  if (speakerEl && colour) speakerEl.style.color = colour;
   return div;
+}
+
+function applySpeakerColours() {
+  document.querySelectorAll('.message').forEach(messageEl => {
+    const speakerEl = messageEl.querySelector('.speaker');
+    if (!speakerEl) return;
+    const entry = messages.find(item => item.el === messageEl);
+    const colour = speakerColour(entry?.speaker);
+    if (colour) speakerEl.style.color = colour;
+    else speakerEl.style.removeProperty('color');
+  });
 }
 
 function shouldShowMessage(channel) {
@@ -411,6 +475,7 @@ function submitInput() {
 // ---------------------------------------------------------------------------
 
 let settingsOpen = false;
+let settingsSnapshot = null;
 
 const CHANNEL_LABELS = {
   all: 'All', dialogue: 'Dialogue', system: 'System',
@@ -424,6 +489,7 @@ function openSettings() {
   if (!beginInteraction()) return;
   // Close input bar first if open
   closeInput();
+  settingsSnapshot = deepMerge({}, config);
   settingsOpen = true;
 
   populateSettingsForm();
@@ -433,11 +499,21 @@ function openSettings() {
 
 function closeSettings() {
   if (!settingsOpen) return;
+  discardSettingsPreview();
   settingsOpen = false;
 
   document.getElementById('settings-overlay').classList.add('hidden');
   closeInteraction();
 
+}
+
+function discardSettingsPreview() {
+  if (!settingsSnapshot) return;
+  const snapshot = settingsSnapshot;
+  settingsSnapshot = null;
+  config = deepMerge({}, snapshot);
+  normalizeConfig();
+  applyConfig();
 }
 
 function toggleSettings() {
@@ -474,9 +550,11 @@ function populateSettingsForm() {
   document.getElementById('sp-height').value = w.height;
   document.getElementById('sp-theme').value = w.theme || 'skyrim';
   document.getElementById('sp-anchor').value = w.anchor || 'custom';
+  document.getElementById('sp-hud-subtitle-paths').value = config.hud_subtitle_paths.join('\n');
   syncPositionControls();
 
   buildChannelRows();
+  buildSpeakerColourRows();
 }
 
 function buildChannelRows() {
@@ -506,6 +584,85 @@ function buildChannelRows() {
 
     container.appendChild(row);
   }
+}
+
+function buildSpeakerColourRows() {
+  const container = document.getElementById('sp-speaker-colour-list');
+  const datalist = document.getElementById('sp-speaker-options');
+  if (!container || !datalist) return;
+
+  const knownNames = new Set(Object.keys(config.speaker_colours));
+  messages.forEach(entry => { if (entry.speaker) knownNames.add(entry.speaker); });
+  datalist.replaceChildren();
+  [...knownNames].sort((a, b) => a.localeCompare(b)).forEach(name => {
+    const option = document.createElement('option');
+    option.value = name;
+    datalist.appendChild(option);
+  });
+
+  container.replaceChildren();
+  const rules = Object.entries(config.speaker_colours)
+    .sort(([a], [b]) => a.localeCompare(b));
+  if (rules.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'sp-empty';
+    empty.textContent = 'No custom speaker colours saved.';
+    container.appendChild(empty);
+    return;
+  }
+
+  rules.forEach(([name, colour]) => {
+    const row = document.createElement('div');
+    row.className = 'sp-speaker-row';
+    row.dataset.speaker = name;
+    row.innerHTML = '<span class="sp-speaker-name"></span>' +
+      '<input type="color" class="sp-speaker-colour" />' +
+      '<button type="button" class="sp-remove-speaker">Remove</button>';
+    row.querySelector('.sp-speaker-name').textContent = name;
+    row.querySelector('.sp-speaker-colour').value = colour;
+    container.appendChild(row);
+  });
+}
+
+function collectSpeakerColours() {
+  const result = {};
+  document.querySelectorAll('.sp-speaker-row').forEach(row => {
+    const name = (row.dataset.speaker || '').trim();
+    const colour = row.querySelector('.sp-speaker-colour')?.value || '';
+    if (name && /^#[0-9a-f]{6}$/i.test(colour)) result[name] = colour.toLowerCase();
+  });
+  return result;
+}
+
+function addSpeakerColour() {
+  const nameInput = document.getElementById('sp-speaker-name');
+  const colourInput = document.getElementById('sp-speaker-new-colour');
+  const name = nameInput.value.trim();
+  const colour = colourInput.value;
+  if (!name) {
+    statusText('Enter an NPC display name first');
+    nameInput.focus();
+    return;
+  }
+
+  for (const savedName of Object.keys(config.speaker_colours)) {
+    if (savedName.toLowerCase() === name.toLowerCase()) delete config.speaker_colours[savedName];
+  }
+  config.speaker_colours[name] = colour;
+  normalizeSpeakerColours();
+  applyConfig();
+  buildSpeakerColourRows();
+  nameInput.value = '';
+  statusText('Speaker colour previewed — click Apply to save');
+}
+
+function removeSpeakerColour(row) {
+  const name = row.dataset.speaker || '';
+  delete config.speaker_colours[name];
+  normalizeSpeakerColours();
+  applyConfig();
+  buildSpeakerColourRows();
+  statusText('Speaker colour removed — click Apply to save');
 }
 
 function collectSettingsFromForm() {
@@ -549,6 +706,12 @@ function collectSettingsFromForm() {
       position_y: Number(document.getElementById('sp-position-y').value),
     },
     channels,
+    speaker_colours: collectSpeakerColours(),
+    hud_subtitle_paths: document.getElementById('sp-hud-subtitle-paths').value
+      .split(/\r?\n/).map(path => path.trim())
+      .filter(path => path.length > 0 && path.length <= 256)
+      .filter((path, index, paths) => paths.indexOf(path) === index)
+      .slice(0, 32),
   };
 }
 
@@ -557,6 +720,7 @@ function applyAndSaveSettings() {
   config = deepMerge(config, newCfg);
   normalizeConfig();
   applyConfig();
+  settingsSnapshot = deepMerge({}, config);
   persistConfig();
   if (config.general.persist_history) {
     persistHistory();
@@ -606,6 +770,26 @@ document.getElementById('sp-reset').addEventListener('click', () => {
 });
 
 document.getElementById('sp-test').addEventListener('click', runDiagnostics);
+document.getElementById('sp-speaker-add').addEventListener('click', addSpeakerColour);
+document.getElementById('sp-speaker-name').addEventListener('keydown', event => {
+  if (event.key === 'Enter') {
+    addSpeakerColour();
+    event.preventDefault();
+  }
+});
+document.getElementById('sp-speaker-colour-list').addEventListener('input', event => {
+  const row = event.target.closest('.sp-speaker-row');
+  if (!row || !event.target.classList.contains('sp-speaker-colour')) return;
+  config.speaker_colours[row.dataset.speaker] = event.target.value;
+  normalizeSpeakerColours();
+  applySpeakerColours();
+  statusText('Speaker colour previewed — click Apply to save');
+});
+document.getElementById('sp-speaker-colour-list').addEventListener('click', event => {
+  const button = event.target.closest('.sp-remove-speaker');
+  if (!button) return;
+  removeSpeakerColour(button.closest('.sp-speaker-row'));
+});
 
 // Gear icon button
 document.getElementById('settings-btn').addEventListener('click', e => {
@@ -664,7 +848,11 @@ function saveWindowState(x, y, w, h) {
   config.window.width = w;
   config.window.height = h;
   syncPositionControls();
-  persistConfig();
+  if (settingsOpen) {
+    statusText('Window change previewed — click Apply to save');
+  } else {
+    persistConfig();
+  }
 }
 
 function syncPositionControls() {

@@ -13,6 +13,11 @@ default on a fresh install. Existing preferences are preserved.
   copy/export history, drag the empty tab-bar area, or resize the lower-right corner.
 - **Shift+N** opens settings. **Apply** saves and keeps the panel open to show the result.
 - Settings includes live **Position X/Y** sliders; the box moves as the sliders move.
+- **Channels → NPC speaker name colours** lets you assign exact display-name colours;
+  changes preview immediately and are saved with **Apply**.
+- **Additional GFx paths** under General → HUD subtitle compatibility lets HUD
+  replacers supply extra subtitle fields without recompiling. Diagnostics reports
+  the path currently resolving, or that none resolved.
 - **Enter** opens chat input. Submitting sends a SkyrimNet player-input event;
   responding to it requires a compatible integration. Console commands are optional
   and are executed in Skyrim when the Console channel is enabled and selected.
@@ -31,6 +36,9 @@ updates do not overwrite it. Saves use a temporary file and preserve the previou
 file as `Chronicle.json.bak`. In MO2, newly written files may appear in Overwrite.
 The bundled `PrismaUI/views/Chronicle/config.json` supplies first-run defaults.
 Old browser preferences are migrated when there is no native settings file.
+Settings edited in the panel are previews until Apply; Close/Escape discards them.
+If the native save is unavailable or fails, Chronicle marks the settings as
+pending and retries them on the next successful handshake.
 
 History is stored in the web view's local storage per character, using an identifier
 saved in the SKSE co-save. Make a new game save after installing to persist that
@@ -90,13 +98,14 @@ For browser development, `node tests/preview.cjs` serves a local preview with mo
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
 
-## 1.1.0 changes
+## 1.2.0 changes
 
 Corrected PrismaUI callback dispatch and focus ownership; added native hotkeys,
 startup/load visibility guards, managed subtitle polling with stale-task rejection,
 capture of all active subtitle entries, speaker-aware duplicate suppression, and
 UTF-8 sanitization with escaped diagnostic context. Added interaction controls,
 filtered history tools, per-character history, settings save feedback, and native
-diagnostics. UTF-8 regression coverage includes byte `0xC1`, all single-byte values,
+diagnostics. Added live window positioning and per-speaker name colour overrides.
+UTF-8 regression coverage includes byte `0xC1`, all single-byte values,
 truncated/overlong/surrogate sequences, valid accented text, and emoji.
 
