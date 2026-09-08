@@ -456,6 +456,26 @@ body.interacting .message.fading { opacity: 1; }
   outline: none;
 }
 .sp-row select option { background: #15151d; color: #fff; }
+.sp-row-stacked {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 5px;
+}
+.sp-row textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 3px;
+  color: #fff;
+  font: 11px/1.35 monospace;
+  padding: 5px 6px;
+  outline: none;
+}
+.sp-row textarea:focus {
+  border-color: rgba(74,158,255,0.5);
+}
 
 /* ---- Themes ---------------------------------------------------- */
 
@@ -542,6 +562,81 @@ body[data-anchor="top-right"] #chronicle-window {
   padding: 1px;
 }
 .sp-ch-row input[type=checkbox] { accent-color: #4a9eff; }
+
+.sp-section-hint {
+  display: block;
+  margin: -2px 0 8px;
+  line-height: 1.35;
+}
+.sp-speaker-add {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+}
+.sp-speaker-add input[type=text] {
+  flex: 1;
+  min-width: 0;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 3px;
+  color: #fff;
+  font-size: 11px;
+  font-family: inherit;
+  padding: 4px 6px;
+  outline: none;
+}
+.sp-speaker-add input[type=text]:focus {
+  border-color: rgba(74,158,255,0.5);
+}
+.sp-speaker-add input[type=color],
+.sp-speaker-row input[type=color] {
+  width: 28px;
+  height: 22px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  padding: 1px;
+  flex-shrink: 0;
+}
+.sp-speaker-add .sp-btn {
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+.sp-speaker-row {
+  display: grid;
+  grid-template-columns: 1fr 28px auto;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-top: 1px solid rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.8);
+  font-size: 11px;
+}
+.sp-speaker-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sp-remove-speaker {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 3px;
+  color: rgba(255,255,255,0.55);
+  font: inherit;
+  padding: 3px 7px;
+  cursor: pointer;
+}
+.sp-remove-speaker:hover {
+  color: #ffb4a9;
+  border-color: rgba(255,120,100,0.45);
+}
+.sp-empty {
+  color: rgba(255,255,255,0.35);
+  font-size: 11px;
+  font-style: italic;
+}
 
 #sp-footer {
   display: flex;

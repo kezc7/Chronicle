@@ -51,7 +51,9 @@ if ($LASTEXITCODE -ne 0) {
 $dll = "$build\Chronicle.dll"
 & "$vsBase\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\ctest.exe" --test-dir $build --output-on-failure
 if ($LASTEXITCODE -ne 0) { throw "Chronicle native tests failed" }
-& node --test "$src\tests\bridge.test.cjs" "$src\tests\history.test.cjs"
+$uiTests = Get-ChildItem -LiteralPath "$src\tests" -Filter '*.test.cjs' |
+    Select-Object -ExpandProperty FullName
+& node --test $uiTests
 if ($LASTEXITCODE -ne 0) { throw "Chronicle UI tests failed" }
 if (Test-Path $dll) {
     Write-Host ("[Chronicle] SUCCESS -- " + $dll)
