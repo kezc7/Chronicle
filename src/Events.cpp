@@ -1,6 +1,31 @@
 #include "Events.h"
 #include "Chronicle.h"
 
+RE::BSEventNotifyControl ChronicleInputSink::ProcessEvent(RE::InputEvent* const* events,
+    RE::BSTEventSource<RE::InputEvent*>*)
+{
+    if (events) for (auto* event = *events; event; event = event->next) {
+        const auto* button = event->AsButtonEvent();
+        if (button && button->GetDevice() == RE::INPUT_DEVICE::kKeyboard && button->IsDown()) {
+            Chronicle::GetSingleton()->OnHotkey(button->GetIDCode(), (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0);
+        }
+    }
+    return RE::BSEventNotifyControl::kContinue;
+}
+
+namespace
+{
+    std::string DisplayName(RE::TESObjectREFR* a_ref, std::string_view a_fallback)
+    {
+        if (a_ref) {
+            if (const auto* name = a_ref->GetDisplayFullName(); name && name[0] != '\0') {
+                return name;
+            }
+        }
+        return std::string(a_fallback);
+    }
+}
+
 // ---- MenuEventSink --------------------------------------------------------
 
 RE::BSEventNotifyControl MenuEventSink::ProcessEvent(
@@ -15,15 +40,9 @@ RE::BSEventNotifyControl MenuEventSink::ProcessEvent(
 
     auto* chronicle = Chronicle::GetSingleton();
 
-    if (a_event->opening) {
-        // Any menu opening: release Chronicle focus so it cannot hold input
-        // hostage when another mod's menu or a game menu opens.
-        chronicle->ForceCloseInput();
-    }
-
-    // Start the subtitle poller on the first MenuOpenCloseEvent after the game
-    // has loaded a save. "HUD Menu" never fires MenuOpenCloseEvent (it is
-    // always-open), so we use the first real menu event as the safe trigger.
+    // Keep a fallback start path for unusual load sequences. "HUD Menu" never
+    // fires MenuOpenCloseEvent (it is always-open), so normal startup begins
+    // from OnPostLoadGame instead.
     if (chronicle->IsGameLoaded() && !SubtitlePoller::GetSingleton().IsRunning()) {
         spdlog::info("Chronicle: first post-load menu event '{}' — starting subtitle poller",
                      menuName);
@@ -49,7 +68,19 @@ RE::BSEventNotifyControl SkyrimNetEventSink::ProcessEvent(
     std::string_view eventName = a_event->eventName.c_str();
     std::string strArg = a_event->strArg.c_str();
 
-    if (eventName == "SkyrimNet_DialogueLine") {
+    const bool isDialogueLine =
+        eventName == "SkyrimNet_DialogueLine" ||
+        eventName == "SkyrimNet_CharacterLine" ||
+        eventName == "MinAI_DialogueLine" ||
+        eventName == "Mantella_DialogueLine" ||
+        eventName == "Chronicle_DialogueLine";
+    const bool isNarratorLine =
+        eventName == "SkyrimNet_NarratorLine" ||
+        eventName == "MinAI_NarratorLine" ||
+        eventName == "Mantella_NarratorLine" ||
+        eventName == "Chronicle_NarratorLine";
+
+    if (isDialogueLine) {
         // Expected format: "SpeakerName|DialogueText"
         auto sep = strArg.find('|');
         if (sep != std::string::npos) {
@@ -57,11 +88,97 @@ RE::BSEventNotifyControl SkyrimNetEventSink::ProcessEvent(
         } else {
             Chronicle::GetSingleton()->SendMessage("skyrimnet", "", strArg);
         }
-    } else if (eventName == "SkyrimNet_NarratorLine") {
+    } else if (isNarratorLine) {
         // Narrator lines — never attributed to Player
         Chronicle::GetSingleton()->SendMessage("narrator", "Narrator", strArg);
+    } else if (eventName == "SkyrimNet_Notification" ||
+               eventName == "Chronicle_Notification") {
+        Chronicle::GetSingleton()->SendMessage("notification", "", strArg);
+    } else if (eventName == "SkyrimNet_Combat" ||
+               eventName == "SkyrimNet_CombatEvent" ||
+               eventName == "Chronicle_Combat") {
+        Chronicle::GetSingleton()->SendMessage("combat", "Combat", strArg);
+    } else if (eventName == "SkyrimNet_SpeechStarted" ||
+               eventName == "SkyrimNet_SpeechComplete") {
+        // Modern SkyrimNet builds send speech metadata as JSON. Accept both
+        // the top-level payload and the nested { data: "..." } form.
+        try {
+            auto payload = nlohmann::json::parse(strArg);
+            if (payload.contains("data") && payload["data"].is_string()) {
+                payload = nlohmann::json::parse(payload["data"].get<std::string>());
+            }
+
+            auto text = payload.value("fullText", std::string{});
+            if (text.empty()) {
+                text = payload.value("text", std::string{});
+            }
+            auto speaker = payload.value("speakerName", std::string{});
+            if (speaker.empty()) {
+                speaker = payload.value("speaker", std::string{});
+            }
+            if (!text.empty()) {
+                Chronicle::GetSingleton()->SendMessage("skyrimnet", speaker, text);
+            }
+        } catch (const std::exception& e) {
+            spdlog::debug("Chronicle: ignored non-JSON SkyrimNet speech event: {}", e.what());
+        }
     } else if (eventName == "SkyrimNet_PlayerInput") {
         Chronicle::GetSingleton()->SendMessage("player", "Player", strArg);
+    }
+
+    return RE::BSEventNotifyControl::kContinue;
+}
+
+// ---- Native combat/death sinks -------------------------------------------
+
+RE::BSEventNotifyControl CombatEventSink::ProcessEvent(
+    const RE::TESHitEvent* a_event,
+    RE::BSTEventSource<RE::TESHitEvent>*)
+{
+    if (!a_event) {
+        return RE::BSEventNotifyControl::kContinue;
+    }
+
+    auto* player = RE::PlayerCharacter::GetSingleton();
+    if (!player) {
+        return RE::BSEventNotifyControl::kContinue;
+    }
+
+    auto* target = a_event->target.get();
+    auto* cause = a_event->cause.get();
+
+    if (target == player && cause != player) {
+        Chronicle::GetSingleton()->SendMessage(
+            "combat", DisplayName(cause, "Enemy"), "hit Player");
+    } else if (cause == player && target != player) {
+        Chronicle::GetSingleton()->SendMessage(
+            "combat", "Player", "hit " + DisplayName(target, "target"));
+    }
+
+    return RE::BSEventNotifyControl::kContinue;
+}
+
+RE::BSEventNotifyControl DeathEventSink::ProcessEvent(
+    const RE::TESDeathEvent* a_event,
+    RE::BSTEventSource<RE::TESDeathEvent>*)
+{
+    if (!a_event || !a_event->dead) {
+        return RE::BSEventNotifyControl::kContinue;
+    }
+
+    auto* player = RE::PlayerCharacter::GetSingleton();
+    if (!player) {
+        return RE::BSEventNotifyControl::kContinue;
+    }
+
+    auto* dying = a_event->actorDying.get();
+    auto* killer = a_event->actorKiller.get();
+
+    if (dying == player) {
+        Chronicle::GetSingleton()->SendMessage("combat", "Combat", "Player died");
+    } else if (killer == player && dying) {
+        Chronicle::GetSingleton()->SendMessage(
+            "combat", "Player", "killed " + DisplayName(dying, "target"));
     }
 
     return RE::BSEventNotifyControl::kContinue;
@@ -76,31 +193,59 @@ void SubtitlePoller::Start()
         return;
     }
 
+    if (m_worker.joinable()) {
+        m_worker.request_stop();
+        m_worker.join();
+    }
+    const auto generation = ++m_generation;
+    m_pending = false;
+    m_activeSubtitles.clear();
     m_lastText.clear();
+    m_lastNotificationText.clear();
     spdlog::info("Chronicle: subtitle polling started");
 
     // Spawn a background thread that sleeps kPollInterval then schedules a
     // one-shot AddTask to read SubtitleManager on the main thread.
     // We never re-enqueue from inside the task — that would drain SKSE's
     // while(!empty) task queue infinitely and freeze the game.
-    std::thread([this]() {
-        while (m_running) {
+    m_worker = std::jthread([this, generation](std::stop_token stop) {
+        while (!stop.stop_requested() && m_running && generation == m_generation) {
             std::this_thread::sleep_for(kPollInterval);
-            if (!m_running) break;
+            if (stop.stop_requested() || !m_running || generation != m_generation) break;
 
             auto* tasks = SKSE::GetTaskInterface();
-            if (tasks) {
-                tasks->AddTask([this]() { PollOnce(); });
+            if (tasks && !m_pending.exchange(true)) {
+                tasks->AddTask([this, generation]() {
+                    if (generation != m_generation) return;
+                    m_pending = false;
+                    if (!m_running) return;
+                    try {
+                        Chronicle::GetSingleton()->Tick();
+                        PollOnce();
+                    } catch (const std::exception& e) {
+                        spdlog::error("Chronicle: subtitle poll rejected: {}", e.what());
+                    } catch (...) {
+                        spdlog::error("Chronicle: subtitle poll rejected");
+                    }
+                });
             }
         }
         spdlog::info("Chronicle: subtitle polling thread exiting");
-    }).detach();
+    });
 }
 
 void SubtitlePoller::Stop()
 {
     m_running = false;
+    ++m_generation;
+    if (m_worker.joinable()) {
+        m_worker.request_stop();
+        m_worker.join();
+    }
+    m_pending = false;
+    m_activeSubtitles.clear();
     m_lastText.clear();
+    m_lastNotificationText.clear();
     spdlog::info("Chronicle: subtitle polling stopped");
 }
 
@@ -134,13 +279,10 @@ void SubtitlePoller::PollOnce()
     // In AE 1.6.1170 ambient/idle follower lines do NOT go through this path.
     {
         auto* mgr = RE::SubtitleManager::GetSingleton();
-        if (mgr && !mgr->subtitles.empty()) {
-            const auto& info = mgr->subtitles[0];
+        std::unordered_set<std::string> current;
+        if (mgr) for (const auto& info : mgr->subtitles) {
             std::string text = info.subtitle.c_str();
-            if (!text.empty() && text != m_lastText) {
-                m_lastText = text;
-                spdlog::debug("Chronicle: subtitle (mgr): '{}'", text);
-
+            if (!text.empty()) {
                 std::string speakerName;
                 if (auto speakerRef = info.speaker.get()) {
                     if (auto* name = speakerRef->GetDisplayFullName()) {
@@ -148,10 +290,15 @@ void SubtitlePoller::PollOnce()
                     }
                 }
 
-                Chronicle::GetSingleton()->SendMessage("dialogue", speakerName, text);
-                return;
+                const auto key = speakerName + '\0' + text;
+                current.insert(key);
+                if (!m_activeSubtitles.contains(key)) {
+                    Chronicle::GetSingleton()->SendMessage("dialogue", speakerName, text);
+                }
+                m_lastText = text;
             }
         }
+        m_activeSubtitles = std::move(current);
     }
 
     // --- Path 2: HUD Menu GFx movie ---
@@ -164,6 +311,38 @@ void SubtitlePoller::PollOnce()
             return;
         }
 
+        // HUDNotifications is one of the HUD Menu's runtime objects. Reading
+        // its active queue gives us quest/system notifications without
+        // scraping localized text from the movie.
+        if (auto hudMenu = ui->GetMenu<RE::HUDMenu>()) {
+            bool foundNotificationObject = false;
+            for (auto* object : hudMenu->GetRuntimeData().objects) {
+                auto* notifications = dynamic_cast<RE::HUDNotifications*>(object);
+                if (!notifications) {
+                    continue;
+                }
+                foundNotificationObject = true;
+                if (notifications->queue.empty()) {
+                    m_lastNotificationText.clear();
+                    continue;
+                }
+
+                const auto& notification = notifications->queue.back();
+                std::string text = notification.text.c_str();
+                if (!text.empty() && text != m_lastNotificationText) {
+                    m_lastNotificationText = text;
+                    Chronicle::GetSingleton()->SendMessage("notification", "", text);
+                }
+                break;
+            }
+            if (!foundNotificationObject) {
+                m_lastNotificationText.clear();
+            }
+        }
+
+        // Prefer the attributed manager entries while they are active, but
+        // still process notifications above on every tick.
+        if (!m_activeSubtitles.empty()) return;
         auto hudMenuPtr = ui->GetMenu("HUD Menu");
         if (!hudMenuPtr || !hudMenuPtr->uiMovie) {
             return;
@@ -174,10 +353,10 @@ void SubtitlePoller::PollOnce()
         // Try known ActionScript paths for the subtitle TextField.
         // Vanilla HUD uses the first; some replacer mods use alternate names.
         static constexpr const char* kPaths[] = {
-            "_root.HUDMovieBaseInstance.SubtitleTextHolder.SubtitleText.htmlText",
             "_root.HUDMovieBaseInstance.SubtitleTextHolder.SubtitleText.text",
-            "_root.HUDMovieBaseInstance.subtitleTextHolder.subtitleText.htmlText",
+            "_root.HUDMovieBaseInstance.SubtitleTextHolder.SubtitleText.htmlText",
             "_root.HUDMovieBaseInstance.subtitleTextHolder.subtitleText.text",
+            "_root.HUDMovieBaseInstance.subtitleTextHolder.subtitleText.htmlText",
         };
 
         bool pathResolved = false;
@@ -201,7 +380,7 @@ void SubtitlePoller::PollOnce()
                 break;
             }
 
-            std::string text = StripHtmlTags(raw);
+            std::string text = std::string_view(path).ends_with(".htmlText") ? StripHtmlTags(raw) : std::string(raw);
             if (text.empty() || text == m_lastText) {
                 break;
             }

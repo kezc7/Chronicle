@@ -1,0 +1,44 @@
+#include "MessageBuilder.h"
+
+#include <stdexcept>
+#include <nlohmann/json.hpp>
+#include <string>
+
+void Require(bool ok) { if (!ok) throw std::runtime_error("UTF-8 regression"); }
+int main()
+{
+    std::string malformed = "Before ";
+    malformed.push_back(static_cast<char>(0xC1));
+    malformed += " after";
+
+    const auto sanitized = ChronicleUtf8::ReplaceInvalid(malformed);
+    Require(sanitized.changed);
+    Require(sanitized.firstInvalidOffset == 7);
+    Require(sanitized.firstInvalidByte == 0xC1);
+    Require(sanitized.value == "Before \xEF\xBF\xBD after");
+
+    // The exact sanitized value must be safe for nlohmann::json serialization.
+    const nlohmann::json payload = { { "message", sanitized.value } };
+    const auto encoded = payload.dump(-1, ' ', false,
+                                      nlohmann::json::error_handler_t::replace);
+    const auto roundTrip = nlohmann::json::parse(encoded);
+    Require(roundTrip.at("message").get<std::string>() == sanitized.value);
+    const auto full = nlohmann::json::parse(MessageBuilder::Build(malformed, malformed, malformed));
+    Require(full.at("channel") == sanitized.value);
+    Require(full.at("speaker") == sanitized.value);
+    Require(full.at("message") == sanitized.value);
+    Require(MessageBuilder::EscapeForLog("\n\xC1") == "\\x0A\\xC1");
+    for (int byte = 0; byte <= 255; ++byte) {
+        const std::string value(1, static_cast<char>(byte));
+        const auto safe = ChronicleUtf8::ReplaceInvalid(value);
+        Require(!ChronicleUtf8::ReplaceInvalid(safe.value).changed);
+        Require(nlohmann::json::parse(nlohmann::json(safe.value).dump()).get<std::string>() == safe.value);
+    }
+    for (const auto value : {"\xC0\xAF", "\xED\xA0\x80", "\xF4\x90\x80\x80", "\xE2\x82"}) {
+        Require(ChronicleUtf8::ReplaceInvalid(value).changed);
+    }
+    const std::string valid = "Caf\xC3\xA9 \xF0\x9F\x90\x89";
+    Require(!ChronicleUtf8::ReplaceInvalid(valid).changed);
+    Require(nlohmann::json::parse(MessageBuilder::Build("dialogue", "Lydia", valid)).at("message") == valid);
+    return 0;
+}

@@ -32,7 +32,8 @@ Write-Host "[Chronicle] Configuring..."
     "-DCMAKE_MAKE_PROGRAM=$ninja" `
     "-DCMAKE_TOOLCHAIN_FILE=$toolchain" `
     -DVCPKG_TARGET_TRIPLET=x64-windows-static `
-    "-DCMAKE_BUILD_TYPE=$Config"
+    "-DCMAKE_BUILD_TYPE=$Config" `
+    -DCHRONICLE_BUILD_TESTS=ON
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "[Chronicle] Configure FAILED (exit $LASTEXITCODE)"
@@ -48,6 +49,10 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $dll = "$build\Chronicle.dll"
+& "$vsBase\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\ctest.exe" --test-dir $build --output-on-failure
+if ($LASTEXITCODE -ne 0) { throw "Chronicle native tests failed" }
+& node --test "$src\tests\bridge.test.cjs" "$src\tests\history.test.cjs"
+if ($LASTEXITCODE -ne 0) { throw "Chronicle UI tests failed" }
 if (Test-Path $dll) {
     Write-Host ("[Chronicle] SUCCESS -- " + $dll)
 } else {

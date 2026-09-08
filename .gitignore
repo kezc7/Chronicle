@@ -1,5 +1,8 @@
 # Build output
 out/
+output/
+.playwright-cli/
+node_modules/
 
 # Visual Studio
 .vs/
