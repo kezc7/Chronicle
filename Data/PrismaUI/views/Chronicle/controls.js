@@ -6,6 +6,10 @@ let historySaveTimer = null;
 let bootstrapTimer = null;
 let searchText = '';
 let speakerFilter = '';
+let focusPending = false;
+let settingsSaveInFlight = null;
+let settingsSaveQueued = null;
+const PENDING_SETTINGS_KEY = 'chronicle_pending_settings';
 
 function interactionHint() {
   return config.general.interact_hotkey + ': interact · Shift+' + config.general.config_hotkey.toUpperCase() + ': settings';
@@ -20,6 +24,7 @@ function beginInteraction() {
   if (!runtime.connected || !runtime.loaded || !runtime.visible) return false;
   if (interactionOpen) return true;
   interactionOpen = true;
+  focusPending = true;
   document.body.classList.add('interacting');
   refreshSpeakerOptions();
   statusText('Requesting mouse…');
@@ -31,6 +36,8 @@ function beginInteraction() {
 }
 
 function closeInteraction(release = true) {
+  if (settingsOpen && typeof discardSettingsPreview === 'function') discardSettingsPreview();
+  focusPending = false;
   interactionOpen = false;
   inputOpen = false;
   settingsOpen = false;
@@ -44,10 +51,13 @@ function closeInteraction(release = true) {
 }
 
 function focusResult(success, reason) {
+  if (success && (!interactionOpen || !focusPending)) return false;
+  focusPending = false;
   if (!success) closeInteraction(false);
   document.body.classList.toggle('mouse-active', success);
   statusText(reason);
   if (success && inputOpen) document.getElementById('chat-input').focus();
+  return true;
 }
 
 function setVisibility(visible) {
@@ -99,13 +109,15 @@ function nativeBootstrap(data) {
   applyConfig();
   statusText(data.warning || ('Chronicle ' + data.version + ' · ' + interactionHint()));
   // Migrate existing browser preferences once if no native settings file exists.
-  if (!data.settings && !data.warning) persistConfig();
+  if (!retryPendingSettings() && !data.settings && !data.warning) persistConfig();
 }
 
 function nativeHotkey(action) {
+  if (!runtime.connected || !runtime.loaded || !runtime.visible) return false;
   if (action === 'settings') openSettings();
   else if (action === 'input') openInput();
   else if (action === 'interact') beginInteraction();
+  return true;
 }
 
 function startHandshake() {
@@ -121,12 +133,104 @@ function saveResult(ok, detail) {
   document.getElementById('sp-status').classList.toggle('error', !ok);
 }
 
+function savePendingSettings(serialized) {
+  try {
+    localStorage.setItem(PENDING_SETTINGS_KEY, serialized);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function readPendingSettings() {
+  try {
+    const serialized = localStorage.getItem(PENDING_SETTINGS_KEY);
+    if (!serialized) return null;
+    const parsed = JSON.parse(serialized);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      clearPendingSettings();
+      return null;
+    }
+    return { serialized, settings: parsed };
+  } catch (_) {
+    clearPendingSettings();
+    return null;
+  }
+}
+
+function clearPendingSettings() {
+  try { localStorage.removeItem(PENDING_SETTINGS_KEY); } catch (_) {}
+}
+
+function retryPendingSettings() {
+  const pending = readPendingSettings();
+  if (!pending) return false;
+
+  config = deepMerge(deepMerge({}, DEFAULT_CONFIG), pending.settings);
+  normalizeConfig();
+  applyConfig();
+  dispatchSettingsSave(JSON.stringify(config, null, 2));
+  return true;
+}
+
+function dispatchSettingsSave(serialized) {
+  settingsSaveInFlight = serialized;
+  statusText('Saving settings…');
+  if (!sendToGame('settingsChanged', serialized)) {
+    settingsSaveInFlight = null;
+    const latest = settingsSaveQueued || serialized;
+    settingsSaveQueued = null;
+    const cached = savePendingSettings(latest);
+    saveResult(false, cached
+      ? 'Settings pending native save; will retry on the next connection'
+      : 'Settings are active for this session only; native save unavailable');
+  }
+}
+
+function persistConfig() {
+  const serialized = JSON.stringify(config, null, 2);
+  try {
+    localStorage.setItem('chronicle_config', serialized);
+  } catch (_) {}
+
+  if (settingsSaveInFlight) {
+    settingsSaveQueued = serialized;
+    statusText('Saving latest settings…');
+    return;
+  }
+  dispatchSettingsSave(serialized);
+}
+
+function settingsSaveResult(ok, detail) {
+  if (!settingsSaveInFlight) return;
+  const attempted = settingsSaveInFlight;
+  const queued = settingsSaveQueued;
+  settingsSaveInFlight = null;
+  settingsSaveQueued = null;
+
+  if (queued) {
+    // Keep the newest payload recoverable while it waits for its own result.
+    savePendingSettings(queued);
+    saveResult(ok, detail);
+    dispatchSettingsSave(queued);
+  } else if (ok) {
+    clearPendingSettings();
+    saveResult(ok, detail);
+  } else if (!savePendingSettings(attempted)) {
+    detail = detail + ' Current session only: pending settings could not be cached.';
+    saveResult(ok, detail);
+  } else {
+    saveResult(ok, detail);
+  }
+}
+
 function diagnosticsResult(data) {
   document.getElementById('diagnostics-output').textContent =
     'Chronicle ' + data.version + ' / PrismaUI API ' + data.api + '\n' +
     'Game connection: ' + (data.bridge ? 'connected' : 'missing') + '\n' +
     'Game loaded: ' + data.gameLoaded + ' · Window visible: ' + data.visible + '\n' +
     'Mouse focus: ' + data.focus + ' · Subtitle polling: ' + data.poller + '\n' +
+    'HUD subtitle path: ' + (data.hudPath || '(none resolved)') + '\n' +
     'Messages captured this load: ' + data.messages + '\n' +
     'Last subtitle: ' + (data.lastSubtitle || '(none captured yet)') + '\n' +
     'Settings: ' + data.settingsFile;

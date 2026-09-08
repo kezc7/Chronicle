@@ -31,5 +31,7 @@
     "player":    { "enabled": false, "colour": "#86efac",  "prefix": "",         "show_timestamp": false },
     "combat":    { "enabled": false, "colour": "#fb923c",  "prefix": "[COMBAT]", "show_timestamp": false },
     "console":   { "enabled": false, "colour": "#94a3b8",  "prefix": "[CON]",    "show_timestamp": false }
-  }
+  },
+  "speaker_colours": {},
+  "hud_subtitle_paths": []
 }

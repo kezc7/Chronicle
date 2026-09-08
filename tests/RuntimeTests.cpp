@@ -22,6 +22,15 @@ int main()
     state.Menu("PhotoMenu", false);
     Require(state.Visible());
     state.hideMenus = true;
+    state.Menu("Crafting Menu", true);
+    Require(!state.Visible());
+    state.Menu("Crafting Menu", false);
+    state.Menu("SmithingMenu", true);
+    Require(!state.Visible());
+    state.Menu("SmithingMenu", false);
+    state.Menu("Enchanting Menu", true);
+    Require(!state.Visible());
+    state.Menu("Enchanting Menu", false);
     state.Menu("InventoryMenu", true); // duplicate notification is idempotent
     state.Menu("InventoryMenu", false);
     Require(state.Visible());
