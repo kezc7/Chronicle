@@ -97,3 +97,54 @@ test('pending settings override stale native settings and survive a failed retry
   context.settingsSaveResult(true, 'saved');
   assert.equal(saved.has('chronicle_pending_settings'), false);
 });
+
+test('rapid settings saves are serialized and retain the newest failed payload', () => {
+  const {context, saved} = setup();
+  const calls = [];
+  context.sendToGame = (event, value) => {
+    calls.push([event, value]);
+    return true;
+  };
+
+  context.config = deepMerge({}, context.DEFAULT_CONFIG || {
+    general: {}, window: {}, channels: {}, speaker_colours: {}, hud_subtitle_paths: [],
+  });
+  context.config.marker = 'A';
+  context.persistConfig();
+  context.config.marker = 'B';
+  context.persistConfig();
+
+  assert.equal(calls.length, 1);
+  assert.equal(JSON.parse(calls[0][1]).marker, 'A');
+
+  context.settingsSaveResult(true, 'A saved');
+  assert.equal(calls.length, 2);
+  assert.equal(JSON.parse(calls[1][1]).marker, 'B');
+  assert.equal(JSON.parse(saved.get('chronicle_pending_settings')).marker, 'B');
+
+  context.settingsSaveResult(false, 'B failed');
+  assert.equal(JSON.parse(saved.get('chronicle_pending_settings')).marker, 'B');
+  assert.match(context.document.getElementById('status-text').textContent, /B failed/);
+});
+
+test('a failed first save still dispatches the queued newest save', () => {
+  const {context, saved} = setup();
+  const calls = [];
+  context.sendToGame = (event, value) => {
+    calls.push([event, value]);
+    return true;
+  };
+
+  context.config.marker = 'A';
+  context.persistConfig();
+  context.config.marker = 'B';
+  context.persistConfig();
+  context.settingsSaveResult(false, 'A failed');
+
+  assert.equal(calls.length, 2);
+  assert.equal(JSON.parse(calls[1][1]).marker, 'B');
+  assert.equal(JSON.parse(saved.get('chronicle_pending_settings')).marker, 'B');
+
+  context.settingsSaveResult(true, 'B saved');
+  assert.equal(saved.has('chronicle_pending_settings'), false);
+});

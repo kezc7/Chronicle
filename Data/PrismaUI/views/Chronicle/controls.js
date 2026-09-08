@@ -8,6 +8,7 @@ let searchText = '';
 let speakerFilter = '';
 let focusPending = false;
 let settingsSaveInFlight = null;
+let settingsSaveQueued = null;
 const PENDING_SETTINGS_KEY = 'chronicle_pending_settings';
 
 function interactionHint() {
@@ -168,26 +169,59 @@ function retryPendingSettings() {
   config = deepMerge(deepMerge({}, DEFAULT_CONFIG), pending.settings);
   normalizeConfig();
   applyConfig();
-  settingsSaveInFlight = JSON.stringify(config, null, 2);
-  statusText('Pending settings found — retrying native save…');
-  if (!sendToGame('settingsChanged', settingsSaveInFlight)) {
-    settingsSaveInFlight = null;
-    statusText('Settings remain pending; native connection unavailable');
-  }
+  dispatchSettingsSave(JSON.stringify(config, null, 2));
   return true;
 }
 
-function settingsSaveResult(ok, detail) {
-  const attempted = settingsSaveInFlight;
-  settingsSaveInFlight = null;
-  if (attempted) {
-    if (ok) {
-      clearPendingSettings();
-    } else if (!savePendingSettings(attempted)) {
-      detail = detail + ' Current session only: pending settings could not be cached.';
-    }
+function dispatchSettingsSave(serialized) {
+  settingsSaveInFlight = serialized;
+  statusText('Saving settings…');
+  if (!sendToGame('settingsChanged', serialized)) {
+    settingsSaveInFlight = null;
+    const latest = settingsSaveQueued || serialized;
+    settingsSaveQueued = null;
+    const cached = savePendingSettings(latest);
+    saveResult(false, cached
+      ? 'Settings pending native save; will retry on the next connection'
+      : 'Settings are active for this session only; native save unavailable');
   }
-  saveResult(ok, detail);
+}
+
+function persistConfig() {
+  const serialized = JSON.stringify(config, null, 2);
+  try {
+    localStorage.setItem('chronicle_config', serialized);
+  } catch (_) {}
+
+  if (settingsSaveInFlight) {
+    settingsSaveQueued = serialized;
+    statusText('Saving latest settings…');
+    return;
+  }
+  dispatchSettingsSave(serialized);
+}
+
+function settingsSaveResult(ok, detail) {
+  if (!settingsSaveInFlight) return;
+  const attempted = settingsSaveInFlight;
+  const queued = settingsSaveQueued;
+  settingsSaveInFlight = null;
+  settingsSaveQueued = null;
+
+  if (queued) {
+    // Keep the newest payload recoverable while it waits for its own result.
+    savePendingSettings(queued);
+    saveResult(ok, detail);
+    dispatchSettingsSave(queued);
+  } else if (ok) {
+    clearPendingSettings();
+    saveResult(ok, detail);
+  } else if (!savePendingSettings(attempted)) {
+    detail = detail + ' Current session only: pending settings could not be cached.';
+    saveResult(ok, detail);
+  } else {
+    saveResult(ok, detail);
+  }
 }
 
 function diagnosticsResult(data) {
