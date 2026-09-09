@@ -4,13 +4,22 @@
 RE::BSEventNotifyControl ChronicleInputSink::ProcessEvent(RE::InputEvent* const* events,
     RE::BSTEventSource<RE::InputEvent*>*)
 {
+    bool keyboardEvent = false;
+    bool consume = false;
     if (events) for (auto* event = *events; event; event = event->next) {
         const auto* button = event->AsButtonEvent();
-        if (button && button->GetDevice() == RE::INPUT_DEVICE::kKeyboard && button->IsDown()) {
-            Chronicle::GetSingleton()->OnHotkey(button->GetIDCode(), (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0);
+        if (button && button->GetDevice() == RE::INPUT_DEVICE::kKeyboard) {
+            keyboardEvent = true;
+            auto* chronicle = Chronicle::GetSingleton();
+            consume = chronicle->ShouldConsumeKeyboardInput() || consume;
+            if (button->IsDown()) {
+                consume = chronicle->OnHotkey(
+                    button->GetIDCode(), (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0) || consume;
+            }
         }
     }
-    return RE::BSEventNotifyControl::kContinue;
+    return keyboardEvent && consume ? RE::BSEventNotifyControl::kStop :
+        RE::BSEventNotifyControl::kContinue;
 }
 
 namespace
