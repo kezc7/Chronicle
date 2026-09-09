@@ -113,11 +113,15 @@ function nativeBootstrap(data) {
 }
 
 function nativeHotkey(action) {
-  if (!runtime.connected || !runtime.loaded || !runtime.visible) return false;
-  if (action === 'settings') openSettings();
-  else if (action === 'input') openInput();
-  else if (action === 'interact') beginInteraction();
-  return true;
+  if (!runtime.connected || !runtime.loaded || !runtime.visible) {
+    sendToGame('focusReleased', '');
+    return false;
+  }
+  const handled = action === 'settings' ? openSettings() :
+    action === 'input' ? openInput() :
+    action === 'interact' ? beginInteraction() : false;
+  if (!handled) sendToGame('focusReleased', '');
+  return handled;
 }
 
 function startHandshake() {
