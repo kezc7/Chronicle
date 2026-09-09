@@ -402,8 +402,8 @@ function switchChannel(channel) {
 let inputOpen = false;
 
 function openInput() {
-  if (inputOpen || settingsOpen || !config.general.enabled) return;
-  if (!beginInteraction()) return;
+  if (inputOpen || settingsOpen || !config.general.enabled) return false;
+  if (!beginInteraction()) return false;
   inputOpen = true;
 
   const bar = document.getElementById('input-bar');
@@ -412,7 +412,7 @@ function openInput() {
   input.value = '';
   input.focus();
 
-
+  return true;
 }
 
 function closeInput() {
@@ -465,8 +465,8 @@ const CHANNEL_LABELS = {
 };
 
 function openSettings() {
-  if (settingsOpen) return;
-  if (!beginInteraction()) return;
+  if (settingsOpen) return false;
+  if (!beginInteraction()) return false;
   // Close input bar first if open
   closeInput();
   settingsSnapshot = deepMerge({}, config);
@@ -475,6 +475,7 @@ function openSettings() {
   populateSettingsForm();
   document.getElementById('settings-overlay').classList.remove('hidden');
 
+  return true;
 }
 
 function closeSettings() {

@@ -6,10 +6,9 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
     SKSE::Init(a_skse);
 
     // ---- Logging setup -------------------------------------------------------
-    // Primary: resolve the DLL's own directory via its module handle.
-    // This is always writable (same ACL as the DLL itself) and is independent
-    // of CLibNG runtime detection, document folder redirection, etc.
-    // Secondary: standard SKSE log directory, attempted after primary.
+    // Keep logs in SKSE's standard per-user directory:
+    // Documents\My Games\Skyrim Special Edition\SKSE.
+    // Do not write beside the DLL, since that puts logs under Data/SKSE/Plugins.
     // We never let a logging failure prevent the plugin from loading.
 
     std::vector<spdlog::sink_ptr> sinks;
@@ -21,21 +20,7 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
         } catch (...) {}
     };
 
-    // Primary: next to the DLL
-    {
-        HMODULE hMod = nullptr;
-        if (GetModuleHandleExW(
-                GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
-                GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                reinterpret_cast<LPCWSTR>(&SKSEPlugin_Load), &hMod) && hMod) {
-            wchar_t buf[MAX_PATH]{};
-            if (GetModuleFileNameW(hMod, buf, MAX_PATH)) {
-                tryAddFileSink(std::filesystem::path(buf).replace_extension(L".log"));
-            }
-        }
-    }
-
-    // Secondary: Documents\My Games\Skyrim Special Edition\SKSE\Chronicle.log
+    // Documents\My Games\Skyrim Special Edition\SKSE\Chronicle.log
     if (auto logDir = SKSE::log::log_directory(); logDir) {
         tryAddFileSink(*logDir / "Chronicle.log");
     }
