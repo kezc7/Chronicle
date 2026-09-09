@@ -226,6 +226,7 @@ void Chronicle::Tick()
     // Menus can unfocus a view without delivering an Escape key to JavaScript.
     if (m_prismaUI && m_view && m_hadFocus && !m_prismaUI->HasFocus(m_view)) {
         m_hadFocus = false;
+        m_keyboardCapture = false;
         ++m_focusRevision;
         InvokeUI("closeInteraction(false)");
         InvokeUI("focusResult(false, 'Interaction closed')");
@@ -257,6 +258,7 @@ void Chronicle::ForceCloseInput()
 {
     ++m_focusRevision; // invalidate any focus request queued before this menu/load
     m_hadFocus = false;
+    m_keyboardCapture = false;
     if (!m_prismaUI || !m_view || !m_viewReady) return;
     if (m_prismaUI->HasFocus(m_view)) m_prismaUI->Unfocus(m_view);
     InvokeUI("closeInteraction(false)");
@@ -268,15 +270,18 @@ void Chronicle::RequestFocus()
     MainTask([this, revision] {
         if (revision != m_focusRevision) return;
         if (!m_bootstrapped || m_hidden || !m_gameLoaded) {
+            m_keyboardCapture = false;
             InvokeUI("focusResult(false, 'Interaction unavailable during menus or loading')");
             return;
         }
         if (m_prismaUI->HasAnyActiveFocus() && !m_prismaUI->HasFocus(m_view)) {
+            m_keyboardCapture = false;
             InvokeUI("focusResult(false, 'Another mod currently has mouse focus')");
             return;
         }
         const bool focused = m_prismaUI->Focus(m_view, false, false);
         m_hadFocus = focused;
+        m_keyboardCapture = focused;
         spdlog::info("Chronicle: focus request -> {}", focused ? "success" : "FAILED");
         InvokeUI(focused ? "focusResult(true, 'Mouse active — Escape to return')" :
                           "focusResult(false, 'Unable to acquire mouse focus')");
@@ -381,19 +386,27 @@ void Chronicle::ApplyNativeSettings(const nlohmann::json& settings)
     m_inputKey = key(general.value("input_hotkey", std::string("Enter")), VK_RETURN);
 }
 
-void Chronicle::OnHotkey(std::uint32_t scanCode, bool shift)
+bool Chronicle::OnHotkey(std::uint32_t scanCode, bool shift)
 {
     // PrismaUI routes keys to JS once focused. Native keys acquire the focus
     // in the first place; otherwise a passive overlay cannot receive a hotkey.
-    if (!m_bootstrapped || m_hidden || !m_gameLoaded || m_prismaUI->HasAnyActiveFocus()) return;
-    if (!m_state.menus.empty()) return;
-    if (auto* ui = RE::UI::GetSingleton(); ui && ui->IsMenuOpen("Console")) return;
+    if (!m_bootstrapped || m_hidden || !m_gameLoaded || !m_prismaUI) return false;
+    if (m_prismaUI->HasAnyActiveFocus()) return m_prismaUI->HasFocus(m_view);
+    if (!m_state.menus.empty()) return false;
+    if (auto* ui = RE::UI::GetSingleton(); ui && ui->IsMenuOpen("Console")) return false;
     const auto key = MapVirtualKeyW(scanCode, MAPVK_VSC_TO_VK_EX);
     const std::string action = shift && key == m_settingsKey ? "settings" :
         key == m_interactKey ? "interact" : key == m_inputKey ? "input" : "";
-    if (!action.empty()) MainTask([this, action] {
+    if (action.empty()) return false;
+
+    // Consume the opener immediately. Focus() is asynchronous, so without
+    // this pending capture the same Enter/F8 key can reach Skyrim before the
+    // view owns the keyboard, and subsequent typing can trigger game menus.
+    m_keyboardCapture = true;
+    MainTask([this, action] {
         if (!m_hidden && m_gameLoaded) InvokeUI("nativeHotkey(" + Json(action) + ")");
     });
+    return true;
 }
 
 void Chronicle::OnSettingsChanged(std::string_view text)
