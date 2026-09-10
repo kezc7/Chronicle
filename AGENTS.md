@@ -23,4 +23,15 @@ Chronicle is the PrismaUI MMO-style chat/activity log for Skyrim SE/AE.
 - Build/package the SKSE DLL when the environment supports it.
 - Do not claim an in-game acceptance criterion passed unless it was actually tested in Skyrim.
 - Document remaining in-game verification explicitly.
-- PRs should reference the issue they implement and summarise changes, tests and remaining runtime gates.
+
+## Pull requests
+- Work on a branch; do not commit directly to `main`.
+- Inspect the linked issue and current HEAD before editing, then stay within that issue's scope.
+- Preserve existing working behaviour and avoid unrelated refactors or generated/build junk.
+- Run all relevant tests, builds, packaging, formatting and lint/diff checks that the repo supports.
+- Never claim Skyrim, MO2, controller or runtime behaviour was tested when it was not.
+- Use a PR title that describes the delivered change.
+- Use `Closes #N` only when the issue is genuinely complete; otherwise use `Refs #N`.
+- In the PR body summarise what changed, tests run, build/package result, technical compromises, unavailable APIs or test-only mocks, and every remaining in-game/runtime verification gate.
+- Respond to review feedback with follow-up commits on the same PR rather than opening replacement PRs unless explicitly asked.
+- Before asking for merge, re-read the issue acceptance criteria and verify each claimed item against the implementation.
