@@ -1,15 +1,9 @@
 # CLAUDE.md
 
-## Role
-Act as Chronicle's architecture/audit partner. Inspect the current repo before proposing or changing code; do not assume issue descriptions are current.
+Read and follow `AGENTS.md` before making any changes.
 
-## Priorities
-- Protect real Skyrim behaviour, focus/lifecycle safety, UTF-8 handling and native-authoritative persistence.
-- Prefer supported CommonLibSSE-NG/SKSE/PrismaUI paths over low-level hooks or invented adapters.
-- Keep bridges explicit/allow-listed and game-facing work on the game thread.
-- Preserve independently installable DLL-only architecture and vendored Skyrim-Suite contracts.
-- Do not substitute preview fixtures or mocks for live Skyrim functionality.
-- Avoid broad rewrites when a focused issue-level change is enough.
+`AGENTS.md` is the canonical repository instruction set and applies to Claude Code in full.
 
-## Reviews
-When auditing a PR, trace the actual runtime path, identify blockers separately from polish, check stale-generation/focus/config failure paths, and verify tests cover the behaviour claimed. Never mark Skyrim-only acceptance as complete from portable tests alone.
+Also inspect the current issue, `README.md`, tests and HEAD before implementation. Do not assume old prompts, previous reviews or issue descriptions are more authoritative than the current repository state.
+
+When finishing work, follow the PR and validation requirements in `AGENTS.md`.
