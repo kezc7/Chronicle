@@ -26,7 +26,8 @@ default on a fresh install. Existing preferences are preserved.
 
 Hotkeys can be letters, digits, Enter, or F1–F12. Settings adds Shift to its key.
 The overlay is always hidden on the main menu and during loading. Hiding it during
-other menus is configurable; captured messages remain in history while hidden.
+other menus is configurable (this includes Meridian UI menus such as Wayframe, which
+open `MeridianUI_FocusMenu`); captured messages remain in history while hidden.
 
 ## Settings and history
 
@@ -97,6 +98,12 @@ page and development preview files are excluded.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.2.1 changes
+
+Chronicle now hides while a Meridian UI menu (such as Wayframe) has focus: Meridian
+opens `MeridianUI_FocusMenu` for its focused views, and PrismaUI draws above Meridian,
+so Chronicle previously stayed on top of them. It follows the hide-in-menus setting.
 
 ## 1.2.0 changes
 
