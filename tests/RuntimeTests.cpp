@@ -34,6 +34,10 @@ int main()
     state.Menu("InventoryMenu", true); // duplicate notification is idempotent
     state.Menu("InventoryMenu", false);
     Require(state.Visible());
+    state.Menu("MeridianUI_FocusMenu", true); // a focused Meridian UI view (e.g. Wayframe)
+    Require(!state.Visible());
+    state.Menu("MeridianUI_FocusMenu", false);
+    Require(state.Visible());
     state.Menu("Loading Menu", true);
     Require(!state.Visible());
     state.Menu("Loading Menu", false);
