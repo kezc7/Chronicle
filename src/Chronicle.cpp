@@ -310,7 +310,7 @@ void Chronicle::SendMessage(std::string_view channel, std::string_view speaker, 
             const auto channel = data.at("channel").get<std::string>();
             const auto speaker = data.at("speaker").is_null() ? std::string{} : data.at("speaker").get<std::string>();
             const auto message = data.at("message").get<std::string>();
-            if (IsDuplicate(channel, speaker, message)) return;
+            if (message.empty() || IsDuplicate(channel, speaker, message)) return;
             ++m_messageCount;
             if (channel == "dialogue") m_lastSubtitle = message;
             auto script = "addMessage(" + payload + ")";

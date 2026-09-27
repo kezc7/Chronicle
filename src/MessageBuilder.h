@@ -48,6 +48,20 @@ namespace MessageBuilder
         return std::move(sanitized.value);
     }
 
+    // Some game/mod text arrives with a trailing "[REF]" marker that Skyrim's
+    // own subtitle display hides. Remove it (and any whitespace around it).
+    inline std::string_view StripTrailingRefMarker(std::string_view a_value)
+    {
+        constexpr std::string_view kMarker = "[REF]";
+        constexpr std::string_view kSpace = " \t\r\n";
+        while (true) {
+            const auto end = a_value.find_last_not_of(kSpace);
+            a_value = end == std::string_view::npos ? std::string_view{} : a_value.substr(0, end + 1);
+            if (!a_value.ends_with(kMarker)) return a_value;
+            a_value.remove_suffix(kMarker.size());
+        }
+    }
+
     // Build a JSON string for a chat message. speaker may be empty for system messages.
     inline std::string Build(std::string_view a_channel,
                              std::string_view a_speaker,
@@ -55,7 +69,7 @@ namespace MessageBuilder
     {
         const auto channel = Sanitize(a_channel, "channel", a_speaker, a_message);
         const auto speaker = Sanitize(a_speaker, "speaker", a_speaker, a_message);
-        const auto message = Sanitize(a_message, "message/text", a_speaker, a_message);
+        const auto message = Sanitize(StripTrailingRefMarker(a_message), "message/text", a_speaker, a_message);
 
         nlohmann::json j;
         j["channel"] = channel;

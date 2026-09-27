@@ -40,5 +40,15 @@ int main()
     const std::string valid = "Caf\xC3\xA9 \xF0\x9F\x90\x89";
     Require(!ChronicleUtf8::ReplaceInvalid(valid).changed);
     Require(nlohmann::json::parse(MessageBuilder::Build("dialogue", "Lydia", valid)).at("message") == valid);
+
+    // Trailing "[REF]" markers are removed; other text is left alone.
+    Require(MessageBuilder::StripTrailingRefMarker("Dovahkiin! [REF]") == "Dovahkiin!");
+    Require(MessageBuilder::StripTrailingRefMarker("Hello[REF] \r\n") == "Hello");
+    Require(MessageBuilder::StripTrailingRefMarker("Hi [REF] [REF]") == "Hi");
+    Require(MessageBuilder::StripTrailingRefMarker("[REF] stays") == "[REF] stays");
+    Require(MessageBuilder::StripTrailingRefMarker("No marker") == "No marker");
+    Require(MessageBuilder::StripTrailingRefMarker("[REF]").empty());
+    Require(nlohmann::json::parse(MessageBuilder::Build("dialogue", "Merida", "Well met. [REF]"))
+                .at("message") == "Well met.");
     return 0;
 }
