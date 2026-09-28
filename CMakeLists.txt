@@ -6,7 +6,7 @@ set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CAC
 
 project(
     Chronicle
-    VERSION 1.2.0
+    VERSION 1.2.1
     DESCRIPTION "In-game chatbox and message log for Skyrim SE"
     LANGUAGES CXX
 )

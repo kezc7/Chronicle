@@ -49,7 +49,7 @@ namespace
 
 void Chronicle::OnDataLoaded()
 {
-    spdlog::info("Chronicle 1.2.0: OnDataLoaded");
+    spdlog::info("Chronicle 1.2.1: OnDataLoaded");
     RegisterEventSinks();
     InitPrismaUI();
 }
@@ -177,7 +177,7 @@ void Chronicle::Bootstrap()
     }
     m_bootstrapped = true;
     m_state.ready = true;
-    InvokeUI("nativeBootstrap(" + Json({{"settings", settings}, {"warning", warning}, {"version", "1.2.0"}, {"nativeHotkeys", true}}) + ")");
+    InvokeUI("nativeBootstrap(" + Json({{"settings", settings}, {"warning", warning}, {"version", "1.2.1"}, {"nativeHotkeys", true}}) + ")");
     PublishRuntime();
     UpdateVisibility();
     FlushPendingUI();
@@ -193,7 +193,7 @@ void Chronicle::UpdateVisibility()
             "StatsMenu", "SleepWaitMenu", "FavoritesMenu", "BarterMenu",
             "CraftingMenu", "Crafting Menu", "SmithingMenu", "Smithing Menu",
             "AlchemyMenu", "Alchemy Menu", "EnchantingMenu", "Enchanting Menu",
-            "CookingMenu", "Cooking Menu", "PhotoMenu"
+            "CookingMenu", "Cooking Menu", "PhotoMenu", "MeridianUI_FocusMenu"
         };
         for (auto name : names) m_state.Menu(name, ui->IsMenuOpen(name));
     }
@@ -441,7 +441,7 @@ void Chronicle::ExportHistory(std::string_view text)
 void Chronicle::Diagnostics()
 {
     InvokeUI("diagnosticsResult(" + Json({
-        {"version", "1.2.0"}, {"bridge", m_bootstrapped}, {"gameLoaded", m_gameLoaded.load()},
+        {"version", "1.2.1"}, {"bridge", m_bootstrapped}, {"gameLoaded", m_gameLoaded.load()},
         {"visible", !m_hidden}, {"focus", m_prismaUI && m_prismaUI->HasFocus(m_view)},
         {"poller", SubtitlePoller::GetSingleton().IsRunning()}, {"messages", m_messageCount},
         {"lastSubtitle", m_lastSubtitle}, {"api", m_hasV2 ? 2 : 1},
