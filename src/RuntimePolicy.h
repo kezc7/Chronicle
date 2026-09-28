@@ -26,7 +26,11 @@ namespace ChronicleRuntime
             name == "InventoryMenu" || name == "MagicMenu" || name == "MapMenu" ||
             name == "ContainerMenu" || name == "Journal Menu" || name == "LevelUpMenu" ||
             name == "StatsMenu" || name == "SleepWaitMenu" || name == "FavoritesMenu" ||
-            name == "BarterMenu" || IsCrafting(name) || name == "PhotoMenu";
+            name == "BarterMenu" || IsCrafting(name) || name == "PhotoMenu" ||
+            // Meridian UI opens this modal menu while one of its web views
+            // (e.g. Wayframe) has focus. PrismaUI draws above Meridian, so
+            // without it Chronicle stays on top of those menus.
+            name == "MeridianUI_FocusMenu";
     }
 
     inline bool InterruptsFocus(std::string_view name)
