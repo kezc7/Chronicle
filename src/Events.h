@@ -101,6 +101,36 @@ private:
     DeathEventSink() = default;
 };
 
+// Player level-ups feed the System channel.
+class LevelUpEventSink final : public RE::BSTEventSink<RE::LevelIncrease::Event>
+{
+public:
+    static LevelUpEventSink& GetSingleton()
+    {
+        static LevelUpEventSink instance;
+        return instance;
+    }
+
+    LevelUpEventSink(const LevelUpEventSink&) = delete;
+    LevelUpEventSink& operator=(const LevelUpEventSink&) = delete;
+
+    RE::BSEventNotifyControl ProcessEvent(
+        const RE::LevelIncrease::Event* a_event,
+        RE::BSTEventSource<RE::LevelIncrease::Event>* a_eventSource) override;
+
+private:
+    LevelUpEventSink() = default;
+};
+
+// ---- HUD Notification Hook ------------------------------------------------
+// Captures each notification (items, quests, skill increases) as the game
+// queues it. Polling the queue missed short-lived entries and bursts.
+
+namespace NotificationHook
+{
+    void Install();
+}
+
 // ---- Subtitle Poller ------------------------------------------------------
 // SubtitleManager has no event dispatch so we poll it periodically.
 //
@@ -135,7 +165,6 @@ private:
     void PollOnce();
 
     std::string m_lastText;
-    std::string m_lastNotificationText;
     std::vector<std::string> m_extraHudPaths;
     std::string m_lastHudPath;
     std::unordered_set<std::string> m_activeSubtitles;

@@ -5,7 +5,7 @@
 #include "RuntimePolicy.h"
 
 // Documents\My Games\Skyrim Special Edition\SKSE. SKSE::log::log_directory()
-// alone can resolve to My Games\Skyrim.INI\SKSE during plugin load.
+// alone resolves to My Games\Skyrim.INI\SKSE on 1.6.1170 (see MyGamesFolder).
 inline std::optional<std::filesystem::path> ChronicleLogDirectory()
 {
     auto dir = SKSE::log::log_directory();

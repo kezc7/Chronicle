@@ -45,6 +45,15 @@ int main()
     Require(!state.Visible());
     Require(!ChronicleRuntime::InterruptsFocus("PrismaUI_FocusMenu"));
     Require(ChronicleRuntime::InterruptsFocus("InventoryMenu"));
+    // HUD notification routing and text.
+    Require(ChronicleRuntime::NotificationChannel(1) == "notification");
+    Require(ChronicleRuntime::NotificationChannel(14) == "notification"); // quest started
+    Require(ChronicleRuntime::NotificationChannel(20) == "system");       // skill increase
+    Require(ChronicleRuntime::NotificationChannel(21) == "system");       // word of power
+    Require(ChronicleRuntime::NotificationChannel(22) == "system");
+    Require(ChronicleRuntime::NotificationText("Iron Sword added", "") == "Iron Sword added");
+    Require(ChronicleRuntime::NotificationText("Smithing", "25") == "Smithing - 25");
+    Require(ChronicleRuntime::NotificationText("", "Saved") == "Saved");
     // Uninitialised game value during plugin load must not become the log folder.
     Require(ChronicleRuntime::MyGamesFolder(L"Skyrim.INI") == L"Skyrim Special Edition");
     Require(ChronicleRuntime::MyGamesFolder(L"skyrim.ini") == L"Skyrim Special Edition");
