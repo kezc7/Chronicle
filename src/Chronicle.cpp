@@ -98,7 +98,17 @@ void Chronicle::OnWorldReady()
 
 void Chronicle::RegisterEventSinks()
 {
-    if (auto* input = RE::BSInputDeviceManager::GetSingleton()) input->AddEventSink(&ChronicleInputSink::GetSingleton());
+    if (auto* input = RE::BSInputDeviceManager::GetSingleton()) {
+        auto* sink = &ChronicleInputSink::GetSingleton();
+        input->AddEventSink(sink);
+        // Run first: AddEventSink appends, so kStop while typing would only hide
+        // keys from mods registered after Chronicle, not their hotkeys before it.
+        RE::BSSpinLockGuard locker(input->lock);
+        auto& sinks = input->sinks;
+        if (const auto it = std::find(sinks.begin(), sinks.end(), sink); !input->notifying && it != sinks.end()) {
+            std::rotate(sinks.begin(), it, it + 1);
+        }
+    }
     if (auto* ui = RE::UI::GetSingleton()) ui->AddEventSink(&MenuEventSink::GetSingleton());
     if (auto* events = SKSE::GetModCallbackEventSource()) events->AddEventSink(&SkyrimNetEventSink::GetSingleton());
     if (auto* events = RE::ScriptEventSourceHolder::GetSingleton()) {
