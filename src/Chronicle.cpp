@@ -436,7 +436,7 @@ void Chronicle::ExportHistory(std::string_view text)
 {
     try {
         if (text.size() > 4 * 1024 * 1024) throw std::runtime_error("Export exceeds 4 MB");
-        const auto base = SKSE::log::log_directory().value_or(kSettingsPath.parent_path());
+        const auto base = ChronicleLogDirectory().value_or(kSettingsPath.parent_path());
         const auto stamp = std::chrono::system_clock::now().time_since_epoch().count();
         const auto path = base / "Chronicle-exports" / ("history-" + std::to_string(stamp) + ".txt");
         AtomicWrite(path, ChronicleUtf8::ReplaceInvalid(text).value);

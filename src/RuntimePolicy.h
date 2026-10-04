@@ -38,6 +38,20 @@ namespace ChronicleRuntime
         return name != "PrismaUI_FocusMenu" && name != "HUD Menu" && name != "Cursor Menu";
     }
 
+    // The game's "My Games" folder name is not initialised yet when SKSE loads
+    // plugins and reads back as "Skyrim.INI". Fall back to the standard folder
+    // for an empty or INI-file-looking name; otherwise keep the game's (VR, GOG).
+    inline std::wstring MyGamesFolder(std::wstring_view name)
+    {
+        const auto lower = [](wchar_t c) { return c >= L'A' && c <= L'Z' ? wchar_t(c + 32) : c; };
+        const bool ini = name.size() >= 4 && name[name.size() - 4] == L'.' &&
+            lower(name[name.size() - 3]) == L'i' && lower(name[name.size() - 2]) == L'n' &&
+            lower(name[name.size() - 1]) == L'i';
+        if (name.empty() || ini || name.find_first_of(L"\\/:") != std::wstring_view::npos)
+            return L"Skyrim Special Edition";
+        return std::wstring(name);
+    }
+
     struct State
     {
         bool loaded = false;
