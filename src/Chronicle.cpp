@@ -20,6 +20,20 @@ namespace
         }
     }
 
+    // RE::Script::CompileAndRun uses AE ID 21890, which is absent from the
+    // 1.6.1130+ address library; the lookup resolves to the neighbouring
+    // function (21891) and crashes. The function is ID 441582 there, as
+    // ConsoleUtilSSE NG also uses.
+    void CompileAndRun(RE::Script* a_script, RE::TESObjectREFR* a_target)
+    {
+        using func_t = void(RE::Script*, RE::ScriptCompiler*, RE::COMPILER_NAME, RE::TESObjectREFR*);
+        const auto id = REL::Module::IsAE() ?
+            (REL::Module::get().version() >= REL::Version(1, 6, 1130) ? 441582 : 21890) : 21416;
+        REL::Relocation<func_t*> func{ REL::ID(id) };
+        RE::ScriptCompiler compiler;
+        func(a_script, &compiler, RE::COMPILER_NAME::kSystemWindowCompiler, a_target);
+    }
+
     std::string Json(const nlohmann::json& value)
     {
         return value.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
@@ -49,7 +63,7 @@ namespace
 
 void Chronicle::OnDataLoaded()
 {
-    spdlog::info("Chronicle 1.2.1: OnDataLoaded");
+    spdlog::info("Chronicle " CHRONICLE_VERSION ": OnDataLoaded");
     RegisterEventSinks();
     InitPrismaUI();
 }
@@ -98,13 +112,24 @@ void Chronicle::OnWorldReady()
 
 void Chronicle::RegisterEventSinks()
 {
-    if (auto* input = RE::BSInputDeviceManager::GetSingleton()) input->AddEventSink(&ChronicleInputSink::GetSingleton());
+    if (auto* input = RE::BSInputDeviceManager::GetSingleton()) {
+        auto* sink = &ChronicleInputSink::GetSingleton();
+        input->AddEventSink(sink);
+        // Run first: AddEventSink appends, so kStop while typing would only hide
+        // keys from mods registered after Chronicle, not their hotkeys before it.
+        RE::BSSpinLockGuard locker(input->lock);
+        auto& sinks = input->sinks;
+        if (const auto it = std::find(sinks.begin(), sinks.end(), sink); !input->notifying && it != sinks.end()) {
+            std::rotate(sinks.begin(), it, it + 1);
+        }
+    }
     if (auto* ui = RE::UI::GetSingleton()) ui->AddEventSink(&MenuEventSink::GetSingleton());
     if (auto* events = SKSE::GetModCallbackEventSource()) events->AddEventSink(&SkyrimNetEventSink::GetSingleton());
     if (auto* events = RE::ScriptEventSourceHolder::GetSingleton()) {
         events->AddEventSink<RE::TESHitEvent>(&CombatEventSink::GetSingleton());
         events->AddEventSink<RE::TESDeathEvent>(&DeathEventSink::GetSingleton());
     }
+    if (auto* levels = RE::LevelIncrease::GetEventSource()) levels->AddEventSink(&LevelUpEventSink::GetSingleton());
 }
 
 void Chronicle::InitPrismaUI()
@@ -177,7 +202,7 @@ void Chronicle::Bootstrap()
     }
     m_bootstrapped = true;
     m_state.ready = true;
-    InvokeUI("nativeBootstrap(" + Json({{"settings", settings}, {"warning", warning}, {"version", "1.2.1"}, {"nativeHotkeys", true}}) + ")");
+    InvokeUI("nativeBootstrap(" + Json({{"settings", settings}, {"warning", warning}, {"version", CHRONICLE_VERSION}, {"nativeHotkeys", true}}) + ")");
     PublishRuntime();
     UpdateVisibility();
     FlushPendingUI();
@@ -350,7 +375,7 @@ void Chronicle::OnConsoleCommand(std::string_view text)
     std::unique_ptr<RE::Script> script(factory->Create());
     if (script) {
         script->SetCommand(command);
-        script->CompileAndRun(RE::PlayerCharacter::GetSingleton());
+        CompileAndRun(script.get(), RE::PlayerCharacter::GetSingleton());
     }
 }
 
@@ -391,10 +416,18 @@ bool Chronicle::OnHotkey(std::uint32_t scanCode, bool shift)
     // PrismaUI routes keys to JS once focused. Native keys acquire the focus
     // in the first place; otherwise a passive overlay cannot receive a hotkey.
     if (!m_bootstrapped || m_hidden || !m_gameLoaded || !m_prismaUI) return false;
-    if (m_prismaUI->HasAnyActiveFocus()) return m_prismaUI->HasFocus(m_view);
+    const auto key = MapVirtualKeyW(scanCode, MAPVK_VSC_TO_VK_EX);
+    if (m_prismaUI->HasAnyActiveFocus()) {
+        if (!m_prismaUI->HasFocus(m_view)) return false;
+        // Release natively too: if the view never receives keys, the close
+        // hotkey/Escape must still return control to Skyrim. Letter/Enter
+        // hotkeys are left to JS so typing in the input bar cannot close it.
+        const bool functionKey = key >= VK_F1 && key <= VK_F12;
+        if (key == VK_ESCAPE || (functionKey && key == m_interactKey)) RequestUnfocus();
+        return true;
+    }
     if (!m_state.menus.empty()) return false;
     if (auto* ui = RE::UI::GetSingleton(); ui && ui->IsMenuOpen("Console")) return false;
-    const auto key = MapVirtualKeyW(scanCode, MAPVK_VSC_TO_VK_EX);
     const std::string action = shift && key == m_settingsKey ? "settings" :
         key == m_interactKey ? "interact" : key == m_inputKey ? "input" : "";
     if (action.empty()) return false;
@@ -428,7 +461,7 @@ void Chronicle::ExportHistory(std::string_view text)
 {
     try {
         if (text.size() > 4 * 1024 * 1024) throw std::runtime_error("Export exceeds 4 MB");
-        const auto base = SKSE::log::log_directory().value_or(kSettingsPath.parent_path());
+        const auto base = ChronicleLogDirectory().value_or(kSettingsPath.parent_path());
         const auto stamp = std::chrono::system_clock::now().time_since_epoch().count();
         const auto path = base / "Chronicle-exports" / ("history-" + std::to_string(stamp) + ".txt");
         AtomicWrite(path, ChronicleUtf8::ReplaceInvalid(text).value);
@@ -441,7 +474,7 @@ void Chronicle::ExportHistory(std::string_view text)
 void Chronicle::Diagnostics()
 {
     InvokeUI("diagnosticsResult(" + Json({
-        {"version", "1.2.1"}, {"bridge", m_bootstrapped}, {"gameLoaded", m_gameLoaded.load()},
+        {"version", CHRONICLE_VERSION}, {"bridge", m_bootstrapped}, {"gameLoaded", m_gameLoaded.load()},
         {"visible", !m_hidden}, {"focus", m_prismaUI && m_prismaUI->HasFocus(m_view)},
         {"poller", SubtitlePoller::GetSingleton().IsRunning()}, {"messages", m_messageCount},
         {"lastSubtitle", m_lastSubtitle}, {"api", m_hasV2 ? 2 : 1},

@@ -6,7 +6,7 @@ set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CAC
 
 project(
     Chronicle
-    VERSION 1.2.1
+    VERSION 1.2.4
     DESCRIPTION "In-game chatbox and message log for Skyrim SE"
     LANGUAGES CXX
 )
@@ -46,6 +46,9 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
     CommonLibSSE::CommonLibSSE
     nlohmann_json::nlohmann_json
 )
+
+# Single version source: bump VERSION above for every build that is handed out.
+target_compile_definitions(${PROJECT_NAME} PRIVATE CHRONICLE_VERSION="${PROJECT_VERSION}")
 
 if(MSVC)
     add_compile_definitions(_UNICODE)
