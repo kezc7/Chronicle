@@ -21,7 +21,7 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
     };
 
     // Documents\My Games\Skyrim Special Edition\SKSE\Chronicle.log
-    if (auto logDir = SKSE::log::log_directory(); logDir) {
+    if (auto logDir = ChronicleLogDirectory(); logDir) {
         tryAddFileSink(*logDir / "Chronicle.log");
     }
 
