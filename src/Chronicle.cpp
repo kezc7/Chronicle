@@ -391,10 +391,18 @@ bool Chronicle::OnHotkey(std::uint32_t scanCode, bool shift)
     // PrismaUI routes keys to JS once focused. Native keys acquire the focus
     // in the first place; otherwise a passive overlay cannot receive a hotkey.
     if (!m_bootstrapped || m_hidden || !m_gameLoaded || !m_prismaUI) return false;
-    if (m_prismaUI->HasAnyActiveFocus()) return m_prismaUI->HasFocus(m_view);
+    const auto key = MapVirtualKeyW(scanCode, MAPVK_VSC_TO_VK_EX);
+    if (m_prismaUI->HasAnyActiveFocus()) {
+        if (!m_prismaUI->HasFocus(m_view)) return false;
+        // Release natively too: if the view never receives keys, the close
+        // hotkey/Escape must still return control to Skyrim. Letter/Enter
+        // hotkeys are left to JS so typing in the input bar cannot close it.
+        const bool functionKey = key >= VK_F1 && key <= VK_F12;
+        if (key == VK_ESCAPE || (functionKey && key == m_interactKey)) RequestUnfocus();
+        return true;
+    }
     if (!m_state.menus.empty()) return false;
     if (auto* ui = RE::UI::GetSingleton(); ui && ui->IsMenuOpen("Console")) return false;
-    const auto key = MapVirtualKeyW(scanCode, MAPVK_VSC_TO_VK_EX);
     const std::string action = shift && key == m_settingsKey ? "settings" :
         key == m_interactKey ? "interact" : key == m_inputKey ? "input" : "";
     if (action.empty()) return false;
