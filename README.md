@@ -1,4 +1,4 @@
-# Chronicle 1.2.2
+# Chronicle 1.2.4
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -99,6 +99,18 @@ page and development preview files are excluded.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.2.4 changes
+
+- Choosing a channel from the input-bar menu (or with Tab) only sets where the
+  message goes; the history view stays on the current tab. Clicking a tab still
+  sets both, so typing on the Console tab runs commands.
+
+## 1.2.3 changes
+
+- The channel label in the input bar (e.g. `[All]`) is now a menu: click it to pick
+  any enabled channel, such as SkyrimNet or Console. Typing continues afterwards;
+  Tab still cycles channels.
 
 ## 1.2.2 changes
 
