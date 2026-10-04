@@ -50,6 +50,9 @@ const DEFAULT_CONFIG = {
 
 let config = deepMerge({}, DEFAULT_CONFIG);
 let activeChannel = 'all';
+// Where submitted input goes. Independent of the viewed tab so picking a
+// target (menu or Tab) does not change the history view.
+let inputTarget = 'all';
 const messages = [];
 let updateResizeHandlePosition = () => {};
 let userScrolledUp = false;
@@ -223,6 +226,7 @@ function applyConfig() {
 
   if (!config.channels[activeChannel]?.enabled) activeChannel = 'all';
   switchChannel(activeChannel);
+  setInputTarget(config.channels[inputTarget]?.enabled ? inputTarget : 'all');
 
   // Dynamic channel colours injected as a <style> block
   const styleId = 'chronicle-channel-colours';
@@ -387,12 +391,51 @@ function switchChannel(channel) {
     tab.classList.toggle('active', tab.dataset.channel === channel);
   });
 
-  document.getElementById('input-channel-label').textContent =
-    '[' + channel.charAt(0).toUpperCase() + channel.slice(1) + ']';
-
   refreshFilters();
 
   scrollToBottom();
+}
+
+function setInputTarget(channel) {
+  inputTarget = channel;
+  document.getElementById('input-channel-label').textContent =
+    '[' + (CHANNEL_LABELS[channel] || channel) + ']';
+  closeChannelMenu();
+}
+
+// Enabled channels in tab order; shared by Tab cycling and the channel menu.
+function enabledChannels() {
+  return [...document.querySelectorAll('.tab[data-channel]')]
+    .map(tab => tab.dataset.channel)
+    .filter(channel => config.channels[channel]?.enabled);
+}
+
+function closeChannelMenu() {
+  document.getElementById('input-channel-menu').classList.add('hidden');
+  document.getElementById('input-channel-label').setAttribute('aria-expanded', 'false');
+}
+
+function toggleChannelMenu() {
+  const menu = document.getElementById('input-channel-menu');
+  if (!menu.classList.contains('hidden')) { closeChannelMenu(); return; }
+  menu.replaceChildren(...enabledChannels().map(channel => {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.setAttribute('role', 'menuitem');
+    item.dataset.channel = channel;
+    item.textContent = CHANNEL_LABELS[channel] || channel;
+    item.classList.toggle('active', channel === inputTarget);
+    return item;
+  }));
+  const label = document.getElementById('input-channel-label');
+  menu.classList.remove('hidden');
+  // Open above the label, or below it when the window sits near the top.
+  const anchor = label.getBoundingClientRect();
+  const above = anchor.top - 4 >= menu.offsetHeight;
+  menu.style.left = anchor.left + 'px';
+  menu.style.top = above ? '' : (anchor.bottom + 4) + 'px';
+  menu.style.bottom = above ? (window.innerHeight - anchor.top + 4) + 'px' : '';
+  label.setAttribute('aria-expanded', 'true');
 }
 
 // ---------------------------------------------------------------------------
@@ -418,6 +461,7 @@ function openInput() {
 function closeInput() {
   if (!inputOpen) return;
   inputOpen = false;
+  closeChannelMenu();
 
   document.getElementById('input-bar').classList.add('hidden');
   document.getElementById('chat-input').blur();
@@ -440,7 +484,7 @@ function submitInput() {
   }
   inputHistoryIndex = -1;
 
-  if (activeChannel === 'console') {
+  if (inputTarget === 'console') {
     sendToGame('consoleCommand', text);
   } else {
     sendToGame('playerInput', text);
@@ -1009,9 +1053,8 @@ document.addEventListener('keydown', e => {
         ? '' : inputHistory[inputHistory.length - 1 - inputHistoryIndex];
       e.preventDefault();
     } else if (e.key === 'Tab') {
-      const tabs = [...document.querySelectorAll('.tab[data-channel]')].filter(tab => config.channels[tab.dataset.channel].enabled);
-      const current = tabs.findIndex(t => t.dataset.channel === activeChannel);
-      switchChannel(tabs[(current + 1) % tabs.length].dataset.channel);
+      const channels = enabledChannels();
+      setInputTarget(channels[(channels.indexOf(inputTarget) + 1) % channels.length]);
       e.preventDefault();
     }
     return;
@@ -1039,7 +1082,19 @@ document.addEventListener('keydown', e => {
 
 document.getElementById('channel-tabs').addEventListener('click', e => {
   const tab = e.target.closest('.tab[data-channel]');
-  if (tab) switchChannel(tab.dataset.channel);
+  // Clicking a tab still sets the target too, so typing on Console runs commands.
+  if (tab) { switchChannel(tab.dataset.channel); setInputTarget(tab.dataset.channel); }
+});
+
+// Input-bar channel menu. Mousedown is cancelled so the chat input keeps
+// keyboard focus and typing continues straight after a pick.
+const channelPicker = document.getElementById('input-channel-picker');
+channelPicker.addEventListener('mousedown', e => e.preventDefault());
+channelPicker.addEventListener('click', e => {
+  const item = e.target.closest('#input-channel-menu [data-channel]');
+  if (item) setInputTarget(item.dataset.channel);
+  else if (e.target.closest('#input-channel-label')) toggleChannelMenu();
+  if (inputOpen) document.getElementById('chat-input').focus();
 });
 
 // ---------------------------------------------------------------------------
