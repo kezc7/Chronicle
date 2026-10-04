@@ -20,6 +20,20 @@ namespace
         }
     }
 
+    // RE::Script::CompileAndRun uses AE ID 21890, which is absent from the
+    // 1.6.1130+ address library; the lookup resolves to the neighbouring
+    // function (21891) and crashes. The function is ID 441582 there, as
+    // ConsoleUtilSSE NG also uses.
+    void CompileAndRun(RE::Script* a_script, RE::TESObjectREFR* a_target)
+    {
+        using func_t = void(RE::Script*, RE::ScriptCompiler*, RE::COMPILER_NAME, RE::TESObjectREFR*);
+        const auto id = REL::Module::IsAE() ?
+            (REL::Module::get().version() >= REL::Version(1, 6, 1130) ? 441582 : 21890) : 21416;
+        REL::Relocation<func_t*> func{ REL::ID(id) };
+        RE::ScriptCompiler compiler;
+        func(a_script, &compiler, RE::COMPILER_NAME::kSystemWindowCompiler, a_target);
+    }
+
     std::string Json(const nlohmann::json& value)
     {
         return value.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
@@ -49,7 +63,7 @@ namespace
 
 void Chronicle::OnDataLoaded()
 {
-    spdlog::info("Chronicle 1.2.1: OnDataLoaded");
+    spdlog::info("Chronicle " CHRONICLE_VERSION ": OnDataLoaded");
     RegisterEventSinks();
     InitPrismaUI();
 }
@@ -115,6 +129,7 @@ void Chronicle::RegisterEventSinks()
         events->AddEventSink<RE::TESHitEvent>(&CombatEventSink::GetSingleton());
         events->AddEventSink<RE::TESDeathEvent>(&DeathEventSink::GetSingleton());
     }
+    if (auto* levels = RE::LevelIncrease::GetEventSource()) levels->AddEventSink(&LevelUpEventSink::GetSingleton());
 }
 
 void Chronicle::InitPrismaUI()
@@ -187,7 +202,7 @@ void Chronicle::Bootstrap()
     }
     m_bootstrapped = true;
     m_state.ready = true;
-    InvokeUI("nativeBootstrap(" + Json({{"settings", settings}, {"warning", warning}, {"version", "1.2.1"}, {"nativeHotkeys", true}}) + ")");
+    InvokeUI("nativeBootstrap(" + Json({{"settings", settings}, {"warning", warning}, {"version", CHRONICLE_VERSION}, {"nativeHotkeys", true}}) + ")");
     PublishRuntime();
     UpdateVisibility();
     FlushPendingUI();
@@ -360,7 +375,7 @@ void Chronicle::OnConsoleCommand(std::string_view text)
     std::unique_ptr<RE::Script> script(factory->Create());
     if (script) {
         script->SetCommand(command);
-        script->CompileAndRun(RE::PlayerCharacter::GetSingleton());
+        CompileAndRun(script.get(), RE::PlayerCharacter::GetSingleton());
     }
 }
 
@@ -459,7 +474,7 @@ void Chronicle::ExportHistory(std::string_view text)
 void Chronicle::Diagnostics()
 {
     InvokeUI("diagnosticsResult(" + Json({
-        {"version", "1.2.1"}, {"bridge", m_bootstrapped}, {"gameLoaded", m_gameLoaded.load()},
+        {"version", CHRONICLE_VERSION}, {"bridge", m_bootstrapped}, {"gameLoaded", m_gameLoaded.load()},
         {"visible", !m_hidden}, {"focus", m_prismaUI && m_prismaUI->HasFocus(m_view)},
         {"poller", SubtitlePoller::GetSingleton().IsRunning()}, {"messages", m_messageCount},
         {"lastSubtitle", m_lastSubtitle}, {"api", m_hasV2 ? 2 : 1},

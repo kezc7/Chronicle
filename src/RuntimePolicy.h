@@ -1,10 +1,27 @@
 #pragma once
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <unordered_set>
 
 namespace ChronicleRuntime
 {
+    // HUDNotifications queue entries carry a HUDData::Type. Skill increases
+    // (20) and Words of Power (21, 22) are character progression and go to
+    // System; items, quests and script notifications stay Notifications.
+    inline std::string_view NotificationChannel(std::uint32_t type)
+    {
+        return type == 20 || type == 21 || type == 22 ? "system" : "notification";
+    }
+
+    // Quest and skill entries split the line into a title and a status.
+    inline std::string NotificationText(std::string_view text, std::string_view status)
+    {
+        if (status.empty()) return std::string(text);
+        if (text.empty()) return std::string(status);
+        return std::string(text) + " - " + std::string(status);
+    }
+
     inline bool IsTransition(std::string_view name)
     {
         return name == "Main Menu" || name == "Loading Menu" ||
@@ -38,9 +55,10 @@ namespace ChronicleRuntime
         return name != "PrismaUI_FocusMenu" && name != "HUD Menu" && name != "Cursor Menu";
     }
 
-    // The game's "My Games" folder name is not initialised yet when SKSE loads
-    // plugins and reads back as "Skyrim.INI". Fall back to the standard folder
-    // for an empty or INI-file-looking name; otherwise keep the game's (VR, GOG).
+    // SKSE::log::log_directory() reads the "My Games" folder name via AE ID
+    // 380738, which is absent from the 1.6.1170 address library; the lookup
+    // resolves to a neighbouring string, "Skyrim.INI". Fall back to the standard
+    // folder for an empty or INI-file-looking name; otherwise keep it (VR, GOG).
     inline std::wstring MyGamesFolder(std::wstring_view name)
     {
         const auto lower = [](wchar_t c) { return c >= L'A' && c <= L'Z' ? wchar_t(c + 32) : c; };
