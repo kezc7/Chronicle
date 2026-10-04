@@ -36,7 +36,11 @@
 
     <!-- Input bar (hidden until activated) -->
     <div id="input-bar" class="hidden">
-      <span id="input-channel-label">[All]</span>
+      <div id="input-channel-picker">
+        <button id="input-channel-label" type="button" aria-haspopup="menu" aria-expanded="false"
+                title="Choose channel (Tab cycles)">[All]</button>
+        <div id="input-channel-menu" class="hidden" role="menu"></div>
+      </div>
       <input id="chat-input" type="text" autocomplete="off" spellcheck="false"
              placeholder="Type a message… (Escape to cancel)" />
     </div>

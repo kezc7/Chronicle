@@ -1,5 +1,6 @@
 #include "PCH.h"
 #include "Chronicle.h"
+#include "Events.h"
 
 SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 {
@@ -21,7 +22,7 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
     };
 
     // Documents\My Games\Skyrim Special Edition\SKSE\Chronicle.log
-    if (auto logDir = SKSE::log::log_directory(); logDir) {
+    if (auto logDir = ChronicleLogDirectory(); logDir) {
         tryAddFileSink(*logDir / "Chronicle.log");
     }
 
@@ -40,6 +41,8 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
     }
     spdlog::set_pattern("[%H:%M:%S.%e] [%^%l%$] %v");
     spdlog::info("Chronicle loaded ({} sink(s))", sinks.size());
+
+    NotificationHook::Install();
 
     // Persist an opaque character identifier in the SKSE co-save. Histories
     // remain distinct even when two characters have the same display name.
@@ -78,6 +81,9 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
             break;
         case SKSE::MessagingInterface::kNewGame:
             Chronicle::GetSingleton()->OnPostLoadGame();
+            break;
+        case SKSE::MessagingInterface::kSaveGame:
+            Chronicle::GetSingleton()->SendMessage("system", "", "Game saved");
             break;
         default:
             break;
