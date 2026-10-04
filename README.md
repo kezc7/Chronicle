@@ -1,10 +1,11 @@
-# Chronicle 1.1.0
+# Chronicle 1.2.2
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
 
 It captures Skyrim subtitles and notifications into a compact, filterable chat
-window. SkyrimNet/narrator/player/combat channels are optional and hidden by
+window. Notifications (items, quests) are captured as the game queues them;
+skill increases, Words of Power, level-ups and game saves go to System. SkyrimNet/narrator/player/combat channels are optional and hidden by
 default on a fresh install. Existing preferences are preserved.
 
 ## Controls
@@ -98,6 +99,19 @@ page and development preview files are excluded.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.2.2 changes
+
+- Notifications are captured by hooking `HUDNotifications::ProcessMessage`; the old
+  queue poll never matched the game's HUD object, so notifications were missed.
+- System channel: skill increases, Words of Power, level-ups and game saves.
+- Console commands no longer crash on 1.6.1130+: `Script::CompileAndRun` uses
+  address ID 441582 there (CommonLibSSE-NG's 21890 is absent from those versions).
+- `Chronicle.log` and exports go to `My Games/Skyrim Special Edition/SKSE` instead of
+  `My Games/Skyrim.INI/SKSE`.
+- Keyboard input is processed before other mods while typing, so their hotkeys
+  no longer fire; the interact hotkey or Escape releases focus natively.
+- Packaging writes `/`-separated zip entries under Windows PowerShell 5.1.
 
 ## 1.2.1 changes
 
