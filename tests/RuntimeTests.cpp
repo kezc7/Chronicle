@@ -45,4 +45,12 @@ int main()
     Require(!state.Visible());
     Require(!ChronicleRuntime::InterruptsFocus("PrismaUI_FocusMenu"));
     Require(ChronicleRuntime::InterruptsFocus("InventoryMenu"));
+    // Uninitialised game value during plugin load must not become the log folder.
+    Require(ChronicleRuntime::MyGamesFolder(L"Skyrim.INI") == L"Skyrim Special Edition");
+    Require(ChronicleRuntime::MyGamesFolder(L"skyrim.ini") == L"Skyrim Special Edition");
+    Require(ChronicleRuntime::MyGamesFolder(L"") == L"Skyrim Special Edition");
+    Require(ChronicleRuntime::MyGamesFolder(L"..\\x") == L"Skyrim Special Edition");
+    Require(ChronicleRuntime::MyGamesFolder(L"Skyrim Special Edition") == L"Skyrim Special Edition");
+    Require(ChronicleRuntime::MyGamesFolder(L"Skyrim Special Edition GOG") == L"Skyrim Special Edition GOG");
+    Require(ChronicleRuntime::MyGamesFolder(L"Skyrim VR") == L"Skyrim VR");
 }
