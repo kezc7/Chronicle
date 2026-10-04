@@ -4,6 +4,16 @@
 #include "PCH.h"
 #include "RuntimePolicy.h"
 
+// Documents\My Games\Skyrim Special Edition\SKSE. SKSE::log::log_directory()
+// alone resolves to My Games\Skyrim.INI\SKSE on 1.6.1170 (see MyGamesFolder).
+inline std::optional<std::filesystem::path> ChronicleLogDirectory()
+{
+    auto dir = SKSE::log::log_directory();
+    if (!dir) return dir;
+    const auto myGames = dir->parent_path();
+    return myGames.parent_path() / ChronicleRuntime::MyGamesFolder(myGames.filename().native()) / L"SKSE";
+}
+
 class Chronicle
 {
 public:

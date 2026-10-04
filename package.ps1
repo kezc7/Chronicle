@@ -17,9 +17,16 @@ foreach ($file in 'index.html','script.js','controls.js','bridge.js','styles.css
 }
 Copy-Item -LiteralPath "$projectRoot\README.md", "$projectRoot\LICENSE" -Destination $stage
 $zip = Join-Path $projectRoot "out\$name.zip"
-Compress-Archive -LiteralPath "$stage\SKSE", "$stage\PrismaUI", "$stage\README.md", "$stage\LICENSE" -DestinationPath $zip
+# Build the archive directly so entry names always use '/' (Windows PowerShell 5.1 Compress-Archive writes '\').
+Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
+$archive = [System.IO.Compression.ZipFile]::Open($zip, [System.IO.Compression.ZipArchiveMode]::Create)
+try {
+    foreach ($file in Get-ChildItem -LiteralPath $stage -File -Recurse) {
+        $relative = $file.FullName.Substring($stage.Length + 1).Replace('\','/')
+        [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, $file.FullName, $relative, [System.IO.Compression.CompressionLevel]::Optimal) | Out-Null
+    }
+} finally { $archive.Dispose() }
 # Read the actual archive and verify the native and UI payload against this build.
-Add-Type -AssemblyName System.IO.Compression.FileSystem
 $archive = [System.IO.Compression.ZipFile]::OpenRead($zip)
 try {
     foreach ($file in Get-ChildItem -LiteralPath $stage -File -Recurse) {

@@ -215,6 +215,55 @@ RE::BSEventNotifyControl DeathEventSink::ProcessEvent(
     return RE::BSEventNotifyControl::kContinue;
 }
 
+RE::BSEventNotifyControl LevelUpEventSink::ProcessEvent(
+    const RE::LevelIncrease::Event* a_event,
+    RE::BSTEventSource<RE::LevelIncrease::Event>*)
+{
+    if (a_event) {
+        Chronicle::GetSingleton()->SendMessage(
+            "system", "", "Reached level " + std::to_string(a_event->newLevel));
+    }
+    return RE::BSEventNotifyControl::kContinue;
+}
+
+// ---- HUD notification hook ------------------------------------------------
+
+namespace
+{
+    struct HUDNotificationsProcessMessage
+    {
+        // Entries the original appends to the queue are exactly what the game
+        // decided to show (duplicates it cancels are never added).
+        static bool Thunk(RE::HUDNotifications* a_this, RE::UIMessage* a_message)
+        {
+            const auto before = a_this->queue.size();
+            const bool result = Original(a_this, a_message);
+            try {
+                for (auto i = before; i < a_this->queue.size(); ++i) {
+                    const auto& entry = a_this->queue[i];
+                    auto text = ChronicleRuntime::NotificationText(entry.text.c_str(), entry.status.c_str());
+                    if (!text.empty()) {
+                        Chronicle::GetSingleton()->SendMessage(
+                            ChronicleRuntime::NotificationChannel(entry.type), "", text);
+                    }
+                }
+            } catch (...) {
+                // Never let capture failures escape into the game's UI code.
+            }
+            return result;
+        }
+
+        static inline REL::Relocation<decltype(Thunk)> Original;
+    };
+}
+
+void NotificationHook::Install()
+{
+    REL::Relocation<std::uintptr_t> vtable{ RE::VTABLE_HUDNotifications[0] };
+    HUDNotificationsProcessMessage::Original = vtable.write_vfunc(0x2, HUDNotificationsProcessMessage::Thunk);
+    spdlog::info("Chronicle: HUD notification hook installed");
+}
+
 // ---- SubtitlePoller -------------------------------------------------------
 
 void SubtitlePoller::Start()
@@ -232,7 +281,6 @@ void SubtitlePoller::Start()
     m_pending = false;
     m_activeSubtitles.clear();
     m_lastText.clear();
-    m_lastNotificationText.clear();
     spdlog::info("Chronicle: subtitle polling started");
 
     // Spawn a background thread that sleeps kPollInterval then schedules a
@@ -276,7 +324,6 @@ void SubtitlePoller::Stop()
     m_pending = false;
     m_activeSubtitles.clear();
     m_lastText.clear();
-    m_lastNotificationText.clear();
     spdlog::info("Chronicle: subtitle polling stopped");
 }
 
@@ -344,37 +391,8 @@ void SubtitlePoller::PollOnce()
             return;
         }
 
-        // HUDNotifications is one of the HUD Menu's runtime objects. Reading
-        // its active queue gives us quest/system notifications without
-        // scraping localized text from the movie.
-        if (auto hudMenu = ui->GetMenu<RE::HUDMenu>()) {
-            bool foundNotificationObject = false;
-            for (auto* object : hudMenu->GetRuntimeData().objects) {
-                auto* notifications = dynamic_cast<RE::HUDNotifications*>(object);
-                if (!notifications) {
-                    continue;
-                }
-                foundNotificationObject = true;
-                if (notifications->queue.empty()) {
-                    m_lastNotificationText.clear();
-                    continue;
-                }
-
-                const auto& notification = notifications->queue.back();
-                std::string text = notification.text.c_str();
-                if (!text.empty() && text != m_lastNotificationText) {
-                    m_lastNotificationText = text;
-                    Chronicle::GetSingleton()->SendMessage("notification", "", text);
-                }
-                break;
-            }
-            if (!foundNotificationObject) {
-                m_lastNotificationText.clear();
-            }
-        }
-
-        // Prefer the attributed manager entries while they are active, but
-        // still process notifications above on every tick.
+        // Notifications are captured by NotificationHook, not polled here.
+        // Prefer the attributed manager entries while they are active.
         if (!m_activeSubtitles.empty()) return;
         auto hudMenuPtr = ui->GetMenu("HUD Menu");
         if (!hudMenuPtr || !hudMenuPtr->uiMovie) {
