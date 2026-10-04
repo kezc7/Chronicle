@@ -183,12 +183,62 @@ body.interacting .message.fading { opacity: 1; }
   display: none;
 }
 
+#input-channel-picker {
+  position: relative;
+  flex-shrink: 0;
+}
+
 #input-channel-label {
   color: rgba(255, 255, 255, 0.4);
   font-size: 11px;
+  font-family: inherit;
   white-space: nowrap;
-  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 2px 4px;
+  cursor: pointer;
 }
+
+#input-channel-label::after { content: ' \25BE'; }
+
+#input-channel-label:hover,
+#input-channel-label[aria-expanded="true"] {
+  color: rgba(255, 255, 255, 0.85);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Fixed so #chronicle-window's overflow:hidden cannot clip it; placed in JS. */
+#input-channel-menu {
+  position: fixed;
+  min-width: 120px;
+  max-height: 180px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 3px;
+  background: rgba(12, 12, 18, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  z-index: 10;
+}
+
+#input-channel-menu.hidden { display: none; }
+
+#input-channel-menu button {
+  text-align: left;
+  color: rgba(255, 255, 255, 0.75);
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+#input-channel-menu button:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+#input-channel-menu button.active { color: rgba(74, 158, 255, 0.95); }
 
 #chat-input {
   flex: 1;
