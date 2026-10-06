@@ -38,6 +38,7 @@ public:
     // continue into Skyrim's gameplay/menu input pipeline.
     bool OnHotkey(std::uint32_t scanCode, bool shift);
     bool ShouldConsumeKeyboardInput() const { return m_keyboardCapture.load(); }
+    bool ShowCombatHits() const { return m_combatHits.load(); }
     std::atomic<std::uint64_t> profileId{ 0 };
 
     // Called by event sinks
@@ -92,6 +93,7 @@ private:
     ChronicleRuntime::State m_state;
     std::atomic<std::uint64_t> m_focusRevision{ 0 };
     std::atomic<bool> m_keyboardCapture{ false };
+    std::atomic<bool> m_combatHits{ true };
     std::atomic<std::uint64_t> m_worldRevision{ 0 };
     bool m_hadFocus{ false };
     bool m_bootstrapped{ false };

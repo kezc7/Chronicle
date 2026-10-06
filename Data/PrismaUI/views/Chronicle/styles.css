@@ -465,7 +465,24 @@ body.interacting .message.fading { opacity: 1; }
   width: 90px;
   accent-color: #4a9eff;
 }
-.position-slider input[type=range] { width: 150px; }
+.position-slider { gap: 4px; }
+.position-slider input[type=range] { width: 100px; }
+/* Sliders span the whole screen (~30 px per mouse pixel on wide displays);
+   nudge buttons and the exact-value box give pixel precision. */
+.sp-nudge {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 3px;
+  color: #e2e8f0;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+.sp-nudge:hover { background: rgba(255,255,255,0.14); }
+.sp-row input.sp-position-val { width: 54px; }
 .sp-slider-val {
   font-size: 11px;
   color: rgba(255,255,255,0.45);
