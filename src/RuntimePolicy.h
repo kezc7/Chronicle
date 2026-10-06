@@ -14,6 +14,16 @@ namespace ChronicleRuntime
         return type == 20 || type == 21 || type == 22 ? "system" : "notification";
     }
 
+    // Combat channel: allies are player teammates (followers) and actors the
+    // player commands (summons). Deaths are reported when the player or an ally
+    // dies or kills; fights between other actors stay out to avoid noise.
+    enum class Side { Other, Player, Ally };
+
+    inline bool ReportDeath(Side dying, Side killer)
+    {
+        return dying != Side::Other || killer != Side::Other;
+    }
+
     // Quest and skill entries split the line into a title and a status.
     inline std::string NotificationText(std::string_view text, std::string_view status)
     {
