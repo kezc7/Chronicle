@@ -122,9 +122,7 @@ function normalizeConfig() {
   w.font_size = clamp(Number(w.font_size) || 13, 10, 24);
   const opacity = Number(w.opacity);
   w.opacity = Number.isFinite(opacity) ? clamp(opacity, 0, 1) : 0.65;
-  if (!['skyrim', 'minimal', 'transparent', 'high-contrast'].includes(w.theme)) {
-    w.theme = 'skyrim';
-  }
+  w.theme = normalizeTheme(w.theme);
   if (!['custom', 'bottom-left', 'bottom-right', 'top-left', 'top-right'].includes(w.anchor)) {
     w.anchor = 'custom';
   }
