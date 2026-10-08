@@ -45,6 +45,13 @@ int main()
     Require(!state.Visible());
     Require(!ChronicleRuntime::InterruptsFocus("PrismaUI_FocusMenu"));
     Require(ChronicleRuntime::InterruptsFocus("InventoryMenu"));
+    // Combat deaths: player and followers in, unrelated fights out.
+    using ChronicleRuntime::Side;
+    Require(ChronicleRuntime::ReportDeath(Side::Other, Side::Ally));   // Serana kills a vampire
+    Require(ChronicleRuntime::ReportDeath(Side::Ally, Side::Other));   // a vampire kills Serana
+    Require(ChronicleRuntime::ReportDeath(Side::Other, Side::Player));
+    Require(ChronicleRuntime::ReportDeath(Side::Player, Side::Other));
+    Require(!ChronicleRuntime::ReportDeath(Side::Other, Side::Other)); // guards vs. a dragon
     // HUD notification routing and text.
     Require(ChronicleRuntime::NotificationChannel(1) == "notification");
     Require(ChronicleRuntime::NotificationChannel(14) == "notification"); // quest started

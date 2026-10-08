@@ -9,7 +9,8 @@
     "message_fade_time": 0,
     "persist_history": true,
     "hide_in_menus": true,
-    "hide_in_photo_mode": true
+    "hide_in_photo_mode": true,
+    "combat_hits": true
   },
   "window": {
     "position_x": 20,

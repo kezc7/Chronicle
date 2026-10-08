@@ -390,6 +390,7 @@ void Chronicle::ApplyNativeSettings(const nlohmann::json& settings)
     const bool hidePhoto = general.value("hide_in_photo_mode", true);
     m_state.hideMenus = hideMenus;
     m_state.hidePhoto = hidePhoto;
+    m_combatHits = general.value("combat_hits", true);
     std::vector<std::string> extraHudPaths;
     if (const auto it = settings.find("hud_subtitle_paths"); it != settings.end() && it->is_array()) {
         for (const auto& value : *it) {

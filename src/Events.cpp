@@ -171,19 +171,20 @@ RE::BSEventNotifyControl CombatEventSink::ProcessEvent(
     }
 
     auto* player = RE::PlayerCharacter::GetSingleton();
-    if (!player) {
+    if (!player || !Chronicle::GetSingleton()->ShowCombatHits()) {
         return RE::BSEventNotifyControl::kContinue;
     }
 
     auto* target = a_event->target.get();
     auto* cause = a_event->cause.get();
 
+    // Hits stay player-only; follower hits would flood the channel.
     if (target == player && cause != player) {
         Chronicle::GetSingleton()->SendMessage(
-            "combat", DisplayName(cause, "Enemy"), "hit Player");
+            "combat", DisplayName(cause, "Enemy"), "hit " + DisplayName(player, "Player"));
     } else if (cause == player && target != player) {
         Chronicle::GetSingleton()->SendMessage(
-            "combat", "Player", "hit " + DisplayName(target, "target"));
+            "combat", DisplayName(player, "Player"), "hit " + DisplayName(target, "target"));
     }
 
     return RE::BSEventNotifyControl::kContinue;
@@ -204,12 +205,29 @@ RE::BSEventNotifyControl DeathEventSink::ProcessEvent(
 
     auto* dying = a_event->actorDying.get();
     auto* killer = a_event->actorKiller.get();
+    if (!dying) {
+        return RE::BSEventNotifyControl::kContinue;
+    }
 
-    if (dying == player) {
-        Chronicle::GetSingleton()->SendMessage("combat", "Combat", "Player died");
-    } else if (killer == player && dying) {
+    const auto side = [player](RE::TESObjectREFR* a_ref) {
+        using ChronicleRuntime::Side;
+        auto* actor = a_ref ? a_ref->As<RE::Actor>() : nullptr;
+        if (!actor) return Side::Other;
+        if (actor == player) return Side::Player;
+        if (actor->IsPlayerTeammate()) return Side::Ally;
+        if (actor->IsCommandedActor() && actor->GetCommandingActor().get() == player) return Side::Ally;
+        return Side::Other;
+    };
+    if (!ChronicleRuntime::ReportDeath(side(dying), side(killer))) {
+        return RE::BSEventNotifyControl::kContinue;
+    }
+
+    if (killer && killer != dying) {
         Chronicle::GetSingleton()->SendMessage(
-            "combat", "Player", "killed " + DisplayName(dying, "target"));
+            "combat", DisplayName(killer, "Someone"), "killed " + DisplayName(dying, "target"));
+    } else {
+        Chronicle::GetSingleton()->SendMessage(
+            "combat", "Combat", DisplayName(dying, "Someone") + " died");
     }
 
     return RE::BSEventNotifyControl::kContinue;
