@@ -12,7 +12,7 @@ $stage = Join-Path $projectRoot "out\staging\$name"
 New-Item -ItemType Directory -Path "$stage\SKSE\Plugins", "$stage\PrismaUI\views\Chronicle" -Force | Out-Null
 Copy-Item -LiteralPath "$projectRoot\out\build\x64-$Config\Chronicle.dll" -Destination "$stage\SKSE\Plugins\Chronicle.dll"
 # Explicit file list excludes the obsolete standalone settings page and all preview/test assets.
-foreach ($file in 'index.html','script.js','controls.js','bridge.js','styles.css','config.json') {
+foreach ($file in 'index.html','script.js','controls.js','bridge.js','i18n.js','styles.css','config.json') {
     Copy-Item -LiteralPath "$projectRoot\Data\PrismaUI\views\Chronicle\$file" -Destination "$stage\PrismaUI\views\Chronicle\$file"
 }
 Copy-Item -LiteralPath "$projectRoot\README.md", "$projectRoot\LICENSE" -Destination $stage
