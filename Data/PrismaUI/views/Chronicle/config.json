@@ -10,7 +10,8 @@
     "persist_history": true,
     "hide_in_menus": true,
     "hide_in_photo_mode": true,
-    "combat_hits": true
+    "combat_hits": true,
+    "hide_game_notifications": false
   },
   "window": {
     "position_x": 20,

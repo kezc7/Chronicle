@@ -1,5 +1,6 @@
 #include "RuntimePolicy.h"
 #include <stdexcept>
+#include <string>
 
 void Require(bool value) { if (!value) throw std::runtime_error("Runtime policy regression"); }
 int main()
@@ -52,15 +53,47 @@ int main()
     Require(ChronicleRuntime::ReportDeath(Side::Other, Side::Player));
     Require(ChronicleRuntime::ReportDeath(Side::Player, Side::Other));
     Require(!ChronicleRuntime::ReportDeath(Side::Other, Side::Other)); // guards vs. a dragon
+    // Scaleform HTML in mod notifications.
+    Require(ChronicleRuntime::StripHtml("<font color='#00FFFFFF'>The Curators Companion: Start up tasks complete...</font>")
+        == "The Curators Companion: Start up tasks complete...");
+    Require(ChronicleRuntime::StripHtml("Fish &amp; Chips &lt;3") == "Fish & Chips <3");
+    Require(ChronicleRuntime::StripHtml("  <b></b>  ") == "");
+    Require(ChronicleRuntime::StripHtml("a < b") == "a < b"); // unclosed '<' is text
+    Require(ChronicleRuntime::StripHtml("Iron Sword added") == "Iron Sword added");
+    // HUD message filtering: notifications, quests and progression only.
+    Require(ChronicleRuntime::IsNotificationType(1));
+    Require(ChronicleRuntime::IsNotificationType(14));
+    Require(ChronicleRuntime::IsNotificationType(22));
+    Require(!ChronicleRuntime::IsNotificationType(0));
+    Require(!ChronicleRuntime::IsNotificationType(5));  // subtitle
+    Require(!ChronicleRuntime::IsNotificationType(24)); // crosshair
+    Require(!ChronicleRuntime::IsNotificationType(25));
     // HUD notification routing and text.
     Require(ChronicleRuntime::NotificationChannel(1) == "notification");
     Require(ChronicleRuntime::NotificationChannel(14) == "notification"); // quest started
     Require(ChronicleRuntime::NotificationChannel(20) == "system");       // skill increase
     Require(ChronicleRuntime::NotificationChannel(21) == "system");       // word of power
     Require(ChronicleRuntime::NotificationChannel(22) == "system");
-    Require(ChronicleRuntime::NotificationText("Iron Sword added", "") == "Iron Sword added");
-    Require(ChronicleRuntime::NotificationText("Smithing", "25") == "Smithing - 25");
-    Require(ChronicleRuntime::NotificationText("", "Saved") == "Saved");
+    Require(ChronicleRuntime::NotificationPrefix(17) == "New objective: ");
+    Require(ChronicleRuntime::NotificationPrefix(18) == "Objective completed: ");
+    Require(ChronicleRuntime::NotificationPrefix(1).empty());
+    Require(ChronicleRuntime::NotificationPrefix(20).empty()); // skill text is already complete
+
+    // Console output capture.
+    Require(ChronicleRuntime::ConsoleOutputSince("old\n", "old\nnew line\n") == "new line\n");
+    Require(ChronicleRuntime::ConsoleOutputSince("", "first\n") == "first\n");
+    Require(ChronicleRuntime::ConsoleOutputSince("x\nsame\n", "x\nsame\nsame\n") == "same\n"); // repeated output kept
+    {   // the game trimmed the oldest console text before appending
+        const std::string before = std::string(300, 'a') + "\nend\n";
+        Require(ChronicleRuntime::ConsoleOutputSince(before, before.substr(20) + "new\n") == "new\n");
+    }
+    Require(ChronicleRuntime::ConsoleOutputSince("abc\n", "unrelated\n").empty());
+    {
+        const auto lines = ChronicleRuntime::ConsoleLines("a\r\n\nb\nc\nd\n", 2);
+        Require(lines.size() == 3 && lines[0] == "a" && lines[1] == "b");
+        Require(lines[2] == "... 2 more lines - open the console (~) to see them all");
+        Require(ChronicleRuntime::ConsoleLines("", 50).empty());
+    }
     // Uninitialised game value during plugin load must not become the log folder.
     Require(ChronicleRuntime::MyGamesFolder(L"Skyrim.INI") == L"Skyrim Special Edition");
     Require(ChronicleRuntime::MyGamesFolder(L"skyrim.ini") == L"Skyrim Special Edition");
