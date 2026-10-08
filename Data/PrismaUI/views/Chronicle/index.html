@@ -155,15 +155,19 @@
             <div class="sp-row">
               <label>Position X (px)<span class="sp-hint">Move the box left and right in real time</span></label>
               <div class="sp-slider position-slider">
+                <button type="button" class="sp-nudge" data-axis="position_x" data-step="-1" title="Left 1 px (Shift: 10 px)">&minus;</button>
                 <input type="range" id="sp-position-x" min="0" max="1920" step="1" value="20" />
-                <span class="sp-slider-val" id="sp-position-x-val">20</span>
+                <button type="button" class="sp-nudge" data-axis="position_x" data-step="1" title="Right 1 px (Shift: 10 px)">+</button>
+                <input type="number" id="sp-position-x-val" class="sp-position-val" min="0" step="1" value="20" title="Exact X position in px" />
               </div>
             </div>
             <div class="sp-row">
               <label>Position Y (px)<span class="sp-hint">Move the box up and down in real time</span></label>
               <div class="sp-slider position-slider">
+                <button type="button" class="sp-nudge" data-axis="position_y" data-step="-1" title="Up 1 px (Shift: 10 px)">&minus;</button>
                 <input type="range" id="sp-position-y" min="0" max="1080" step="1" value="400" />
-                <span class="sp-slider-val" id="sp-position-y-val">400</span>
+                <button type="button" class="sp-nudge" data-axis="position_y" data-step="1" title="Down 1 px (Shift: 10 px)">+</button>
+                <input type="number" id="sp-position-y-val" class="sp-position-val" min="0" step="1" value="400" title="Exact Y position in px" />
               </div>
             </div>
             <div class="sp-row">
@@ -206,6 +210,16 @@
           <div class="sp-group">
             <h3>Channel configuration</h3>
             <div id="sp-channel-list"><!-- populated by JS --></div>
+          </div>
+          <div class="sp-group">
+            <h3>Combat</h3>
+            <div class="sp-row">
+              <label>Show hits<span class="sp-hint">Kills and deaths are always shown. Spells like Flames hit every second.</span></label>
+              <label class="sp-toggle">
+                <input type="checkbox" id="sp-combat-hits" checked />
+                <span class="sp-track"></span>
+              </label>
+            </div>
           </div>
           <div class="sp-group">
             <h3>NPC speaker name colours</h3>
