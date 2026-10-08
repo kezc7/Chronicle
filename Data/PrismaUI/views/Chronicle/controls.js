@@ -51,6 +51,7 @@ function closeInteraction(release = true) {
   document.getElementById('copy-output').hidden = true;
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   statusText(interactionHint());
+  if (typeof wakeWindow === 'function') wakeWindow(); // auto-hide counts from now
   if (release) sendToGame('focusReleased', '');
 }
 
@@ -68,6 +69,14 @@ function setVisibility(visible) {
   runtime.visible = visible;
   document.body.classList.toggle('runtime-hidden', !visible);
   if (!visible) closeInteraction(false);
+}
+
+// Called by the game side after the show/hide hotkey; the native side owns the
+// visibility. Saved only when "Remember hidden state" is on.
+function setUserHidden(hidden) {
+  if (!config.general.remember_hidden || config.general.user_hidden === hidden) return;
+  config.general.user_hidden = hidden;
+  persistConfig();
 }
 
 function setRuntime(data) {

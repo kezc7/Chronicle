@@ -90,6 +90,7 @@ private:
     void FlushPendingUI();
     void RequestFocus();
     void RequestUnfocus();
+    void ToggleUserHidden();
     void UpdateVisibility();
     void PublishRuntime();
     void ApplyNativeSettings(const nlohmann::json& settings);
@@ -125,6 +126,8 @@ private:
     std::uint32_t m_interactKey{ VK_F8 };
     std::uint32_t m_settingsKey{ 'N' };
     std::uint32_t m_inputKey{ VK_RETURN };
+    std::uint32_t m_toggleKey{ 0 };              // show/hide hotkey; 0 = none
+    std::atomic<bool> m_rememberHidden{ true };
     std::string m_lastSubtitle;
     std::uint64_t m_messageCount{ 0 };
 

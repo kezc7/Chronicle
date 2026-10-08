@@ -23,6 +23,10 @@ const DEFAULT_CONFIG = {
     combat_hits: true,
     hide_game_notifications: false,
     language: 'auto',          // 'auto' follows Skyrim's sLanguage
+    toggle_hotkey: '',         // show/hide hotkey; '' = none
+    remember_hidden: true,     // keep the show/hide state across loads
+    user_hidden: false,        // that state, saved when remember_hidden is on
+    auto_hide: 0,              // seconds without new messages before the window fades; 0 = never
   },
   window: {
     position_x: 20,
@@ -113,6 +117,10 @@ function normalizeConfig() {
   g.combat_hits = g.combat_hits !== false;
   g.hide_game_notifications = g.hide_game_notifications === true;
   g.language = normalizeLanguage(g.language);
+  if (typeof g.toggle_hotkey !== 'string' || !/^(Enter|[a-z0-9]|F([1-9]|1[0-2]))?$/i.test(g.toggle_hotkey)) g.toggle_hotkey = '';
+  g.remember_hidden = g.remember_hidden !== false;
+  g.user_hidden = g.remember_hidden && g.user_hidden === true;
+  g.auto_hide = clamp(Math.round(Number(g.auto_hide) || 0), 0, 300);
   for (const key of ['input_hotkey', 'config_hotkey', 'interact_hotkey']) {
     if (typeof g[key] !== 'string' || !g[key].trim()) g[key] = DEFAULT_CONFIG.general[key];
     if (!/^(Enter|[a-z0-9]|F([1-9]|1[0-2]))$/i.test(g[key])) g[key] = DEFAULT_CONFIG.general[key];
@@ -235,6 +243,7 @@ function applyConfig() {
   if (!config.channels[activeChannel]?.enabled) activeChannel = 'all';
   switchChannel(activeChannel);
   setInputTarget(config.channels[inputTarget]?.enabled ? inputTarget : 'all');
+  wakeWindow(); // restart the auto-hide timer with the current setting
 
   // Dynamic channel colours injected as a <style> block
   const styleId = 'chronicle-channel-colours';
@@ -299,6 +308,26 @@ function addMessage(data) {
 
   if (persist && config.general.persist_history) persistHistory();
   if (interactionOpen) refreshSpeakerOptions();
+  if (persist) wakeWindow(); // restored history does not count as new activity
+}
+
+// Auto-hide: after general.auto_hide seconds without new messages the whole
+// window fades out; new messages and any interaction bring it back.
+let autoHideTimer = null;
+function wakeWindow() {
+  const win = document.getElementById('chronicle-window');
+  win.classList.remove('idle-hidden');
+  clearTimeout(autoHideTimer);
+  autoHideTimer = null;
+  const seconds = Number(config.general.auto_hide) || 0;
+  if (seconds <= 0) return;
+  autoHideTimer = setTimeout(function hide() {
+    if (interactionOpen || inputOpen || settingsOpen) {
+      autoHideTimer = setTimeout(hide, seconds * 1000);
+      return;
+    }
+    win.classList.add('idle-hidden');
+  }, seconds * 1000);
 }
 
 function buildMessageEl(entry, chCfg) {
@@ -584,6 +613,10 @@ function populateSettingsForm() {
   document.getElementById('sp-height').value = w.height;
   document.getElementById('sp-theme').value = w.theme || 'skyrim';
   document.getElementById('sp-language').value = g.language || 'auto';
+  document.getElementById('sp-toggle-hotkey').value = g.toggle_hotkey || '';
+  document.getElementById('sp-remember-hidden').checked = g.remember_hidden !== false;
+  document.getElementById('sp-auto-hide').value = g.auto_hide;
+  document.getElementById('sp-auto-hide-val').value = g.auto_hide;
   document.getElementById('sp-anchor').value = w.anchor || 'custom';
   document.getElementById('sp-hud-subtitle-paths').value = config.hud_subtitle_paths.join('\n');
   syncPositionControls();
@@ -732,6 +765,10 @@ function collectSettingsFromForm() {
       combat_hits:        document.getElementById('sp-combat-hits').checked,
       hide_game_notifications: document.getElementById('sp-hide-game-notifications').checked,
       language:           document.getElementById('sp-language').value || 'auto',
+      toggle_hotkey:      document.getElementById('sp-toggle-hotkey').value || '',
+      remember_hidden:    document.getElementById('sp-remember-hidden').checked,
+      user_hidden:        document.getElementById('sp-remember-hidden').checked && config.general.user_hidden === true,
+      auto_hide:          parseInt(document.getElementById('sp-auto-hide').value, 10) || 0,
     },
     window: {
       width:     Math.min(1920, Math.max(280,
@@ -795,6 +832,17 @@ function bindSlider(id, valId, fmt) {
 bindSlider('sp-opacity',   'sp-opacity-val',   v => parseFloat(v).toFixed(2));
 bindSlider('sp-font-size', 'sp-font-size-val', v => v);
 bindSlider('sp-fade-time', 'sp-fade-time-val', v => v);
+// Auto-hide: slider for quick changes, number box for exact seconds (0-300).
+(() => {
+  const slider = document.getElementById('sp-auto-hide');
+  const box = document.getElementById('sp-auto-hide-val');
+  slider.addEventListener('input', () => { box.value = slider.value; });
+  box.addEventListener('change', () => {
+    const seconds = clamp(Math.round(Number(box.value) || 0), 0, 300);
+    box.value = seconds;
+    slider.value = seconds;
+  });
+})();
 
 // Settings close button
 document.getElementById('sp-close').addEventListener('click', closeSettings);
@@ -1191,30 +1239,40 @@ function hotkeyStatus(text, error = false) {
   status.classList.toggle('error', error);
 }
 
+// Interact, Input and Show/hide are plain keys and must differ (Settings is
+// Shift + key, so it may share a letter with them).
 function checkHotkeyClash() {
-  const interact = document.getElementById('sp-interact-hotkey').value.toUpperCase();
-  const input = document.getElementById('sp-input-hotkey').value.toUpperCase();
-  if (interact && interact === input) {
-    hotkeyStatus(t('hotkey.clash', {key: interact}), true);
-  } else {
-    hotkeyStatus(t('hotkey.applyToSave'));
-  }
+  const keys = ['sp-interact-hotkey', 'sp-input-hotkey', 'sp-toggle-hotkey']
+    .map(id => document.getElementById(id).value.toUpperCase()).filter(Boolean);
+  const clash = keys.find((key, i) => keys.indexOf(key) !== i);
+  if (clash) hotkeyStatus(t('hotkey.clashAny', {key: clash}), true);
+  else hotkeyStatus(t('hotkey.applyToSave'));
 }
 
 document.querySelectorAll('.sp-hotkey').forEach(box => {
+  const optional = box.dataset.optional === 'true';
   box.addEventListener('focus', () => {
     box.dataset.previous = box.value;
+    box.dataset.cleared = '';
     box.value = '';
     box.placeholder = t('hotkey.press');
   });
   box.addEventListener('blur', () => {
-    if (!box.value) box.value = box.dataset.previous || '';
-    box.placeholder = '';
+    if (!box.value && !box.dataset.cleared) box.value = box.dataset.previous || '';
+    box.placeholder = optional ? t('hotkey.none') : '';
   });
   box.addEventListener('keydown', e => {
     if (isPassThroughKey(e)) return;
     e.preventDefault();
     e.stopPropagation();
+    // Backspace (8) or Delete (46) removes an optional key (Show/hide).
+    if (optional && (e.keyCode === 8 || e.keyCode === 46)) {
+      box.value = '';
+      box.dataset.cleared = 'true';
+      box.blur();
+      checkHotkeyClash();
+      return;
+    }
     const name = hotkeyName(e);
     if (!name) {
       if (isNumpadKey(e)) {
