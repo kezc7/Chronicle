@@ -20,6 +20,7 @@ const DEFAULT_CONFIG = {
     persist_history: true,
     hide_in_menus: true,
     hide_in_photo_mode: true,
+    combat_hits: true,
   },
   window: {
     position_x: 20,
@@ -107,6 +108,7 @@ function normalizeConfig() {
   g.max_messages = clamp(Number(g.max_messages) || 100, 1, 500);
   g.message_fade_time = clamp(Number(g.message_fade_time) || 0, 0, 60);
   g.persist_history = g.persist_history !== false;
+  g.combat_hits = g.combat_hits !== false;
   for (const key of ['input_hotkey', 'config_hotkey', 'interact_hotkey']) {
     if (typeof g[key] !== 'string' || !g[key].trim()) g[key] = DEFAULT_CONFIG.general[key];
     if (!/^(Enter|[a-z0-9]|F([1-9]|1[0-2]))$/i.test(g[key])) g[key] = DEFAULT_CONFIG.general[key];
@@ -558,6 +560,7 @@ function populateSettingsForm() {
   document.getElementById('sp-input-hotkey').value  = g.input_hotkey  || 'Enter';
   document.getElementById('sp-max-messages').value  = g.max_messages;
   document.getElementById('sp-persist-history').checked = g.persist_history !== false;
+  document.getElementById('sp-combat-hits').checked = g.combat_hits !== false;
 
   const fadeEl = document.getElementById('sp-fade-time');
   fadeEl.value = g.message_fade_time;
@@ -714,6 +717,7 @@ function collectSettingsFromForm() {
       persist_history:    document.getElementById('sp-persist-history').checked,
       hide_in_menus:      document.getElementById('sp-hide-menus').checked,
       hide_in_photo_mode: document.getElementById('sp-hide-photo').checked,
+      combat_hits:        document.getElementById('sp-combat-hits').checked,
     },
     window: {
       width:     Math.min(1920, Math.max(280,
@@ -901,18 +905,26 @@ function syncPositionControls() {
   ySlider.max = maxY;
   xSlider.value = Math.round(x);
   ySlider.value = Math.round(y);
-  document.getElementById('sp-position-x-val').textContent = Math.round(x);
-  document.getElementById('sp-position-y-val').textContent = Math.round(y);
+  const xBox = document.getElementById('sp-position-x-val');
+  const yBox = document.getElementById('sp-position-y-val');
+  xBox.max = maxX;
+  yBox.max = maxY;
+  xBox.value = Math.round(x);
+  yBox.value = Math.round(y);
 }
 
+// Slider, nudge buttons and exact-value box all route here and stay in sync.
 function previewPosition(axis, value) {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return;
+  const slider = document.getElementById(axis === 'position_x' ? 'sp-position-x' : 'sp-position-y');
+  const raw = Number(value);
+  if (!Number.isFinite(raw)) return;
+  const numeric = clamp(Math.round(raw), 0, Number(slider.max) || 0);
   config.window.anchor = 'custom';
   config.window[axis] = numeric;
   document.body.dataset.anchor = 'custom';
   document.documentElement.style.setProperty(axis === 'position_x' ? '--win-x' : '--win-y', numeric + 'px');
-  document.getElementById(axis === 'position_x' ? 'sp-position-x-val' : 'sp-position-y-val').textContent = Math.round(numeric);
+  slider.value = numeric;
+  document.getElementById(axis === 'position_x' ? 'sp-position-x-val' : 'sp-position-y-val').value = numeric;
 }
 
 // ---------------------------------------------------------------------------
@@ -1124,6 +1136,13 @@ document.getElementById('export-history').addEventListener('click', () => {
 document.getElementById('sp-position').addEventListener('click', resetWindowPosition);
 document.getElementById('sp-position-x').addEventListener('input', event => previewPosition('position_x', event.target.value));
 document.getElementById('sp-position-y').addEventListener('input', event => previewPosition('position_y', event.target.value));
+document.getElementById('sp-position-x-val').addEventListener('change', event => previewPosition('position_x', event.target.value));
+document.getElementById('sp-position-y-val').addEventListener('change', event => previewPosition('position_y', event.target.value));
+document.querySelectorAll('.sp-nudge').forEach(button => button.addEventListener('click', event => {
+  const axis = button.dataset.axis;
+  const slider = document.getElementById(axis === 'position_x' ? 'sp-position-x' : 'sp-position-y');
+  previewPosition(axis, Number(slider.value) + Number(button.dataset.step) * (event.shiftKey ? 10 : 1));
+}));
 document.getElementById('sp-width').addEventListener('input', syncPositionControls);
 document.getElementById('sp-height').addEventListener('input', syncPositionControls);
 window.addEventListener('pagehide', flushHistory);

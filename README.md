@@ -1,4 +1,4 @@
-# Chronicle 1.2.4
+# Chronicle 1.2.7
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -99,6 +99,25 @@ page and development preview files are excluded.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.2.7 changes
+
+- Position X/Y in settings gain −/+ nudge buttons (1 px; Shift-click for 10 px) and
+  an editable value box for exact positions. The sliders span the whole screen,
+  so on wide displays each mouse pixel moved the box by ~30 px.
+
+## 1.2.6 changes
+
+- Settings → Channels → Combat → **Show hits** turns hit messages off (setting
+  `general.combat_hits`, default on). Kills and deaths still show. Useful with
+  spells such as Flames, which register a hit every second.
+
+## 1.2.5 changes
+
+- Combat messages use real names (your character's name instead of "Player").
+- Kills and deaths involving followers and your summons are reported, e.g.
+  "Serana killed Vampire" or "Vampire killed Serana". Hits stay limited to the
+  player, and fights between other NPCs are left out, to keep the channel quiet.
 
 ## 1.2.4 changes
 
