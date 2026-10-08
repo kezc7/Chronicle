@@ -1,4 +1,4 @@
-# Chronicle 1.2.16
+# Chronicle 1.2.17
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -102,6 +102,20 @@ page and development preview files are excluded.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.2.17 changes
+
+- New themes (Settings → General → Appearance → Theme): **Daedric** (black and
+  crimson), **Dwemer** (bronze and brass), **Classic MMO** (dark translucent panels,
+  gold tabs) and **Modern** (neutral greys, rounded corners). Skyrim stays the default
+  and looks unchanged, as do Minimal, Transparent and High contrast.
+- The chat window's colours, borders, corners and font are now theme tokens
+  (`--theme-*` CSS variables); each theme is one declarative block in `styles.css`.
+  New themes respect the Opacity setting. Channel and speaker colours remain user
+  settings layered on top. Only fonts installed with Windows are used, and no
+  third-party UI assets are bundled. The settings panel keeps a single look.
+- Unknown theme values fall back to Skyrim (`normalizeTheme`), with browser tests for
+  the fallback, theme options/style blocks and token defaults.
 
 ## 1.2.16 changes
 
