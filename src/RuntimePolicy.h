@@ -405,7 +405,9 @@ namespace ChronicleRuntime
             // Meridian UI opens this modal menu while one of its web views
             // (e.g. Wayframe) has focus. PrismaUI draws above Meridian, so
             // without it Chronicle stays on top of those menus.
-            name == "MeridianUI_FocusMenu";
+            name == "MeridianUI_FocusMenu" ||
+            // Skyrim's own console (~) is drawn under PrismaUI too.
+            name == "Console";
     }
 
     inline bool InterruptsFocus(std::string_view name)
@@ -434,6 +436,7 @@ namespace ChronicleRuntime
         bool ready = false;
         bool hideMenus = true;
         bool hidePhoto = true;
+        bool userHidden = false;  // hidden with the show/hide hotkey
         std::unordered_set<std::string> menus;
 
         void Menu(std::string_view name, bool opening)
@@ -445,7 +448,7 @@ namespace ChronicleRuntime
 
         bool Visible() const
         {
-            if (!loaded || !ready) return false;
+            if (!loaded || !ready || userHidden) return false;
             for (const auto& name : menus) {
                 if (IsTransition(name) || (name == "PhotoMenu" ? hidePhoto : hideMenus)) return false;
             }

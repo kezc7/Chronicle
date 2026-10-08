@@ -39,6 +39,14 @@ int main()
     Require(!state.Visible());
     state.Menu("MeridianUI_FocusMenu", false);
     Require(state.Visible());
+    state.Menu("Console", true); // Skyrim's own console hides Chronicle like a menu
+    Require(!state.Visible());
+    state.Menu("Console", false);
+    Require(state.Visible());
+    state.userHidden = true; // show/hide hotkey
+    Require(!state.Visible());
+    state.userHidden = false;
+    Require(state.Visible());
     state.Menu("Loading Menu", true);
     Require(!state.Visible());
     state.Menu("Loading Menu", false);
