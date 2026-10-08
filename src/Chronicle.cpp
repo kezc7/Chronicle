@@ -64,6 +64,15 @@ namespace
 void Chronicle::OnDataLoaded()
 {
     spdlog::info("Chronicle " CHRONICLE_VERSION ": OnDataLoaded");
+    // "Auto" language follows Skyrim's sLanguage (e.g. ENGLISH, FRENCH, GERMAN).
+    if (auto* ini = RE::INISettingCollection::GetSingleton()) {
+        if (auto* setting = ini->GetSetting("sLanguage:General");
+            setting && setting->GetType() == RE::Setting::Type::kString && setting->GetString()) {
+            m_gameLanguage = setting->GetString();
+        }
+    }
+    m_language = static_cast<int>(ChronicleRuntime::ResolveLanguage("auto", m_gameLanguage));
+    spdlog::info("Chronicle: game language '{}'", m_gameLanguage);
     RegisterEventSinks();
     InitPrismaUI();
 }
@@ -202,7 +211,7 @@ void Chronicle::Bootstrap()
     }
     m_bootstrapped = true;
     m_state.ready = true;
-    InvokeUI("nativeBootstrap(" + Json({{"settings", settings}, {"warning", warning}, {"version", CHRONICLE_VERSION}, {"nativeHotkeys", true}}) + ")");
+    InvokeUI("nativeBootstrap(" + Json({{"settings", settings}, {"warning", warning}, {"version", CHRONICLE_VERSION}, {"nativeHotkeys", true}, {"gameLanguage", m_gameLanguage}}) + ")");
     PublishRuntime();
     UpdateVisibility();
     FlushPendingUI();
@@ -254,7 +263,7 @@ void Chronicle::Tick()
         m_keyboardCapture = false;
         ++m_focusRevision;
         InvokeUI("closeInteraction(false)");
-        InvokeUI("focusResult(false, 'Interaction closed')");
+        InvokeUI("focusResult(false, 'focus.closed')");
     }
 }
 
@@ -296,20 +305,20 @@ void Chronicle::RequestFocus()
         if (revision != m_focusRevision) return;
         if (!m_bootstrapped || m_hidden || !m_gameLoaded) {
             m_keyboardCapture = false;
-            InvokeUI("focusResult(false, 'Interaction unavailable during menus or loading')");
+            InvokeUI("focusResult(false, 'focus.unavailable')");
             return;
         }
         if (m_prismaUI->HasAnyActiveFocus() && !m_prismaUI->HasFocus(m_view)) {
             m_keyboardCapture = false;
-            InvokeUI("focusResult(false, 'Another mod currently has mouse focus')");
+            InvokeUI("focusResult(false, 'focus.otherMod')");
             return;
         }
         const bool focused = m_prismaUI->Focus(m_view, false, false);
         m_hadFocus = focused;
         m_keyboardCapture = focused;
         spdlog::info("Chronicle: focus request -> {}", focused ? "success" : "FAILED");
-        InvokeUI(focused ? "focusResult(true, 'Mouse active — Escape to return')" :
-                          "focusResult(false, 'Unable to acquire mouse focus')");
+        InvokeUI(focused ? "focusResult(true, 'focus.active')" :
+                          "focusResult(false, 'focus.failed')");
     });
 }
 
@@ -394,7 +403,7 @@ void Chronicle::OnConsoleCommand(std::string_view text)
     const std::string before = log ? log->buffer.c_str() : "";
     CompileAndRun(script.get(), RE::PlayerCharacter::GetSingleton());
     const auto output = log ? ChronicleRuntime::ConsoleOutputSince(before, log->buffer.c_str()) : std::string{};
-    const auto lines = ChronicleRuntime::ConsoleLines(output, 50);
+    const auto lines = ChronicleRuntime::ConsoleLines(output, 50, Language());
     for (const auto& line : lines) SendMessage("console", "", line);
     spdlog::info("Chronicle: console command '{}' run, {} output line(s)", shown, lines.size());
 }
@@ -413,6 +422,8 @@ void Chronicle::ApplyNativeSettings(const nlohmann::json& settings)
     m_combatHits = general.value("combat_hits", true);
     m_hideGameNotifications = general.value("hide_game_notifications", false);
     m_chatboxEnabled = general.value("enabled", true);
+    m_language = static_cast<int>(ChronicleRuntime::ResolveLanguage(
+        general.value("language", std::string("auto")), m_gameLanguage));
     const auto& channels = settings.at("channels");
     m_notificationChannel = !channels.contains("notification") || !channels.at("notification").is_object() ||
         channels.at("notification").value("enabled", true);
@@ -476,10 +487,10 @@ void Chronicle::OnSettingsChanged(std::string_view text)
         ApplyNativeSettings(settings);
         AtomicWrite(kSettingsPath, settings.dump(2));
         UpdateVisibility();
-        InvokeUI("settingsSaveResult(true, 'Saved to Data/SKSE/Plugins/Chronicle.json')");
+        InvokeUI("settingsSaveResult(true, 'settings.saved')");
     } catch (const std::exception& e) {
         spdlog::error("Chronicle: settings save failed: {}", e.what());
-        InvokeUI("settingsSaveResult(false, " + Json(std::string("Settings not saved: ") + e.what()) + ")");
+        InvokeUI("settingsSaveResult(false, 'settings.notSaved', " + Json(e.what()) + ")");
     }
 }
 
@@ -491,9 +502,9 @@ void Chronicle::ExportHistory(std::string_view text)
         const auto stamp = std::chrono::system_clock::now().time_since_epoch().count();
         const auto path = base / "Chronicle-exports" / ("history-" + std::to_string(stamp) + ".txt");
         AtomicWrite(path, ChronicleUtf8::ReplaceInvalid(text).value);
-        InvokeUI("saveResult(true, " + Json("History exported to " + path.string()) + ")");
+        InvokeUI("saveResult(true, 'export.done', " + Json(path.string()) + ")");
     } catch (const std::exception& e) {
-        InvokeUI("saveResult(false, " + Json(std::string("Export failed: ") + e.what()) + ")");
+        InvokeUI("saveResult(false, 'export.failed', " + Json(e.what()) + ")");
     }
 }
 

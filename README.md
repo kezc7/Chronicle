@@ -1,4 +1,4 @@
-# Chronicle 1.2.17
+# Chronicle 1.2.20
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -102,6 +102,34 @@ page and development preview files are excluded.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.2.20 changes
+
+- More languages: Italian, Spanish, Polish, Turkish, Simplified Chinese, Japanese and
+  Korean (ten in total). "Auto" maps ITALIAN, SPANISH, POLISH, TURKISH, CHINESE,
+  JAPANESE and KOREAN; Skyrim's official Chinese is Traditional and uses the
+  Simplified table. Polish, Turkish and Korean native phrases use colon or noun
+  forms so game-supplied names need no grammatical endings.
+- Chinese, Japanese and Korean text uses Windows' CJK fonts (Microsoft YaHei,
+  Yu Gothic UI/Meiryo, Malgun Gothic) as fallbacks, ordered by the UI language.
+
+## 1.2.19 changes
+
+- Translations: French and German, alongside English. Settings → General → Language
+  (default **Auto**, which follows Skyrim's `sLanguage` setting). English is the
+  fallback for anything not translated.
+- The UI text lives in `i18n.js` (one table per language; elements use `data-i18n`
+  attributes). The game side sends status messages as keys (`focus.active`,
+  `settings.saved`, …) and lines Chronicle composes itself ("killed X", "Game saved",
+  quest labels, the console "more lines" note) come from a small native phrase table.
+  Game-originated text (dialogue, notifications, names) is already in the game's
+  language and is not translated.
+- Tests check that every language has every key with matching placeholders, that
+  every key used by the page and scripts exists, and the native phrases.
+- Sources compile as UTF-8 (`/utf-8`) for the accented native phrases.
+- Settings rows built by script (channel names, prefix placeholders, speaker-colour
+  rows, "All speakers") carry `data-i18n` keys, so changing the language with the
+  settings open re-translates them. The 1.2.18 test build left them in the old language.
 
 ## 1.2.17 changes
 
