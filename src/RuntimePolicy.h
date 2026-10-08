@@ -74,18 +74,27 @@ namespace ChronicleRuntime
     // ---- Languages for the lines Chronicle writes itself --------------------
     // The UI has its own table (i18n.js); these are the few phrases composed
     // natively. Game text (dialogue, notifications, names) is already localized.
-    enum class Lang { En, Fr, De };
+    // Keep in step with LANGUAGES / GAME_LANGUAGES in i18n.js.
+    enum class Lang { En, Fr, De, It, Es, Pl, Tr, Zh, Ja, Ko };
 
     // settings "auto"/unknown follows Skyrim's sLanguage; unsupported -> English.
     inline Lang ResolveLanguage(std::string_view setting, std::string_view gameLanguage)
     {
-        if (setting == "en") return Lang::En;
-        if (setting == "fr") return Lang::Fr;
-        if (setting == "de") return Lang::De;
+        struct Entry { std::string_view code, game; Lang lang; };
+        static constexpr Entry entries[] = {
+            { "en", "ENGLISH", Lang::En }, { "fr", "FRENCH", Lang::Fr }, { "de", "GERMAN", Lang::De },
+            { "it", "ITALIAN", Lang::It }, { "es", "SPANISH", Lang::Es }, { "pl", "POLISH", Lang::Pl },
+            { "tr", "TURKISH", Lang::Tr }, { "zh", "CHINESE", Lang::Zh }, { "ja", "JAPANESE", Lang::Ja },
+            { "ko", "KOREAN", Lang::Ko },
+        };
+        for (const auto& e : entries) {
+            if (setting == e.code) return e.lang;
+        }
         std::string game(gameLanguage);
         for (auto& c : game) c = static_cast<char>(c >= 'a' && c <= 'z' ? c - 32 : c);
-        if (game == "FRENCH") return Lang::Fr;
-        if (game == "GERMAN") return Lang::De;
+        for (const auto& e : entries) {
+            if (game == e.game) return e.lang;
+        }
         return Lang::En;
     }
 
@@ -141,6 +150,156 @@ namespace ChronicleRuntime
             case ObjectiveCompleted: return "Ziel erreicht: {0}";
             case ObjectiveFailed: return "Ziel fehlgeschlagen: {0}";
             case MoreLines: return "... {0} weitere Zeilen - Konsole (~) öffnen, um alle zu sehen";
+            }
+            break;
+        case Lang::It:
+            switch (phrase) {
+            case GameSaved: return "Partita salvata";
+            case ReachedLevel: return "Livello {0} raggiunto";
+            case Killed: return "ha ucciso {0}";
+            case Hit: return "ha colpito {0}";
+            case Died: return "{0} è morto";
+            case Combat: return "Combattimento";
+            case Enemy: return "Nemico";
+            case Someone: return "Qualcuno";
+            case Target: return "il bersaglio";
+            case Player: return "Giocatore";
+            case QuestStarted: return "Missione iniziata: {0}";
+            case QuestCompleted: return "Missione completata: {0}";
+            case QuestFailed: return "Missione fallita: {0}";
+            case NewObjective: return "Nuovo obiettivo: {0}";
+            case ObjectiveCompleted: return "Obiettivo completato: {0}";
+            case ObjectiveFailed: return "Obiettivo fallito: {0}";
+            case MoreLines: return "... altre {0} righe - apri la console (~) per vederle tutte";
+            }
+            break;
+        case Lang::Es:
+            switch (phrase) {
+            case GameSaved: return "Partida guardada";
+            case ReachedLevel: return "Nivel {0} alcanzado";
+            case Killed: return "ha matado a {0}";
+            case Hit: return "ha golpeado a {0}";
+            case Died: return "{0} ha muerto";
+            case Combat: return "Combate";
+            case Enemy: return "Enemigo";
+            case Someone: return "Alguien";
+            case Target: return "el objetivo";
+            case Player: return "Jugador";
+            case QuestStarted: return "Misión iniciada: {0}";
+            case QuestCompleted: return "Misión completada: {0}";
+            case QuestFailed: return "Misión fallida: {0}";
+            case NewObjective: return "Nuevo objetivo: {0}";
+            case ObjectiveCompleted: return "Objetivo completado: {0}";
+            case ObjectiveFailed: return "Objetivo fallido: {0}";
+            case MoreLines: return "... {0} líneas más - abre la consola (~) para verlas todas";
+            }
+            break;
+        case Lang::Pl:
+            // Colon forms avoid Polish case endings on game-supplied names.
+            switch (phrase) {
+            case GameSaved: return "Gra zapisana";
+            case ReachedLevel: return "Osiągnięto poziom {0}";
+            case Killed: return "zabija: {0}";
+            case Hit: return "trafia: {0}";
+            case Died: return "{0} ginie";
+            case Combat: return "Walka";
+            case Enemy: return "Wróg";
+            case Someone: return "Ktoś";
+            case Target: return "cel";
+            case Player: return "Gracz";
+            case QuestStarted: return "Rozpoczęto zadanie: {0}";
+            case QuestCompleted: return "Ukończono zadanie: {0}";
+            case QuestFailed: return "Zadanie nieudane: {0}";
+            case NewObjective: return "Nowy cel: {0}";
+            case ObjectiveCompleted: return "Cel osiągnięty: {0}";
+            case ObjectiveFailed: return "Cel nieosiągnięty: {0}";
+            case MoreLines: return "... jeszcze {0} wierszy - otwórz konsolę (~), aby zobaczyć wszystkie";
+            }
+            break;
+        case Lang::Tr:
+            // Colon forms avoid Turkish case suffixes on game-supplied names.
+            switch (phrase) {
+            case GameSaved: return "Oyun kaydedildi";
+            case ReachedLevel: return "Seviye {0} oldu";
+            case Killed: return "öldürdü: {0}";
+            case Hit: return "vurdu: {0}";
+            case Died: return "{0} öldü";
+            case Combat: return "Savaş";
+            case Enemy: return "Düşman";
+            case Someone: return "Biri";
+            case Target: return "hedef";
+            case Player: return "Oyuncu";
+            case QuestStarted: return "Görev başladı: {0}";
+            case QuestCompleted: return "Görev tamamlandı: {0}";
+            case QuestFailed: return "Görev başarısız: {0}";
+            case NewObjective: return "Yeni hedef: {0}";
+            case ObjectiveCompleted: return "Hedef tamamlandı: {0}";
+            case ObjectiveFailed: return "Hedef başarısız: {0}";
+            case MoreLines: return "... {0} satır daha - hepsini görmek için konsolu (~) açın";
+            }
+            break;
+        case Lang::Zh:
+            switch (phrase) {
+            case GameSaved: return "游戏已保存";
+            case ReachedLevel: return "达到 {0} 级";
+            case Killed: return "击杀了 {0}";
+            case Hit: return "击中了 {0}";
+            case Died: return "{0} 死亡";
+            case Combat: return "战斗";
+            case Enemy: return "敌人";
+            case Someone: return "某人";
+            case Target: return "目标";
+            case Player: return "玩家";
+            case QuestStarted: return "任务开始：{0}";
+            case QuestCompleted: return "任务完成：{0}";
+            case QuestFailed: return "任务失败：{0}";
+            case NewObjective: return "新目标：{0}";
+            case ObjectiveCompleted: return "目标完成：{0}";
+            case ObjectiveFailed: return "目标失败：{0}";
+            case MoreLines: return "……还有 {0} 行 - 打开控制台 (~) 查看全部";
+            }
+            break;
+        case Lang::Ja:
+            switch (phrase) {
+            case GameSaved: return "ゲームをセーブしました";
+            case ReachedLevel: return "レベル {0} に到達";
+            case Killed: return "{0} を倒した";
+            case Hit: return "{0} に命中";
+            case Died: return "{0} が死亡";
+            case Combat: return "戦闘";
+            case Enemy: return "敵";
+            case Someone: return "誰か";
+            case Target: return "対象";
+            case Player: return "プレイヤー";
+            case QuestStarted: return "クエスト開始: {0}";
+            case QuestCompleted: return "クエスト完了: {0}";
+            case QuestFailed: return "クエスト失敗: {0}";
+            case NewObjective: return "新しい目標: {0}";
+            case ObjectiveCompleted: return "目標達成: {0}";
+            case ObjectiveFailed: return "目標失敗: {0}";
+            case MoreLines: return "...他 {0} 行 - すべて見るにはコンソール (~) を開いてください";
+            }
+            break;
+        case Lang::Ko:
+            // Noun forms avoid Korean particles that depend on the name's last sound.
+            switch (phrase) {
+            case GameSaved: return "게임 저장됨";
+            case ReachedLevel: return "레벨 {0} 달성";
+            case Killed: return "{0} 처치";
+            case Hit: return "{0} 공격";
+            case Died: return "{0} 사망";
+            case Combat: return "전투";
+            case Enemy: return "적";
+            case Someone: return "누군가";
+            case Target: return "대상";
+            case Player: return "플레이어";
+            case QuestStarted: return "퀘스트 시작: {0}";
+            case QuestCompleted: return "퀘스트 완료: {0}";
+            case QuestFailed: return "퀘스트 실패: {0}";
+            case NewObjective: return "새 목표: {0}";
+            case ObjectiveCompleted: return "목표 완료: {0}";
+            case ObjectiveFailed: return "목표 실패: {0}";
+            case MoreLines: return "... {0}줄 더 있음 - 모두 보려면 콘솔(~)을 여세요";
             }
             break;
         case Lang::En:

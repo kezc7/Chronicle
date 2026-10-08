@@ -94,7 +94,12 @@ int main()
     Require(ChronicleRuntime::Phrased(Lang::De, Phrase::Killed, "Vampire") == "hat Vampire getötet");
     Require(ChronicleRuntime::Phrased(Lang::De, Phrase::ReachedLevel, "12") == "Stufe 12 erreicht");
     Require(ChronicleRuntime::Phrased(Lang::Fr, Phrase::GameSaved) == "Partie sauvegardée");
-    for (auto lang : { Lang::En, Lang::Fr, Lang::De }) {
+    Require(ChronicleRuntime::ResolveLanguage("auto", "JAPANESE") == Lang::Ja);
+    Require(ChronicleRuntime::ResolveLanguage("auto", "CHINESE") == Lang::Zh);
+    Require(ChronicleRuntime::ResolveLanguage("ko", "ENGLISH") == Lang::Ko);
+    Require(ChronicleRuntime::Phrased(Lang::Ja, Phrase::Killed, "Vampire") == "Vampire を倒した");
+    Require(ChronicleRuntime::Phrased(Lang::Es, Phrase::Killed, "Vampire") == "ha matado a Vampire");
+    for (auto lang : { Lang::En, Lang::Fr, Lang::De, Lang::It, Lang::Es, Lang::Pl, Lang::Tr, Lang::Zh, Lang::Ja, Lang::Ko }) {
         for (int p = 0; p <= static_cast<int>(Phrase::MoreLines); ++p) {
             Require(!ChronicleRuntime::PhraseText(lang, static_cast<Phrase>(p)).empty());
         }

@@ -29,7 +29,7 @@ body {
   border: 1px solid var(--theme-border);
   border-radius: var(--theme-radius);
   box-shadow: var(--theme-shadow);
-  font-family: var(--theme-font);
+  font-family: var(--theme-font), var(--font-cjk);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -102,7 +102,7 @@ body.interacting #interaction-tools { display: flex; }
 #interaction-tools input, #interaction-tools select, #interaction-tools button {
   background: var(--theme-control-bg); color: var(--theme-control-text);
   border: 1px solid var(--theme-control-border); border-radius: var(--theme-input-radius);
-  padding: 3px; font-size: 11px; font-family: var(--theme-font);
+  padding: 3px; font-size: 11px; font-family: var(--theme-font), var(--font-cjk);
 }
 #copy-output { width: 100%; min-height: 70px; color: var(--theme-control-text); background: var(--theme-control-bg); user-select: text; }
 #status-text { color: var(--theme-status); font-size: 10px; padding: 3px 7px; flex-shrink: 0; }
@@ -224,7 +224,7 @@ body.interacting .message.fading { opacity: 1; }
   background: var(--theme-menu-bg);
   border: 1px solid var(--theme-menu-border);
   border-radius: var(--theme-input-radius);
-  font-family: var(--theme-font);
+  font-family: var(--theme-font), var(--font-cjk);
   z-index: 10;
 }
 
@@ -304,7 +304,7 @@ body.interacting .message.fading { opacity: 1; }
   background: var(--theme-badge-bg);
   color: #fff;
   font-size: 11px;
-  font-family: var(--theme-font);
+  font-family: var(--theme-font), var(--font-cjk);
   cursor: pointer;
 }
 #new-messages.hidden { display: none; }
@@ -318,7 +318,7 @@ body.interacting .message.fading { opacity: 1; }
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.55);
-  font-family: 'Segoe UI', Arial, sans-serif; /* settings keep one look across themes */
+  font-family: 'Segoe UI', Arial, var(--font-cjk), sans-serif; /* settings keep one look across themes */
   z-index: 1000;
 }
 
@@ -562,6 +562,11 @@ body.interacting .message.fading { opacity: 1; }
    Channel and speaker colours are user settings and are not themed. Only
    fonts installed with Windows are used; no third-party UI assets ship. */
 
+/* Chinese, Japanese and Korean fallbacks: Windows-installed fonts, with the
+   current UI language's own font first (shared characters differ in style). */
+body { --font-cjk: 'Microsoft YaHei', 'Yu Gothic UI', 'Meiryo', 'Malgun Gothic', 'Microsoft JhengHei'; }
+html:lang(ja) body { --font-cjk: 'Yu Gothic UI', 'Meiryo', 'Microsoft YaHei', 'Malgun Gothic'; }
+html:lang(ko) body { --font-cjk: 'Malgun Gothic', 'Microsoft YaHei', 'Yu Gothic UI', 'Meiryo'; }
 body {
   --theme-font: 'Segoe UI', Arial, sans-serif;
   --theme-window-bg: rgba(0, 0, 0, var(--opacity, 0.65));

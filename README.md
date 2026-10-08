@@ -1,4 +1,4 @@
-# Chronicle 1.2.19
+# Chronicle 1.2.20
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -102,6 +102,16 @@ page and development preview files are excluded.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.2.20 changes
+
+- More languages: Italian, Spanish, Polish, Turkish, Simplified Chinese, Japanese and
+  Korean (ten in total). "Auto" maps ITALIAN, SPANISH, POLISH, TURKISH, CHINESE,
+  JAPANESE and KOREAN; Skyrim's official Chinese is Traditional and uses the
+  Simplified table. Polish, Turkish and Korean native phrases use colon or noun
+  forms so game-supplied names need no grammatical endings.
+- Chinese, Japanese and Korean text uses Windows' CJK fonts (Microsoft YaHei,
+  Yu Gothic UI/Meiryo, Malgun Gothic) as fallbacks, ordered by the UI language.
 
 ## 1.2.19 changes
 
