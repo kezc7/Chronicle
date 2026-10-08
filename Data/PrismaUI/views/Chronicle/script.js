@@ -22,6 +22,7 @@ const DEFAULT_CONFIG = {
     hide_in_photo_mode: true,
     combat_hits: true,
     hide_game_notifications: false,
+    language: 'auto',          // 'auto' follows Skyrim's sLanguage
   },
   window: {
     position_x: 20,
@@ -111,6 +112,7 @@ function normalizeConfig() {
   g.persist_history = g.persist_history !== false;
   g.combat_hits = g.combat_hits !== false;
   g.hide_game_notifications = g.hide_game_notifications === true;
+  g.language = normalizeLanguage(g.language);
   for (const key of ['input_hotkey', 'config_hotkey', 'interact_hotkey']) {
     if (typeof g[key] !== 'string' || !g[key].trim()) g[key] = DEFAULT_CONFIG.general[key];
     if (!/^(Enter|[a-z0-9]|F([1-9]|1[0-2]))$/i.test(g[key])) g[key] = DEFAULT_CONFIG.general[key];
@@ -199,9 +201,13 @@ async function loadConfig() {
 function applyConfig() {
   const { window: win } = config;
   const root = document.documentElement;
+  uiLanguage = resolveLanguage(config.general.language, runtime.gameLanguage);
+  applyTranslations();
+  if (!runtime.connected) statusText(t('ui.connecting'));
+  showUnread(unreadCount);
   document.body.dataset.theme = win.theme || 'skyrim';
   document.body.dataset.anchor = win.anchor || 'custom';
-  document.getElementById('settings-btn').title = 'Settings (Shift+' + config.general.config_hotkey.toUpperCase() + ')';
+  document.getElementById('settings-btn').title = t('ui.settingsTitle', {key: config.general.config_hotkey.toUpperCase()});
   document.getElementById('chronicle-window')
     .classList.toggle('hidden', !config.general.enabled);
 
@@ -348,7 +354,7 @@ function scrollToBottom() {
 
 function showUnread(count) {
   const button = document.getElementById('new-messages');
-  button.textContent = count > 0 ? `${count} new message${count === 1 ? '' : 's'}` : 'New messages';
+  button.textContent = count > 0 ? t(count === 1 ? 'ui.newMessage' : 'ui.newMessagesCount', {count}) : t('ui.newMessages');
   button.classList.toggle('hidden', count === 0);
 }
 
@@ -377,9 +383,9 @@ function clearHistory() {
 }
 
 function runDiagnostics() {
-  document.getElementById('diagnostics-output').textContent = 'Checking the game connection…';
+  document.getElementById('diagnostics-output').textContent = t('diag.checking');
   if (!sendToGame('diagnostics', '')) {
-    document.getElementById('diagnostics-output').textContent = 'Game connection unavailable. Native callbacks are missing.';
+    document.getElementById('diagnostics-output').textContent = t('diag.unavailable');
   }
 }
 
@@ -402,7 +408,7 @@ function switchChannel(channel) {
 function setInputTarget(channel) {
   inputTarget = channel;
   document.getElementById('input-channel-label').textContent =
-    '[' + (CHANNEL_LABELS[channel] || channel) + ']';
+    '[' + channelLabel(channel) + ']';
   closeChannelMenu();
 }
 
@@ -426,7 +432,7 @@ function toggleChannelMenu() {
     item.type = 'button';
     item.setAttribute('role', 'menuitem');
     item.dataset.channel = channel;
-    item.textContent = CHANNEL_LABELS[channel] || channel;
+    item.textContent = channelLabel(channel);
     item.classList.toggle('active', channel === inputTarget);
     return item;
   }));
@@ -504,12 +510,9 @@ function submitInput() {
 let settingsOpen = false;
 let settingsSnapshot = null;
 
-const CHANNEL_LABELS = {
-  all: 'All', dialogue: 'Dialogue', system: 'System',
-  notification: 'Notifications',
-  skyrimnet: 'SkyrimNet', narrator: 'Narrator',
-  player: 'Player', combat: 'Combat', console: 'Console',
-};
+// Channels in settings order; names come from the translations.
+const CHANNELS = ['all', 'dialogue', 'system', 'notification', 'skyrimnet', 'narrator', 'player', 'combat', 'console'];
+function channelLabel(channel) { return t('channel.' + channel); }
 
 function openSettings() {
   if (settingsOpen) return false;
@@ -580,6 +583,7 @@ function populateSettingsForm() {
   document.getElementById('sp-width').value  = w.width;
   document.getElementById('sp-height').value = w.height;
   document.getElementById('sp-theme').value = w.theme || 'skyrim';
+  document.getElementById('sp-language').value = g.language || 'auto';
   document.getElementById('sp-anchor').value = w.anchor || 'custom';
   document.getElementById('sp-hud-subtitle-paths').value = config.hud_subtitle_paths.join('\n');
   syncPositionControls();
@@ -592,21 +596,23 @@ function buildChannelRows() {
   const container = document.getElementById('sp-channel-list');
   container.innerHTML = '';
 
-  for (const [ch, label] of Object.entries(CHANNEL_LABELS)) {
+  for (const ch of CHANNELS) {
+    const label = escapeHtml(channelLabel(ch));
     const cfg = config.channels[ch] || DEFAULT_CONFIG.channels[ch];
     const row = document.createElement('div');
     row.className = 'sp-ch-row';
     row.dataset.channel = ch;
 
+    // data-i18n keys let a language change re-translate rows built here.
     row.innerHTML = `
-      <span class="sp-ch-name">${label}</span>
+      <span class="sp-ch-name" data-i18n="channel.${ch}">${label}</span>
       <label class="sp-toggle">
         <input type="checkbox" class="ch-enabled" ${cfg.enabled ? 'checked' : ''} />
         <span class="sp-track"></span>
       </label>
       <input type="text" class="ch-prefix" value="${escapeHtml(cfg.prefix || '')}"
-             placeholder="Prefix" maxlength="16" />
-      <label title="Show timestamps">
+             placeholder="${escapeHtml(t('sp.prefix'))}" data-i18n-placeholder="sp.prefix" maxlength="16" />
+      <label title="${escapeHtml(t('sp.showTimestamps'))}" data-i18n-title="sp.showTimestamps">
         <input type="checkbox" class="ch-timestamp" ${cfg.show_timestamp ? 'checked' : ''} />
       </label>
       <input type="color" class="ch-colour" value="${cfg.colour || '#ffffff'}"
@@ -637,7 +643,8 @@ function buildSpeakerColourRows() {
   if (rules.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'sp-empty';
-    empty.textContent = 'No custom speaker colours saved.';
+    empty.dataset.i18n = 'sp.noSpeakerColours';
+    empty.textContent = t('sp.noSpeakerColours');
     container.appendChild(empty);
     return;
   }
@@ -648,8 +655,10 @@ function buildSpeakerColourRows() {
     row.dataset.speaker = name;
     row.innerHTML = '<span class="sp-speaker-name"></span>' +
       '<input type="color" class="sp-speaker-colour" />' +
-      '<button type="button" class="sp-remove-speaker">Remove</button>';
+      '<button type="button" class="sp-remove-speaker"></button>';
     row.querySelector('.sp-speaker-name').textContent = name;
+    row.querySelector('.sp-remove-speaker').dataset.i18n = 'sp.remove';
+    row.querySelector('.sp-remove-speaker').textContent = t('sp.remove');
     row.querySelector('.sp-speaker-colour').value = colour;
     container.appendChild(row);
   });
@@ -671,7 +680,7 @@ function addSpeakerColour() {
   const name = nameInput.value.trim();
   const colour = colourInput.value;
   if (!name) {
-    statusText('Enter an NPC display name first');
+    statusText(t('status.enterNpcName'));
     nameInput.focus();
     return;
   }
@@ -684,7 +693,7 @@ function addSpeakerColour() {
   applyConfig();
   buildSpeakerColourRows();
   nameInput.value = '';
-  statusText('Speaker colour previewed — click Apply to save');
+  statusText(t('status.speakerPreview'));
 }
 
 function removeSpeakerColour(row) {
@@ -693,7 +702,7 @@ function removeSpeakerColour(row) {
   normalizeSpeakerColours();
   applyConfig();
   buildSpeakerColourRows();
-  statusText('Speaker colour removed — click Apply to save');
+  statusText(t('status.speakerRemoved'));
 }
 
 function collectSettingsFromForm() {
@@ -722,6 +731,7 @@ function collectSettingsFromForm() {
       hide_in_photo_mode: document.getElementById('sp-hide-photo').checked,
       combat_hits:        document.getElementById('sp-combat-hits').checked,
       hide_game_notifications: document.getElementById('sp-hide-game-notifications').checked,
+      language:           document.getElementById('sp-language').value || 'auto',
     },
     window: {
       width:     Math.min(1920, Math.max(280,
@@ -799,7 +809,7 @@ document.getElementById('sp-reset').addEventListener('click', () => {
   populateSettingsForm();
   normalizeConfig();
   applyConfig();
-  statusText('Defaults restored in preview — click Apply to save');
+  statusText(t('status.defaultsRestored'));
 });
 
 document.getElementById('sp-test').addEventListener('click', runDiagnostics);
@@ -816,7 +826,7 @@ document.getElementById('sp-speaker-colour-list').addEventListener('input', even
   config.speaker_colours[row.dataset.speaker] = event.target.value;
   normalizeSpeakerColours();
   applySpeakerColours();
-  statusText('Speaker colour previewed — click Apply to save');
+  statusText(t('status.speakerPreview'));
 });
 document.getElementById('sp-speaker-colour-list').addEventListener('click', event => {
   const button = event.target.closest('.sp-remove-speaker');
@@ -882,7 +892,7 @@ function saveWindowState(x, y, w, h) {
   config.window.height = h;
   syncPositionControls();
   if (settingsOpen) {
-    statusText('Window change previewed — click Apply to save');
+    statusText(t('status.windowPreview'));
   } else {
     persistConfig();
   }
@@ -1135,7 +1145,7 @@ document.getElementById('history-search').addEventListener('input', refreshFilte
 document.getElementById('speaker-filter').addEventListener('change', refreshFilters);
 document.getElementById('copy-history').addEventListener('click', copyHistory);
 document.getElementById('export-history').addEventListener('click', () => {
-  if (!sendToGame('exportHistory', visibleHistoryText())) statusText('Export unavailable: game connection missing');
+  if (!sendToGame('exportHistory', visibleHistoryText())) statusText(t('status.exportUnavailable'));
 });
 document.getElementById('sp-position').addEventListener('click', resetWindowPosition);
 document.getElementById('sp-position-x').addEventListener('input', event => previewPosition('position_x', event.target.value));
@@ -1185,9 +1195,9 @@ function checkHotkeyClash() {
   const interact = document.getElementById('sp-interact-hotkey').value.toUpperCase();
   const input = document.getElementById('sp-input-hotkey').value.toUpperCase();
   if (interact && interact === input) {
-    hotkeyStatus('Interact and Input hotkeys are both ' + interact + '. Choose different keys.', true);
+    hotkeyStatus(t('hotkey.clash', {key: interact}), true);
   } else {
-    hotkeyStatus('Click Apply to save.');
+    hotkeyStatus(t('hotkey.applyToSave'));
   }
 }
 
@@ -1195,7 +1205,7 @@ document.querySelectorAll('.sp-hotkey').forEach(box => {
   box.addEventListener('focus', () => {
     box.dataset.previous = box.value;
     box.value = '';
-    box.placeholder = 'Press a key…';
+    box.placeholder = t('hotkey.press');
   });
   box.addEventListener('blur', () => {
     if (!box.value) box.value = box.dataset.previous || '';
@@ -1208,11 +1218,11 @@ document.querySelectorAll('.sp-hotkey').forEach(box => {
     const name = hotkeyName(e);
     if (!name) {
       if (isNumpadKey(e)) {
-        hotkeyStatus('Number-pad keys can\'t be used. Use the number keys above the letters instead.', true);
+        hotkeyStatus(t('hotkey.numpad'), true);
         return;
       }
       // Raw details let a screenshot of this message diagnose engine quirks.
-      hotkeyStatus('That key can\'t be used. Choose a letter, number, Enter or F1–F12. ' +
+      hotkeyStatus(t('hotkey.unsupported') + ' ' +
         '(key "' + e.key + '", code "' + e.code + '", keyCode ' + e.keyCode + ')', true);
       return;
     }
