@@ -11,25 +11,27 @@
 
     <!-- Channel tabs + settings button -->
     <div id="channel-tabs">
-      <button class="tab active" data-channel="all">All</button>
-      <button class="tab" data-channel="dialogue">Dialogue</button>
-      <button class="tab" data-channel="system">System</button>
-      <button class="tab" data-channel="notification">Notifications</button>
-      <button class="tab" data-channel="skyrimnet">SkyrimNet</button>
-      <button class="tab" data-channel="narrator">Narrator</button>
-      <button class="tab" data-channel="player">Player</button>
-      <button class="tab" data-channel="combat">Combat</button>
-      <button class="tab" data-channel="console">Console</button>
-      <button id="clear-history" title="Clear this character's history" aria-label="Clear history">Clear</button>
-      <button id="settings-btn" title="Settings (Shift+N)" aria-label="Settings">&#9881;</button>
+      <button class="tab active" data-channel="all" data-i18n="channel.all">All</button>
+      <button class="tab" data-channel="dialogue" data-i18n="channel.dialogue">Dialogue</button>
+      <button class="tab" data-channel="system" data-i18n="channel.system">System</button>
+      <button class="tab" data-channel="notification" data-i18n="channel.notification">Notifications</button>
+      <button class="tab" data-channel="skyrimnet" data-i18n="channel.skyrimnet">SkyrimNet</button>
+      <button class="tab" data-channel="narrator" data-i18n="channel.narrator">Narrator</button>
+      <button class="tab" data-channel="player" data-i18n="channel.player">Player</button>
+      <button class="tab" data-channel="combat" data-i18n="channel.combat">Combat</button>
+      <button class="tab" data-channel="console" data-i18n="channel.console">Console</button>
+      <button id="clear-history" title="Clear this character's history" aria-label="Clear history"
+              data-i18n="ui.clear" data-i18n-title="ui.clearTitle" data-i18n-aria-label="ui.clearLabel">Clear</button>
+      <button id="settings-btn" title="Settings (Shift+N)" aria-label="Settings" data-i18n-aria-label="ui.settings">&#9881;</button>
     </div>
 
     <div id="interaction-tools">
-      <input id="history-search" type="search" placeholder="Search history" aria-label="Search history" />
-      <select id="speaker-filter" aria-label="Filter by speaker"><option value="">All speakers</option></select>
-      <button id="copy-history">Copy</button><button id="export-history">Export</button>
+      <input id="history-search" type="search" placeholder="Search history" aria-label="Search history"
+             data-i18n-placeholder="ui.search" data-i18n-aria-label="ui.search" />
+      <select id="speaker-filter" aria-label="Filter by speaker" data-i18n-aria-label="ui.speakerFilter"><option value="">All speakers</option></select>
+      <button id="copy-history" data-i18n="ui.copy">Copy</button><button id="export-history" data-i18n="ui.export">Export</button>
     </div>
-    <textarea id="copy-output" hidden readonly aria-label="History to copy"></textarea>
+    <textarea id="copy-output" hidden readonly aria-label="History to copy" data-i18n-aria-label="ui.copyOutput"></textarea>
     <!-- Message list -->
     <div id="message-list"></div>
     <button id="new-messages" class="hidden">New messages</button>
@@ -38,11 +40,11 @@
     <div id="input-bar" class="hidden">
       <div id="input-channel-picker">
         <button id="input-channel-label" type="button" aria-haspopup="menu" aria-expanded="false"
-                title="Choose channel (Tab cycles)">[All]</button>
+                title="Choose channel (Tab cycles)" data-i18n-title="ui.chooseChannel">[All]</button>
         <div id="input-channel-menu" class="hidden" role="menu"></div>
       </div>
       <input id="chat-input" type="text" autocomplete="off" spellcheck="false"
-             placeholder="Type a message… (Escape to cancel)" />
+             placeholder="Type a message… (Escape to cancel)" data-i18n-placeholder="ui.inputPlaceholder" />
     </div>
 
     <div id="status-text" role="status">Connecting to Skyrim…</div>
@@ -57,13 +59,13 @@
     <div id="settings-panel">
 
       <div id="sp-header">
-        <span>Chronicle Settings</span>
-        <button id="sp-close" title="Close (Escape)">&#x2715;</button>
+        <span data-i18n="sp.title">Chronicle Settings</span>
+        <button id="sp-close" title="Close (Escape)" data-i18n-title="sp.close">&#x2715;</button>
       </div>
 
       <div id="sp-tabs">
-        <button class="sp-tab active" data-sp="general">General</button>
-        <button class="sp-tab" data-sp="channels">Channels</button>
+        <button class="sp-tab active" data-sp="general" data-i18n="sp.tabGeneral">General</button>
+        <button class="sp-tab" data-sp="channels" data-i18n="sp.tabChannels">Channels</button>
       </div>
 
       <div id="sp-content">
@@ -72,30 +74,46 @@
         <div id="sp-general" class="sp-section active">
 
           <div class="sp-group">
-            <h3>Behaviour</h3>
+            <h3 data-i18n="sp.behaviour">Behaviour</h3>
             <div class="sp-row">
-              <label>Show chatbox<span class="sp-hint">History still records while the box is hidden</span></label>
+              <label><span data-i18n="sp.language">Language</span><span class="sp-hint" data-i18n="sp.languageHint">Auto follows Skyrim's language setting</span></label>
+              <select id="sp-language">
+                <option value="auto" data-i18n="sp.languageAuto">Auto (game language)</option>
+                <option value="en">English</option>
+                <option value="fr">Français</option>
+                <option value="de">Deutsch</option>
+                <option value="it">Italiano</option>
+                <option value="es">Español</option>
+                <option value="pl">Polski</option>
+                <option value="tr">Türkçe</option>
+                <option value="zh">简体中文</option>
+                <option value="ja">日本語</option>
+                <option value="ko">한국어</option>
+              </select>
+            </div>
+            <div class="sp-row">
+              <label><span data-i18n="sp.enabled">Show chatbox</span><span class="sp-hint" data-i18n="sp.enabledHint">History still records while the box is hidden</span></label>
               <label class="sp-toggle">
                 <input type="checkbox" id="sp-enabled" checked />
                 <span class="sp-track"></span>
               </label>
             </div>
             <div class="sp-row">
-              <label>Hide in menus<span class="sp-hint">Main and loading screens are always hidden</span></label>
+              <label><span data-i18n="sp.hideMenus">Hide in menus</span><span class="sp-hint" data-i18n="sp.hideMenusHint">Main and loading screens are always hidden</span></label>
               <label class="sp-toggle">
                 <input type="checkbox" id="sp-hide-menus" checked />
                 <span class="sp-track"></span>
               </label>
             </div>
             <div class="sp-row">
-              <label>Hide in Photo Mode<span class="sp-hint">Auto-hide during Photo Mode</span></label>
+              <label><span data-i18n="sp.hidePhoto">Hide in Photo Mode</span><span class="sp-hint" data-i18n="sp.hidePhotoHint">Auto-hide during Photo Mode</span></label>
               <label class="sp-toggle">
                 <input type="checkbox" id="sp-hide-photo" checked />
                 <span class="sp-track"></span>
               </label>
             </div>
             <div class="sp-row">
-              <label>Notifications only in Chronicle<span class="sp-hint">Hides the game's corner notifications while Chronicle is visible. Quest and skill banners still show.</span></label>
+              <label><span data-i18n="sp.hideGameNotifications">Notifications only in Chronicle</span><span class="sp-hint" data-i18n="sp.hideGameNotificationsHint">Hides the game's corner notifications while Chronicle is visible. Quest and skill banners still show.</span></label>
               <label class="sp-toggle">
                 <input type="checkbox" id="sp-hide-game-notifications" />
                 <span class="sp-track"></span>
@@ -104,35 +122,35 @@
           </div>
 
           <div class="sp-group">
-            <h3>Hotkeys</h3>
-            <div class="sp-hint sp-section-hint">Click a box, then press the key you want. Letters, numbers, Enter and F1–F12 can be used. Click Apply to save.</div>
-            <div class="sp-row"><label>Interact hotkey<span class="sp-hint">Shows the cursor for tabs, scrolling and dragging</span></label><input id="sp-interact-hotkey" class="sp-hotkey" type="text" value="F8" readonly /></div>
+            <h3 data-i18n="sp.hotkeys">Hotkeys</h3>
+            <div class="sp-hint sp-section-hint" data-i18n="sp.hotkeysHint">Click a box, then press the key you want. Letters, numbers, Enter and F1–F12 can be used. Click Apply to save.</div>
+            <div class="sp-row"><label><span data-i18n="sp.interactHotkey">Interact hotkey</span><span class="sp-hint" data-i18n="sp.interactHotkeyHint">Shows the cursor for tabs, scrolling and dragging</span></label><input id="sp-interact-hotkey" class="sp-hotkey" type="text" value="F8" readonly /></div>
             <div class="sp-row">
-              <label>Settings hotkey<span class="sp-hint">Shift + this key opens settings</span></label>
+              <label><span data-i18n="sp.settingsHotkey">Settings hotkey</span><span class="sp-hint" data-i18n="sp.settingsHotkeyHint">Shift + this key opens settings</span></label>
               <input type="text" id="sp-config-hotkey" class="sp-hotkey" value="N" readonly />
             </div>
             <div class="sp-row">
-              <label>Input hotkey<span class="sp-hint">Key to open the chat input bar</span></label>
+              <label><span data-i18n="sp.inputHotkey">Input hotkey</span><span class="sp-hint" data-i18n="sp.inputHotkeyHint">Key to open the chat input bar</span></label>
               <input type="text" id="sp-input-hotkey" class="sp-hotkey" value="Enter" readonly />
             </div>
             <div id="sp-hotkey-status" class="sp-hint" role="status"></div>
           </div>
 
           <div class="sp-group">
-            <h3>History</h3>
+            <h3 data-i18n="sp.history">History</h3>
             <div class="sp-row">
-              <label>Max messages<span class="sp-hint">Lines kept in scroll-back (1–500)</span></label>
+              <label><span data-i18n="sp.maxMessages">Max messages</span><span class="sp-hint" data-i18n="sp.maxMessagesHint">Lines kept in scroll-back (1–500)</span></label>
               <input type="number" id="sp-max-messages" value="100" min="1" max="500" />
             </div>
             <div class="sp-row">
-              <label>Keep history<span class="sp-hint">Restore chat messages after restarting Skyrim</span></label>
+              <label><span data-i18n="sp.keepHistory">Keep history</span><span class="sp-hint" data-i18n="sp.keepHistoryHint">Restore chat messages after restarting Skyrim</span></label>
               <label class="sp-toggle">
                 <input type="checkbox" id="sp-persist-history" checked />
                 <span class="sp-track"></span>
               </label>
             </div>
             <div class="sp-row">
-              <label>Fade time (s)<span class="sp-hint">0 = never fade</span></label>
+              <label><span data-i18n="sp.fadeTime">Fade time (s)</span><span class="sp-hint" data-i18n="sp.fadeTimeHint">0 = never fade</span></label>
               <div class="sp-slider">
                 <input type="range" id="sp-fade-time" min="0" max="60" step="1" value="0" />
                 <span class="sp-slider-val" id="sp-fade-time-val">0</span>
@@ -141,76 +159,76 @@
           </div>
 
           <div class="sp-group">
-            <h3>Appearance</h3>
+            <h3 data-i18n="sp.appearance">Appearance</h3>
             <div class="sp-row">
-              <label>Theme</label>
+              <label data-i18n="sp.theme">Theme</label>
               <select id="sp-theme">
-                <option value="skyrim">Skyrim</option>
-                <option value="daedric">Daedric</option>
-                <option value="dwemer">Dwemer</option>
-                <option value="classic-mmo">Classic MMO</option>
-                <option value="modern">Modern</option>
-                <option value="minimal">Minimal</option>
-                <option value="transparent">Transparent</option>
-                <option value="high-contrast">High contrast</option>
+                <option value="skyrim" data-i18n="theme.skyrim">Skyrim</option>
+                <option value="daedric" data-i18n="theme.daedric">Daedric</option>
+                <option value="dwemer" data-i18n="theme.dwemer">Dwemer</option>
+                <option value="classic-mmo" data-i18n="theme.classic-mmo">Classic MMO</option>
+                <option value="modern" data-i18n="theme.modern">Modern</option>
+                <option value="minimal" data-i18n="theme.minimal">Minimal</option>
+                <option value="transparent" data-i18n="theme.transparent">Transparent</option>
+                <option value="high-contrast" data-i18n="theme.high-contrast">High contrast</option>
               </select>
             </div>
             <div class="sp-row">
-              <label>Anchor</label>
+              <label data-i18n="sp.anchor">Anchor</label>
               <select id="sp-anchor">
-                <option value="custom">Custom position</option>
-                <option value="bottom-left">Bottom left</option>
-                <option value="bottom-right">Bottom right</option>
-                <option value="top-left">Top left</option>
-                <option value="top-right">Top right</option>
+                <option value="custom" data-i18n="anchor.custom">Custom position</option>
+                <option value="bottom-left" data-i18n="anchor.bottom-left">Bottom left</option>
+                <option value="bottom-right" data-i18n="anchor.bottom-right">Bottom right</option>
+                <option value="top-left" data-i18n="anchor.top-left">Top left</option>
+                <option value="top-right" data-i18n="anchor.top-right">Top right</option>
               </select>
             </div>
             <div class="sp-row">
-              <label>Position X (px)<span class="sp-hint">Move the box left and right in real time</span></label>
+              <label><span data-i18n="sp.positionX">Position X (px)</span><span class="sp-hint" data-i18n="sp.positionXHint">Move the box left and right in real time</span></label>
               <div class="sp-slider position-slider">
-                <button type="button" class="sp-nudge" data-axis="position_x" data-step="-1" title="Left 1 px (Shift: 10 px)">&minus;</button>
+                <button type="button" class="sp-nudge" data-axis="position_x" data-step="-1" title="Left 1 px (Shift: 10 px)" data-i18n-title="sp.nudgeLeft">&minus;</button>
                 <input type="range" id="sp-position-x" min="0" max="1920" step="1" value="20" />
-                <button type="button" class="sp-nudge" data-axis="position_x" data-step="1" title="Right 1 px (Shift: 10 px)">+</button>
-                <input type="number" id="sp-position-x-val" class="sp-position-val" min="0" step="1" value="20" title="Exact X position in px" />
+                <button type="button" class="sp-nudge" data-axis="position_x" data-step="1" title="Right 1 px (Shift: 10 px)" data-i18n-title="sp.nudgeRight">+</button>
+                <input type="number" id="sp-position-x-val" class="sp-position-val" min="0" step="1" value="20" title="Exact X position in px" data-i18n-title="sp.exactX" />
               </div>
             </div>
             <div class="sp-row">
-              <label>Position Y (px)<span class="sp-hint">Move the box up and down in real time</span></label>
+              <label><span data-i18n="sp.positionY">Position Y (px)</span><span class="sp-hint" data-i18n="sp.positionYHint">Move the box up and down in real time</span></label>
               <div class="sp-slider position-slider">
-                <button type="button" class="sp-nudge" data-axis="position_y" data-step="-1" title="Up 1 px (Shift: 10 px)">&minus;</button>
+                <button type="button" class="sp-nudge" data-axis="position_y" data-step="-1" title="Up 1 px (Shift: 10 px)" data-i18n-title="sp.nudgeUp">&minus;</button>
                 <input type="range" id="sp-position-y" min="0" max="1080" step="1" value="400" />
-                <button type="button" class="sp-nudge" data-axis="position_y" data-step="1" title="Down 1 px (Shift: 10 px)">+</button>
-                <input type="number" id="sp-position-y-val" class="sp-position-val" min="0" step="1" value="400" title="Exact Y position in px" />
+                <button type="button" class="sp-nudge" data-axis="position_y" data-step="1" title="Down 1 px (Shift: 10 px)" data-i18n-title="sp.nudgeDown">+</button>
+                <input type="number" id="sp-position-y-val" class="sp-position-val" min="0" step="1" value="400" title="Exact Y position in px" data-i18n-title="sp.exactY" />
               </div>
             </div>
             <div class="sp-row">
-              <label>Opacity</label>
+              <label data-i18n="sp.opacity">Opacity</label>
               <div class="sp-slider">
                 <input type="range" id="sp-opacity" min="0" max="1" step="0.05" value="0.65" />
                 <span class="sp-slider-val" id="sp-opacity-val">0.65</span>
               </div>
             </div>
             <div class="sp-row">
-              <label>Font size (px)</label>
+              <label data-i18n="sp.fontSize">Font size (px)</label>
               <div class="sp-slider">
                 <input type="range" id="sp-font-size" min="10" max="24" step="1" value="13" />
                 <span class="sp-slider-val" id="sp-font-size-val">13</span>
               </div>
             </div>
             <div class="sp-row">
-              <label>Width (px)</label>
+              <label data-i18n="sp.width">Width (px)</label>
               <input type="number" id="sp-width" value="520" min="280" max="1920" />
             </div>
             <div class="sp-row">
-              <label>Height (px)</label>
+              <label data-i18n="sp.height">Height (px)</label>
               <input type="number" id="sp-height" value="240" min="120" max="1080" />
             </div>
           </div>
 
           <div class="sp-group">
-            <h3>HUD subtitle compatibility</h3>
+            <h3 data-i18n="sp.hudCompat">HUD subtitle compatibility</h3>
             <div class="sp-row sp-row-stacked">
-              <label>Additional GFx paths<span class="sp-hint">Optional: one Scaleform path per line. Vanilla paths stay enabled.</span></label>
+              <label><span data-i18n="sp.gfxPaths">Additional GFx paths</span><span class="sp-hint" data-i18n="sp.gfxPathsHint">Optional: one Scaleform path per line. Vanilla paths stay enabled.</span></label>
               <textarea id="sp-hud-subtitle-paths" rows="3"
                 placeholder="_root.SomeHud.Subtitle.text"></textarea>
             </div>
@@ -221,13 +239,13 @@
         <!-- Channels -->
         <div id="sp-channels" class="sp-section">
           <div class="sp-group">
-            <h3>Channel configuration</h3>
+            <h3 data-i18n="sp.channelConfig">Channel configuration</h3>
             <div id="sp-channel-list"><!-- populated by JS --></div>
           </div>
           <div class="sp-group">
-            <h3>Combat</h3>
+            <h3 data-i18n="sp.combat">Combat</h3>
             <div class="sp-row">
-              <label>Show hits<span class="sp-hint">Kills and deaths are always shown. Spells like Flames hit every second.</span></label>
+              <label><span data-i18n="sp.showHits">Show hits</span><span class="sp-hint" data-i18n="sp.showHitsHint">Kills and deaths are always shown. Spells like Flames hit every second.</span></label>
               <label class="sp-toggle">
                 <input type="checkbox" id="sp-combat-hits" checked />
                 <span class="sp-track"></span>
@@ -235,18 +253,18 @@
             </div>
           </div>
           <div class="sp-group">
-            <h3>NPC speaker name colours</h3>
-            <div class="sp-hint sp-section-hint">
+            <h3 data-i18n="sp.speakerColours">NPC speaker name colours</h3>
+            <div class="sp-hint sp-section-hint" data-i18n="sp.speakerColoursHint">
               Add an exact NPC display name. Matching speaker labels use this colour.
               Names seen in your current history are suggested as you type.
             </div>
             <div class="sp-speaker-add">
               <input id="sp-speaker-name" type="text" list="sp-speaker-options"
-                     placeholder="NPC display name" maxlength="80" />
+                     placeholder="NPC display name" data-i18n-placeholder="sp.npcName" maxlength="80" />
               <datalist id="sp-speaker-options"></datalist>
               <input id="sp-speaker-new-colour" type="color" value="#c084fc"
-                     title="New speaker colour" />
-              <button type="button" class="sp-btn" id="sp-speaker-add">Add / Update</button>
+                     title="New speaker colour" data-i18n-title="sp.newColour" />
+              <button type="button" class="sp-btn" id="sp-speaker-add" data-i18n="sp.addUpdate">Add / Update</button>
             </div>
             <div id="sp-speaker-colour-list"><!-- populated by JS --></div>
           </div>
@@ -255,10 +273,10 @@
       </div><!-- /sp-content -->
 
       <div id="sp-footer">
-        <button class="sp-btn" id="sp-position">Position</button>
-        <button class="sp-btn" id="sp-reset">Reset</button>
-        <button class="sp-btn" id="sp-test">Diagnostics</button>
-        <button class="sp-btn sp-primary" id="sp-apply">Apply</button>
+        <button class="sp-btn" id="sp-position" data-i18n="sp.position">Position</button>
+        <button class="sp-btn" id="sp-reset" data-i18n="sp.reset">Reset</button>
+        <button class="sp-btn" id="sp-test" data-i18n="sp.diagnostics">Diagnostics</button>
+        <button class="sp-btn sp-primary" id="sp-apply" data-i18n="sp.apply">Apply</button>
       </div>
       <div id="sp-status" role="status"></div>
       <pre id="diagnostics-output"></pre>
@@ -266,6 +284,7 @@
     </div><!-- /settings-panel -->
   </div><!-- /settings-overlay -->
 
+  <script src="i18n.js"></script>
   <script src="bridge.js"></script>
   <script src="controls.js"></script>
   <script src="script.js"></script>

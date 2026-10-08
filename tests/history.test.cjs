@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
+const i18nSource = fs.readFileSync(path.join(__dirname, '../Data/PrismaUI/views/Chronicle/i18n.js'), 'utf8');
 const source=fs.readFileSync(path.join(__dirname,'../Data/PrismaUI/views/Chronicle/controls.js'),'utf8');
 function setup() {
   const saved=new Map(),nodes=new Map();
@@ -13,7 +14,7 @@ function setup() {
     localStorage:{setItem:(key,v)=>saved.set(key,v)},clearTimeout(){},
     showUnread(){},restoreHistory(){ctx.messages.push(...JSON.parse(saved.get(vm.runInContext('historyKey()',ctx))||'[]'));}
   });
-  vm.runInContext(source,ctx);
+  vm.runInContext(i18nSource,ctx); vm.runInContext(source,ctx);
   return {ctx,saved};
 }
 test('character switches flush pending history and restore the correct profile',()=>{

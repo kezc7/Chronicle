@@ -47,6 +47,12 @@ public:
     bool OnHotkey(std::uint32_t scanCode, bool shift);
     bool ShouldConsumeKeyboardInput() const { return m_keyboardCapture.load(); }
     bool ShowCombatHits() const { return m_combatHits.load(); }
+    // A line Chronicle writes itself, in the chosen language (game text is already localized).
+    std::string Text(ChronicleRuntime::Phrase a_phrase, std::string_view a_value = {}) const
+    {
+        return ChronicleRuntime::Phrased(Language(), a_phrase, a_value);
+    }
+    ChronicleRuntime::Lang Language() const { return static_cast<ChronicleRuntime::Lang>(m_language.load()); }
     // Hide the game's own notification only when Chronicle will visibly show it.
     bool ShouldHideGameNotification() const
     {
@@ -108,6 +114,8 @@ private:
     std::atomic<std::uint64_t> m_focusRevision{ 0 };
     std::atomic<bool> m_keyboardCapture{ false };
     std::atomic<bool> m_combatHits{ true };
+    std::atomic<int> m_language{ 0 };  // ChronicleRuntime::Lang
+    std::string m_gameLanguage;        // Skyrim's sLanguage, read once at data load
     std::atomic<bool> m_hideGameNotifications{ false };
     std::atomic<bool> m_chatboxEnabled{ true };
     std::atomic<bool> m_notificationChannel{ true };

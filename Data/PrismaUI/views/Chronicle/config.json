@@ -11,7 +11,8 @@
     "hide_in_menus": true,
     "hide_in_photo_mode": true,
     "combat_hits": true,
-    "hide_game_notifications": false
+    "hide_game_notifications": false,
+    "language": "auto"
   },
   "window": {
     "position_x": 20,
