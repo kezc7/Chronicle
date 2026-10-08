@@ -227,7 +227,7 @@ void Chronicle::UpdateVisibility()
             "StatsMenu", "SleepWaitMenu", "FavoritesMenu", "BarterMenu",
             "CraftingMenu", "Crafting Menu", "SmithingMenu", "Smithing Menu",
             "AlchemyMenu", "Alchemy Menu", "EnchantingMenu", "Enchanting Menu",
-            "CookingMenu", "Cooking Menu", "PhotoMenu", "MeridianUI_FocusMenu"
+            "CookingMenu", "Cooking Menu", "PhotoMenu", "MeridianUI_FocusMenu", "Console"
         };
         for (auto name : names) m_state.Menu(name, ui->IsMenuOpen(name));
     }
@@ -446,14 +446,45 @@ void Chronicle::ApplyNativeSettings(const nlohmann::json& settings)
     m_interactKey = key(general.value("interact_hotkey", std::string("F8")), VK_F8);
     m_settingsKey = key(general.value("config_hotkey", std::string("N")), 'N');
     m_inputKey = key(general.value("input_hotkey", std::string("Enter")), VK_RETURN);
+    m_toggleKey = key(general.value("toggle_hotkey", std::string()), 0);  // 0 = no key
+    // Remembered hidden state is restored from the settings file; otherwise
+    // the current session's state is left as it is.
+    m_rememberHidden = general.value("remember_hidden", true);
+    if (m_rememberHidden) m_state.userHidden = general.value("user_hidden", false);
+}
+
+void Chronicle::ToggleUserHidden()
+{
+    m_state.userHidden = !m_state.userHidden;
+    spdlog::info("Chronicle: {} with the show/hide hotkey", m_state.userHidden ? "hidden" : "shown");
+    UpdateVisibility();
+    // The UI saves the state when "Remember hidden state" is on.
+    InvokeUI(m_state.userHidden ? "setUserHidden(true)" : "setUserHidden(false)");
 }
 
 bool Chronicle::OnHotkey(std::uint32_t scanCode, bool shift)
 {
     // PrismaUI routes keys to JS once focused. Native keys acquire the focus
     // in the first place; otherwise a passive overlay cannot receive a hotkey.
-    if (!m_bootstrapped || m_hidden || !m_gameLoaded || !m_prismaUI) return false;
     const auto key = MapVirtualKeyW(scanCode, MAPVK_VSC_TO_VK_EX);
+    // The show/hide key must work while Chronicle is hidden by it, but never
+    // while typing (any focused view), in menus or in Skyrim's console.
+    const bool canToggle = m_bootstrapped && m_gameLoaded && m_prismaUI &&
+        !m_prismaUI->HasAnyActiveFocus() && m_state.menus.empty();
+    if (canToggle && m_toggleKey && key == m_toggleKey && !shift) {
+        MainTask([this] { ToggleUserHidden(); });
+        return true;
+    }
+    // The settings hotkey also brings a hidden Chronicle back (and opens
+    // settings), so a forgotten show/hide key cannot leave it lost. Tasks run
+    // in order: the view is visible again before the settings request.
+    if (canToggle && m_state.userHidden && shift && key == m_settingsKey) {
+        m_keyboardCapture = true;
+        MainTask([this] { if (m_state.userHidden) ToggleUserHidden(); });
+        MainTask([this] { if (!m_hidden && m_gameLoaded) InvokeUI("nativeHotkey(\"settings\")"); });
+        return true;
+    }
+    if (!m_bootstrapped || m_hidden || !m_gameLoaded || !m_prismaUI) return false;
     if (m_prismaUI->HasAnyActiveFocus()) {
         if (!m_prismaUI->HasFocus(m_view)) return false;
         // Release natively too: if the view never receives keys, the close
