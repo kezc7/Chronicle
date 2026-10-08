@@ -1,4 +1,4 @@
-# Chronicle 1.2.13
+# Chronicle 1.2.16
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -102,6 +102,21 @@ page and development preview files are excluded.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.2.16 changes
+
+- Hotkey settings are set by pressing the key: click a box, then press a letter,
+  number, Enter or F1–F12. Previously the key's name had to be typed, and an invalid
+  entry silently fell back to the default, so changes seemed to do nothing.
+- Unsupported keys show a message instead of being ignored, and the panel warns when
+  the Interact and Input hotkeys are the same key. Number-pad keys are explained as
+  unsupported (natively they differ from the top-row digits).
+- Keys are read from `KeyboardEvent.keyCode`, the Windows virtual-key code the
+  native side uses. PrismaUI's engine reports `key`/`code` differently from desktop
+  browsers, so the 1.2.14 and 1.2.15 test builds rejected digits in-game. A rejected
+  key's message includes the raw key details for bug reports.
+- Tip: Chronicle handles keys before other mods, so it wins any clash with another
+  mod's hotkey (for example Enter). Change Chronicle's hotkey to free that key up.
 
 ## 1.2.13 changes
 
