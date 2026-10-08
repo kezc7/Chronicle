@@ -105,15 +105,17 @@
 
           <div class="sp-group">
             <h3>Hotkeys</h3>
-            <div class="sp-row"><label>Interact hotkey<span class="sp-hint">Shows the cursor for tabs, scrolling and dragging</span></label><input id="sp-interact-hotkey" type="text" value="F8" maxlength="20" /></div>
+            <div class="sp-hint sp-section-hint">Click a box, then press the key you want. Letters, numbers, Enter and F1–F12 can be used. Click Apply to save.</div>
+            <div class="sp-row"><label>Interact hotkey<span class="sp-hint">Shows the cursor for tabs, scrolling and dragging</span></label><input id="sp-interact-hotkey" class="sp-hotkey" type="text" value="F8" readonly /></div>
             <div class="sp-row">
               <label>Settings hotkey<span class="sp-hint">Shift + this key opens settings</span></label>
-              <input type="text" id="sp-config-hotkey" value="N" maxlength="8" />
+              <input type="text" id="sp-config-hotkey" class="sp-hotkey" value="N" readonly />
             </div>
             <div class="sp-row">
               <label>Input hotkey<span class="sp-hint">Key to open the chat input bar</span></label>
-              <input type="text" id="sp-input-hotkey" value="Enter" maxlength="20" />
+              <input type="text" id="sp-input-hotkey" class="sp-hotkey" value="Enter" readonly />
             </div>
+            <div id="sp-hotkey-status" class="sp-hint" role="status"></div>
           </div>
 
           <div class="sp-group">

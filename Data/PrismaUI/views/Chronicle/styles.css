@@ -504,6 +504,10 @@ body.interacting .message.fading { opacity: 1; }
   outline: none;
   flex-shrink: 0;
 }
+.sp-row input.sp-hotkey { cursor: pointer; text-align: center; }
+.sp-row input.sp-hotkey:focus { border-color: #4a9eff; background: rgba(74,158,255,0.12); }
+#sp-hotkey-status { min-height: 14px; margin-top: 4px; }
+#sp-hotkey-status.error { color: #f87171; }
 .sp-row input[type=text]:focus,
 .sp-row input[type=number]:focus {
   border-color: rgba(74,158,255,0.5);
