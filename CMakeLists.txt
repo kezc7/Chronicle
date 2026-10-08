@@ -6,12 +6,15 @@ set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CAC
 
 project(
     Chronicle
-    VERSION 1.2.17
+    VERSION 1.2.20
     DESCRIPTION "In-game chatbox and message log for Skyrim SE"
     LANGUAGES CXX
 )
 
 option(CHRONICLE_BUILD_TESTS "Build Chronicle regression tests" ON)
+
+# Sources are UTF-8 (translated native phrases contain accented letters).
+add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
