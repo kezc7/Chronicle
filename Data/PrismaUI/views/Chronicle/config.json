@@ -12,7 +12,11 @@
     "hide_in_photo_mode": true,
     "combat_hits": true,
     "hide_game_notifications": false,
-    "language": "auto"
+    "language": "auto",
+    "toggle_hotkey": "",
+    "remember_hidden": true,
+    "user_hidden": false,
+    "auto_hide": 0
   },
   "window": {
     "position_x": 20,

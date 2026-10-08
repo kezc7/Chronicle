@@ -41,6 +41,13 @@ body {
   pointer-events: none;
 }
 
+/* Auto-hide after inactivity; interaction always shows the window. */
+#chronicle-window.idle-hidden {
+  opacity: 0;
+  transition: opacity 1.5s ease;
+}
+body.interacting #chronicle-window.idle-hidden { opacity: 1; }
+
 #chronicle-window.fading-in {
   animation: fadeIn 0.25s ease forwards;
 }
