@@ -21,6 +21,7 @@ const DEFAULT_CONFIG = {
     hide_in_menus: true,
     hide_in_photo_mode: true,
     combat_hits: true,
+    hide_game_notifications: false,
   },
   window: {
     position_x: 20,
@@ -109,6 +110,7 @@ function normalizeConfig() {
   g.message_fade_time = clamp(Number(g.message_fade_time) || 0, 0, 60);
   g.persist_history = g.persist_history !== false;
   g.combat_hits = g.combat_hits !== false;
+  g.hide_game_notifications = g.hide_game_notifications === true;
   for (const key of ['input_hotkey', 'config_hotkey', 'interact_hotkey']) {
     if (typeof g[key] !== 'string' || !g[key].trim()) g[key] = DEFAULT_CONFIG.general[key];
     if (!/^(Enter|[a-z0-9]|F([1-9]|1[0-2]))$/i.test(g[key])) g[key] = DEFAULT_CONFIG.general[key];
@@ -333,7 +335,8 @@ function applySpeakerColours() {
 
 function shouldShowMessage(channel) {
   if (!config.channels[channel]?.enabled) return false;
-  if (activeChannel === 'all') return channel !== 'console';
+  // Console is off by default, so users who enable it see its lines in All too.
+  if (activeChannel === 'all') return true;
   return channel === activeChannel;
 }
 
@@ -561,6 +564,7 @@ function populateSettingsForm() {
   document.getElementById('sp-max-messages').value  = g.max_messages;
   document.getElementById('sp-persist-history').checked = g.persist_history !== false;
   document.getElementById('sp-combat-hits').checked = g.combat_hits !== false;
+  document.getElementById('sp-hide-game-notifications').checked = g.hide_game_notifications === true;
 
   const fadeEl = document.getElementById('sp-fade-time');
   fadeEl.value = g.message_fade_time;
@@ -718,6 +722,7 @@ function collectSettingsFromForm() {
       hide_in_menus:      document.getElementById('sp-hide-menus').checked,
       hide_in_photo_mode: document.getElementById('sp-hide-photo').checked,
       combat_hits:        document.getElementById('sp-combat-hits').checked,
+      hide_game_notifications: document.getElementById('sp-hide-game-notifications').checked,
     },
     window: {
       width:     Math.min(1920, Math.max(280,

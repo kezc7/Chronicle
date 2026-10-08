@@ -14,6 +14,14 @@ inline std::optional<std::filesystem::path> ChronicleLogDirectory()
     return myGames.parent_path() / ChronicleRuntime::MyGamesFolder(myGames.filename().native()) / L"SKSE";
 }
 
+// The player's in-game name for player lines, matching combat lines. Main thread.
+inline std::string PlayerDisplayName()
+{
+    auto* player = RE::PlayerCharacter::GetSingleton();
+    const auto* name = player ? player->GetDisplayFullName() : nullptr;
+    return name && name[0] != '\0' ? name : "Player";
+}
+
 class Chronicle
 {
 public:
@@ -39,6 +47,12 @@ public:
     bool OnHotkey(std::uint32_t scanCode, bool shift);
     bool ShouldConsumeKeyboardInput() const { return m_keyboardCapture.load(); }
     bool ShowCombatHits() const { return m_combatHits.load(); }
+    // Hide the game's own notification only when Chronicle will visibly show it.
+    bool ShouldHideGameNotification() const
+    {
+        return m_hideGameNotifications.load() && m_chatboxEnabled.load() &&
+               m_notificationChannel.load() && m_gameLoaded.load() && !m_hidden.load();
+    }
     std::atomic<std::uint64_t> profileId{ 0 };
 
     // Called by event sinks
@@ -94,6 +108,9 @@ private:
     std::atomic<std::uint64_t> m_focusRevision{ 0 };
     std::atomic<bool> m_keyboardCapture{ false };
     std::atomic<bool> m_combatHits{ true };
+    std::atomic<bool> m_hideGameNotifications{ false };
+    std::atomic<bool> m_chatboxEnabled{ true };
+    std::atomic<bool> m_notificationChannel{ true };
     std::atomic<std::uint64_t> m_worldRevision{ 0 };
     bool m_hadFocus{ false };
     bool m_bootstrapped{ false };
