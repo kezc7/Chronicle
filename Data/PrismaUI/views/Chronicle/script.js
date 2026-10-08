@@ -561,6 +561,7 @@ function populateSettingsForm() {
   document.getElementById('sp-hide-photo').checked  = g.hide_in_photo_mode;
   document.getElementById('sp-config-hotkey').value = g.config_hotkey || 'N';
   document.getElementById('sp-input-hotkey').value  = g.input_hotkey  || 'Enter';
+  hotkeyStatus('');
   document.getElementById('sp-max-messages').value  = g.max_messages;
   document.getElementById('sp-persist-history').checked = g.persist_history !== false;
   document.getElementById('sp-combat-hits').checked = g.combat_hits !== false;
@@ -1143,6 +1144,86 @@ document.getElementById('sp-position-x').addEventListener('input', event => prev
 document.getElementById('sp-position-y').addEventListener('input', event => previewPosition('position_y', event.target.value));
 document.getElementById('sp-position-x-val').addEventListener('change', event => previewPosition('position_x', event.target.value));
 document.getElementById('sp-position-y-val').addEventListener('change', event => previewPosition('position_y', event.target.value));
+// Hotkey boxes: click one, then press the key. Typing a key name was easy to
+// get wrong, and an invalid value silently fell back to the default. Only keys
+// the native side understands are accepted: letters, digits, Enter, F1–F12.
+// e.keyCode is the Windows virtual-key code, exactly what the native side
+// compares against, and PrismaUI's engine reports it reliably; its e.key and
+// e.code did not match modern browsers (in-game, 0 and 9 were rejected).
+// Number-pad keys (96-105) are different keys natively, so they are refused.
+function isNumpadKey(e) {
+  return (e.keyCode >= 96 && e.keyCode <= 105) || (e.code || '').startsWith('Numpad');
+}
+
+function hotkeyName(e) {
+  const vk = e.keyCode;
+  if (vk === 13) return 'Enter';
+  if (vk >= 112 && vk <= 123) return 'F' + (vk - 111);
+  if ((vk >= 48 && vk <= 57) || (vk >= 65 && vk <= 90)) return String.fromCharCode(vk);
+  if (vk) return null;
+  // No key code at all: fall back to the modern properties.
+  if (isNumpadKey(e)) return null;
+  if (e.key === 'Enter') return 'Enter';
+  if (/^F([1-9]|1[0-2])$/.test(e.key)) return e.key;
+  if (/^(Key[A-Z]|Digit[0-9])$/.test(e.code || '')) return e.code.slice(-1);
+  if (/^[a-z0-9]$/i.test(e.key)) return e.key.toUpperCase();
+  return null;
+}
+
+// Escape (27) still closes settings, Tab (9) moves between fields, and lone
+// modifiers (16 Shift, 17 Ctrl, 18 Alt, 91/92 Windows) wait for the real key.
+function isPassThroughKey(e) {
+  return [27, 9, 16, 17, 18, 91, 92].includes(e.keyCode) ||
+    ['Escape', 'Tab', 'Shift', 'Control', 'Alt', 'Meta'].includes(e.key);
+}
+
+function hotkeyStatus(text, error = false) {
+  const status = document.getElementById('sp-hotkey-status');
+  status.textContent = text;
+  status.classList.toggle('error', error);
+}
+
+function checkHotkeyClash() {
+  const interact = document.getElementById('sp-interact-hotkey').value.toUpperCase();
+  const input = document.getElementById('sp-input-hotkey').value.toUpperCase();
+  if (interact && interact === input) {
+    hotkeyStatus('Interact and Input hotkeys are both ' + interact + '. Choose different keys.', true);
+  } else {
+    hotkeyStatus('Click Apply to save.');
+  }
+}
+
+document.querySelectorAll('.sp-hotkey').forEach(box => {
+  box.addEventListener('focus', () => {
+    box.dataset.previous = box.value;
+    box.value = '';
+    box.placeholder = 'Press a key…';
+  });
+  box.addEventListener('blur', () => {
+    if (!box.value) box.value = box.dataset.previous || '';
+    box.placeholder = '';
+  });
+  box.addEventListener('keydown', e => {
+    if (isPassThroughKey(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const name = hotkeyName(e);
+    if (!name) {
+      if (isNumpadKey(e)) {
+        hotkeyStatus('Number-pad keys can\'t be used. Use the number keys above the letters instead.', true);
+        return;
+      }
+      // Raw details let a screenshot of this message diagnose engine quirks.
+      hotkeyStatus('That key can\'t be used. Choose a letter, number, Enter or F1–F12. ' +
+        '(key "' + e.key + '", code "' + e.code + '", keyCode ' + e.keyCode + ')', true);
+      return;
+    }
+    box.value = name;
+    box.blur();
+    checkHotkeyClash();
+  });
+});
+
 document.querySelectorAll('.sp-nudge').forEach(button => button.addEventListener('click', event => {
   const axis = button.dataset.axis;
   const slider = document.getElementById(axis === 'position_x' ? 'sp-position-x' : 'sp-position-y');
