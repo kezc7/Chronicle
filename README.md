@@ -1,4 +1,4 @@
-# Chronicle 1.2.20
+# Chronicle 1.2.23
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -102,6 +102,23 @@ page and development preview files are excluded.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.2.23 changes
+
+- **Auto-hide** (General → Behaviour → Auto-hide after): the whole window fades out
+  after the chosen number of seconds (0–300; slider in 1 s steps or type an exact
+  value) without new messages and returns on the next message or interaction.
+  0 (default) = off. It never fades while typing, in mouse
+  mode or with settings open.
+- **Show/hide hotkey** (Hotkeys): hides or shows Chronicle instantly; no key by
+  default, and Backspace clears it. It works while Chronicle is hidden by it, but is
+  ignored while typing, in menus and in the console. **Remember hidden state**
+  (default on) keeps it hidden after loading. The settings hotkey (Shift+N) also
+  brings a hidden Chronicle back and opens settings, so a forgotten key cannot
+  leave it lost. While hidden, the game shows its own
+  notifications even with "Notifications only in Chronicle" on.
+- Chronicle hides while Skyrim's console (~) is open, following "Hide in menus".
+- Hotkey clash warnings cover Interact, Input and Show/hide.
 
 ## 1.2.20 changes
 
