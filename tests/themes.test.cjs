@@ -27,7 +27,7 @@ test('valid themes are kept and anything else falls back to Skyrim', () => {
 test('every theme has a settings option, and every non-default theme a style block', () => {
   const themes = vm.runInContext('THEMES', loadControls());
   for (const theme of themes) {
-    assert.match(html, new RegExp(`<option value="${theme}">`), `missing <option> for ${theme}`);
+    assert.match(html, new RegExp(`<option value="${theme}"[ >]`), `missing <option> for ${theme}`);
     if (theme !== 'skyrim') {
       assert.match(css, new RegExp(`body\\[data-theme="${theme}"\\]\\s*\\{`), `missing style block for ${theme}`);
     }

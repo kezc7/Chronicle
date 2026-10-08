@@ -83,7 +83,7 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
             Chronicle::GetSingleton()->OnPostLoadGame();
             break;
         case SKSE::MessagingInterface::kSaveGame:
-            Chronicle::GetSingleton()->SendMessage("system", "", "Game saved");
+            Chronicle::GetSingleton()->SendMessage("system", "", Chronicle::GetSingleton()->Text(ChronicleRuntime::Phrase::GameSaved));
             break;
         default:
             break;

@@ -71,17 +71,121 @@ namespace ChronicleRuntime
         return dying != Side::Other || killer != Side::Other;
     }
 
+    // ---- Languages for the lines Chronicle writes itself --------------------
+    // The UI has its own table (i18n.js); these are the few phrases composed
+    // natively. Game text (dialogue, notifications, names) is already localized.
+    enum class Lang { En, Fr, De };
+
+    // settings "auto"/unknown follows Skyrim's sLanguage; unsupported -> English.
+    inline Lang ResolveLanguage(std::string_view setting, std::string_view gameLanguage)
+    {
+        if (setting == "en") return Lang::En;
+        if (setting == "fr") return Lang::Fr;
+        if (setting == "de") return Lang::De;
+        std::string game(gameLanguage);
+        for (auto& c : game) c = static_cast<char>(c >= 'a' && c <= 'z' ? c - 32 : c);
+        if (game == "FRENCH") return Lang::Fr;
+        if (game == "GERMAN") return Lang::De;
+        return Lang::En;
+    }
+
+    enum class Phrase
+    {
+        GameSaved, ReachedLevel, Killed, Hit, Died, Combat, Enemy, Someone, Target, Player,
+        QuestStarted, QuestCompleted, QuestFailed, NewObjective, ObjectiveCompleted, ObjectiveFailed,
+        MoreLines
+    };
+
+    // "{0}" marks the inserted value (a name, a level, a line count).
+    inline std::string_view PhraseText(Lang lang, Phrase phrase)
+    {
+        using enum Phrase;
+        switch (lang) {
+        case Lang::Fr:
+            switch (phrase) {
+            case GameSaved: return "Partie sauvegardée";
+            case ReachedLevel: return "Niveau {0} atteint";
+            case Killed: return "a tué {0}";
+            case Hit: return "a frappé {0}";
+            case Died: return "{0} est mort";
+            case Combat: return "Combat";
+            case Enemy: return "Ennemi";
+            case Someone: return "Quelqu'un";
+            case Target: return "la cible";
+            case Player: return "Joueur";
+            case QuestStarted: return "Quête commencée : {0}";
+            case QuestCompleted: return "Quête terminée : {0}";
+            case QuestFailed: return "Quête échouée : {0}";
+            case NewObjective: return "Nouvel objectif : {0}";
+            case ObjectiveCompleted: return "Objectif terminé : {0}";
+            case ObjectiveFailed: return "Objectif échoué : {0}";
+            case MoreLines: return "... {0} lignes de plus - ouvrez la console (~) pour tout voir";
+            }
+            break;
+        case Lang::De:
+            switch (phrase) {
+            case GameSaved: return "Spiel gespeichert";
+            case ReachedLevel: return "Stufe {0} erreicht";
+            case Killed: return "hat {0} getötet";
+            case Hit: return "hat {0} getroffen";
+            case Died: return "{0} ist gestorben";
+            case Combat: return "Kampf";
+            case Enemy: return "Feind";
+            case Someone: return "Jemand";
+            case Target: return "das Ziel";
+            case Player: return "Spieler";
+            case QuestStarted: return "Quest begonnen: {0}";
+            case QuestCompleted: return "Quest abgeschlossen: {0}";
+            case QuestFailed: return "Quest fehlgeschlagen: {0}";
+            case NewObjective: return "Neues Ziel: {0}";
+            case ObjectiveCompleted: return "Ziel erreicht: {0}";
+            case ObjectiveFailed: return "Ziel fehlgeschlagen: {0}";
+            case MoreLines: return "... {0} weitere Zeilen - Konsole (~) öffnen, um alle zu sehen";
+            }
+            break;
+        case Lang::En:
+            break;
+        }
+        switch (phrase) {
+        case GameSaved: return "Game saved";
+        case ReachedLevel: return "Reached level {0}";
+        case Killed: return "killed {0}";
+        case Hit: return "hit {0}";
+        case Died: return "{0} died";
+        case Combat: return "Combat";
+        case Enemy: return "Enemy";
+        case Someone: return "Someone";
+        case Target: return "target";
+        case Player: return "Player";
+        case QuestStarted: return "Quest started: {0}";
+        case QuestCompleted: return "Quest completed: {0}";
+        case QuestFailed: return "Quest failed: {0}";
+        case NewObjective: return "New objective: {0}";
+        case ObjectiveCompleted: return "Objective completed: {0}";
+        case ObjectiveFailed: return "Objective failed: {0}";
+        case MoreLines: return "... {0} more lines - open the console (~) to see them all";
+        }
+        return "";
+    }
+
+    inline std::string Phrased(Lang lang, Phrase phrase, std::string_view value = {})
+    {
+        std::string text(PhraseText(lang, phrase));
+        if (const auto at = text.find("{0}"); at != std::string::npos) text.replace(at, 3, value);
+        return text;
+    }
+
     // Quest and objective HUD messages carry only the name, so label them.
-    inline std::string_view NotificationPrefix(std::uint32_t type)
+    inline std::string NotificationText(Lang lang, std::uint32_t type, std::string_view text)
     {
         switch (type) {
-        case 14: return "Quest started: ";
-        case 15: return "Quest completed: ";
-        case 16: return "Quest failed: ";
-        case 17: return "New objective: ";
-        case 18: return "Objective completed: ";
-        case 19: return "Objective failed: ";
-        default: return "";
+        case 14: return Phrased(lang, Phrase::QuestStarted, text);
+        case 15: return Phrased(lang, Phrase::QuestCompleted, text);
+        case 16: return Phrased(lang, Phrase::QuestFailed, text);
+        case 17: return Phrased(lang, Phrase::NewObjective, text);
+        case 18: return Phrased(lang, Phrase::ObjectiveCompleted, text);
+        case 19: return Phrased(lang, Phrase::ObjectiveFailed, text);
+        default: return std::string(text);
         }
     }
 
@@ -100,7 +204,7 @@ namespace ChronicleRuntime
 
     // Non-empty console lines, capped so a huge "help" listing cannot flush
     // the history; a final line says how many more are in Skyrim's console.
-    inline std::vector<std::string> ConsoleLines(std::string_view output, std::size_t limit)
+    inline std::vector<std::string> ConsoleLines(std::string_view output, std::size_t limit, Lang lang = Lang::En)
     {
         std::vector<std::string> lines;
         std::size_t more = 0;
@@ -113,7 +217,7 @@ namespace ChronicleRuntime
             if (lines.size() < limit) lines.emplace_back(line);
             else ++more;
         }
-        if (more) lines.push_back("... " + std::to_string(more) + " more lines - open the console (~) to see them all");
+        if (more) lines.push_back(Phrased(lang, Phrase::MoreLines, std::to_string(more)));
         return lines;
     }
 

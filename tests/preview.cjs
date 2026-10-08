@@ -5,7 +5,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '../Data/PrismaUI/views/Chronicle');
 const mock = `<script>
 window.previewCalls = [];
-window.focusAcquired = () => { previewCalls.push('focusAcquired'); setTimeout(() => focusResult(true, 'Mouse active — Escape to return'), 0); };
+window.focusAcquired = () => { previewCalls.push('focusAcquired'); setTimeout(() => focusResult(true, 'focus.active'), 0); };
 window.focusReleased = () => previewCalls.push('focusReleased');
 window.settingsChanged = value => { previewCalls.push('settingsChanged'); window.previewSettings=JSON.parse(value); setTimeout(() => saveResult(true, 'Preview: settings accepted'),0); };
 window.playerInput = value => previewCalls.push(['playerInput',value]);
@@ -24,7 +24,7 @@ window.uiReady = () => setTimeout(() => {
 </script>`;
 http.createServer((req,res) => {
   const name = new URL(req.url, 'http://localhost').pathname.slice(1) || 'index.html';
-  if (!['index.html','styles.css','config.json','bridge.js','controls.js','script.js'].includes(name)) {
+  if (!['index.html','styles.css','config.json','bridge.js','controls.js','script.js','i18n.js'].includes(name)) {
     res.writeHead(404); return res.end();
   }
   let content = fs.readFileSync(path.join(root,name),'utf8');
