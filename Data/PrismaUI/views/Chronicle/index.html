@@ -99,6 +99,20 @@
               </label>
             </div>
             <div class="sp-row">
+              <label><span data-i18n="sp.autoHide">Auto-hide after (s)</span><span class="sp-hint" data-i18n="sp.autoHideHint">Fades the whole window when nothing new arrives. 0 = never</span></label>
+              <div class="sp-slider">
+                <input type="range" id="sp-auto-hide" min="0" max="300" step="1" value="0" />
+                <input type="number" id="sp-auto-hide-val" class="sp-position-val" min="0" max="300" step="1" value="0" />
+              </div>
+            </div>
+            <div class="sp-row">
+              <label><span data-i18n="sp.rememberHidden">Remember hidden state</span><span class="sp-hint" data-i18n="sp.rememberHiddenHint">If you hide Chronicle with the show/hide key, keep it hidden after loading</span></label>
+              <label class="sp-toggle">
+                <input type="checkbox" id="sp-remember-hidden" checked />
+                <span class="sp-track"></span>
+              </label>
+            </div>
+            <div class="sp-row">
               <label><span data-i18n="sp.hideMenus">Hide in menus</span><span class="sp-hint" data-i18n="sp.hideMenusHint">Main and loading screens are always hidden</span></label>
               <label class="sp-toggle">
                 <input type="checkbox" id="sp-hide-menus" checked />
@@ -132,6 +146,11 @@
             <div class="sp-row">
               <label><span data-i18n="sp.inputHotkey">Input hotkey</span><span class="sp-hint" data-i18n="sp.inputHotkeyHint">Key to open the chat input bar</span></label>
               <input type="text" id="sp-input-hotkey" class="sp-hotkey" value="Enter" readonly />
+            </div>
+            <div class="sp-row">
+              <label><span data-i18n="sp.toggleHotkey">Show/hide hotkey</span><span class="sp-hint" data-i18n="sp.toggleHotkeyHint">Hides or shows Chronicle; the settings hotkey also brings it back. Backspace removes the key</span></label>
+              <input type="text" id="sp-toggle-hotkey" class="sp-hotkey" value="" readonly data-optional="true"
+                     placeholder="None" data-i18n-placeholder="hotkey.none" />
             </div>
             <div id="sp-hotkey-status" class="sp-hint" role="status"></div>
           </div>
