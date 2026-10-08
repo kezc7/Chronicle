@@ -74,10 +74,31 @@ int main()
     Require(ChronicleRuntime::NotificationChannel(20) == "system");       // skill increase
     Require(ChronicleRuntime::NotificationChannel(21) == "system");       // word of power
     Require(ChronicleRuntime::NotificationChannel(22) == "system");
-    Require(ChronicleRuntime::NotificationPrefix(17) == "New objective: ");
-    Require(ChronicleRuntime::NotificationPrefix(18) == "Objective completed: ");
-    Require(ChronicleRuntime::NotificationPrefix(1).empty());
-    Require(ChronicleRuntime::NotificationPrefix(20).empty()); // skill text is already complete
+    using ChronicleRuntime::Lang;
+    using ChronicleRuntime::Phrase;
+    Require(ChronicleRuntime::NotificationText(Lang::En, 17, "Return the proof") == "New objective: Return the proof");
+    Require(ChronicleRuntime::NotificationText(Lang::En, 18, "Talk to Orgnar") == "Objective completed: Talk to Orgnar");
+    Require(ChronicleRuntime::NotificationText(Lang::En, 1, "Gold added") == "Gold added");
+    Require(ChronicleRuntime::NotificationText(Lang::En, 20, "Alchemy") == "Alchemy"); // skill text is complete
+    Require(ChronicleRuntime::NotificationText(Lang::Fr, 17, "X") == "Nouvel objectif : X");
+    Require(ChronicleRuntime::NotificationText(Lang::De, 15, "X") == "Quest abgeschlossen: X");
+
+    // Native phrases: language resolution and word order per language.
+    Require(ChronicleRuntime::ResolveLanguage("auto", "FRENCH") == Lang::Fr);
+    Require(ChronicleRuntime::ResolveLanguage("auto", "german") == Lang::De);
+    Require(ChronicleRuntime::ResolveLanguage("auto", "RUSSIAN") == Lang::En);
+    Require(ChronicleRuntime::ResolveLanguage("de", "FRENCH") == Lang::De);
+    Require(ChronicleRuntime::ResolveLanguage("", "") == Lang::En);
+    Require(ChronicleRuntime::Phrased(Lang::En, Phrase::Killed, "Vampire") == "killed Vampire");
+    Require(ChronicleRuntime::Phrased(Lang::Fr, Phrase::Killed, "Vampire") == "a tué Vampire");
+    Require(ChronicleRuntime::Phrased(Lang::De, Phrase::Killed, "Vampire") == "hat Vampire getötet");
+    Require(ChronicleRuntime::Phrased(Lang::De, Phrase::ReachedLevel, "12") == "Stufe 12 erreicht");
+    Require(ChronicleRuntime::Phrased(Lang::Fr, Phrase::GameSaved) == "Partie sauvegardée");
+    for (auto lang : { Lang::En, Lang::Fr, Lang::De }) {
+        for (int p = 0; p <= static_cast<int>(Phrase::MoreLines); ++p) {
+            Require(!ChronicleRuntime::PhraseText(lang, static_cast<Phrase>(p)).empty());
+        }
+    }
 
     // Console output capture.
     Require(ChronicleRuntime::ConsoleOutputSince("old\n", "old\nnew line\n") == "new line\n");

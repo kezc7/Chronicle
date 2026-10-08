@@ -128,7 +128,7 @@ RE::BSEventNotifyControl SkyrimNetEventSink::ProcessEvent(
     } else if (eventName == "SkyrimNet_Combat" ||
                eventName == "SkyrimNet_CombatEvent" ||
                eventName == "Chronicle_Combat") {
-        Chronicle::GetSingleton()->SendMessage("combat", "Combat", strArg);
+        Chronicle::GetSingleton()->SendMessage("combat", Chronicle::GetSingleton()->Text(ChronicleRuntime::Phrase::Combat), strArg);
     } else if (eventName == "SkyrimNet_SpeechStarted" ||
                eventName == "SkyrimNet_SpeechComplete") {
         // Modern SkyrimNet builds send speech metadata as JSON. Accept both
@@ -171,8 +171,10 @@ RE::BSEventNotifyControl CombatEventSink::ProcessEvent(
         return RE::BSEventNotifyControl::kContinue;
     }
 
+    using ChronicleRuntime::Phrase;
+    auto* chronicle = Chronicle::GetSingleton();
     auto* player = RE::PlayerCharacter::GetSingleton();
-    if (!player || !Chronicle::GetSingleton()->ShowCombatHits()) {
+    if (!player || !chronicle->ShowCombatHits()) {
         return RE::BSEventNotifyControl::kContinue;
     }
 
@@ -181,11 +183,13 @@ RE::BSEventNotifyControl CombatEventSink::ProcessEvent(
 
     // Hits stay player-only; follower hits would flood the channel.
     if (target == player && cause != player) {
-        Chronicle::GetSingleton()->SendMessage(
-            "combat", DisplayName(cause, "Enemy"), "hit " + DisplayName(player, "Player"));
+        chronicle->SendMessage(
+            "combat", DisplayName(cause, chronicle->Text(Phrase::Enemy)),
+            chronicle->Text(Phrase::Hit, DisplayName(player, chronicle->Text(Phrase::Player))));
     } else if (cause == player && target != player) {
-        Chronicle::GetSingleton()->SendMessage(
-            "combat", DisplayName(player, "Player"), "hit " + DisplayName(target, "target"));
+        chronicle->SendMessage(
+            "combat", DisplayName(player, chronicle->Text(Phrase::Player)),
+            chronicle->Text(Phrase::Hit, DisplayName(target, chronicle->Text(Phrase::Target))));
     }
 
     return RE::BSEventNotifyControl::kContinue;
@@ -223,12 +227,16 @@ RE::BSEventNotifyControl DeathEventSink::ProcessEvent(
         return RE::BSEventNotifyControl::kContinue;
     }
 
+    using ChronicleRuntime::Phrase;
+    auto* chronicle = Chronicle::GetSingleton();
     if (killer && killer != dying) {
-        Chronicle::GetSingleton()->SendMessage(
-            "combat", DisplayName(killer, "Someone"), "killed " + DisplayName(dying, "target"));
+        chronicle->SendMessage(
+            "combat", DisplayName(killer, chronicle->Text(Phrase::Someone)),
+            chronicle->Text(Phrase::Killed, DisplayName(dying, chronicle->Text(Phrase::Target))));
     } else {
-        Chronicle::GetSingleton()->SendMessage(
-            "combat", "Combat", DisplayName(dying, "Someone") + " died");
+        chronicle->SendMessage(
+            "combat", chronicle->Text(Phrase::Combat),
+            chronicle->Text(Phrase::Died, DisplayName(dying, chronicle->Text(Phrase::Someone))));
     }
 
     return RE::BSEventNotifyControl::kContinue;
@@ -240,7 +248,7 @@ RE::BSEventNotifyControl LevelUpEventSink::ProcessEvent(
 {
     if (a_event) {
         Chronicle::GetSingleton()->SendMessage(
-            "system", "", "Reached level " + std::to_string(a_event->newLevel));
+            "system", "", Chronicle::GetSingleton()->Text(ChronicleRuntime::Phrase::ReachedLevel, std::to_string(a_event->newLevel)));
     }
     return RE::BSEventNotifyControl::kContinue;
 }
@@ -270,7 +278,7 @@ namespace
 
             auto* chronicle = Chronicle::GetSingleton();
             chronicle->SendMessage(ChronicleRuntime::NotificationChannel(type), "",
-                std::string(ChronicleRuntime::NotificationPrefix(type)) + text);
+                ChronicleRuntime::NotificationText(chronicle->Language(), type, text));
             // Only plain notifications (type 1); quest and skill banners stay on screen.
             return type == 1 && chronicle->ShouldHideGameNotification();
         }

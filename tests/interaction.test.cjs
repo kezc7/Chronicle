@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 
+const i18nSource = fs.readFileSync(path.join(__dirname, '../Data/PrismaUI/views/Chronicle/i18n.js'), 'utf8');
 const source = fs.readFileSync(
   path.join(__dirname, '../Data/PrismaUI/views/Chronicle/controls.js'), 'utf8');
 
@@ -43,6 +44,7 @@ function setup() {
     sendToGame: (event) => { calls.push(event); return true; },
     inputOpen: false, settingsOpen: false,
   });
+  vm.runInContext(i18nSource, context);
   vm.runInContext(source, context);
   vm.runInContext('runtime.connected = true; runtime.loaded = true; runtime.visible = true;', context);
   return {context, calls, bodyClasses};

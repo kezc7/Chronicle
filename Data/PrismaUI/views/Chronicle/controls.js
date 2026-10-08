@@ -1,6 +1,6 @@
 'use strict';
 
-const runtime = { connected: false, loaded: false, visible: false, profile: '', character: '' };
+const runtime = { connected: false, loaded: false, visible: false, profile: '', character: '', gameLanguage: '' };
 // Chat window themes (styles.css body[data-theme] blocks); anything else,
 // including a missing value, falls back to the default Skyrim theme.
 const THEMES = ['skyrim', 'daedric', 'dwemer', 'classic-mmo', 'modern', 'minimal', 'transparent', 'high-contrast'];
@@ -16,7 +16,7 @@ let settingsSaveQueued = null;
 const PENDING_SETTINGS_KEY = 'chronicle_pending_settings';
 
 function interactionHint() {
-  return config.general.interact_hotkey + ': interact · Shift+' + config.general.config_hotkey.toUpperCase() + ': settings';
+  return t('status.hint', {interact: config.general.interact_hotkey, settings: config.general.config_hotkey.toUpperCase()});
 }
 
 function statusText(text) {
@@ -31,9 +31,9 @@ function beginInteraction() {
   focusPending = true;
   document.body.classList.add('interacting');
   refreshSpeakerOptions();
-  statusText('Requesting mouse…');
+  statusText(t('status.requestingMouse'));
   if (!sendToGame('focusAcquired', '')) {
-    focusResult(false, 'Game connection unavailable');
+    focusResult(false, 'status.noConnection');
     return false;
   }
   return true;
@@ -59,7 +59,7 @@ function focusResult(success, reason) {
   focusPending = false;
   if (!success) closeInteraction(false);
   document.body.classList.toggle('mouse-active', success);
-  statusText(reason);
+  statusText(t(reason));
   if (success && inputOpen) document.getElementById('chat-input').focus();
   return true;
 }
@@ -97,7 +97,7 @@ function flushHistory() {
   try {
     localStorage.setItem(historyKey(), JSON.stringify(messages.slice(-config.general.max_messages)
       .map(({channel, speaker, message, timestamp}) => ({channel, speaker, message, timestamp}))));
-  } catch (_) { statusText('History could not be saved; export it before closing'); }
+  } catch (_) { statusText(t('status.historyNotSaved')); }
 }
 
 function scheduleHistorySave() {
@@ -108,10 +108,11 @@ function nativeBootstrap(data) {
   clearInterval(bootstrapTimer);
   runtime.connected = true;
   runtime.nativeHotkeys = data.nativeHotkeys === true;
+  runtime.gameLanguage = data.gameLanguage || ''; // Skyrim's sLanguage, for "Auto"
   if (data.settings) config = deepMerge(deepMerge({}, DEFAULT_CONFIG), data.settings);
   normalizeConfig();
   applyConfig();
-  statusText(data.warning || ('Chronicle ' + data.version + ' · ' + interactionHint()));
+  statusText(data.warning || t('status.version', {version: data.version, hint: interactionHint()}));
   // Migrate existing browser preferences once if no native settings file exists.
   if (!retryPendingSettings() && !data.settings && !data.warning) persistConfig();
 }
@@ -136,8 +137,9 @@ function startHandshake() {
   handshake();
 }
 
-function saveResult(ok, detail) {
-  statusText(detail);
+// detail is a translation key (or finished text); param fills its {detail}.
+function saveResult(ok, detail, param) {
+  statusText(t(detail, {detail: param}));
   document.getElementById('sp-status').classList.toggle('error', !ok);
 }
 
@@ -183,15 +185,13 @@ function retryPendingSettings() {
 
 function dispatchSettingsSave(serialized) {
   settingsSaveInFlight = serialized;
-  statusText('Saving settings…');
+  statusText(t('status.savingSettings'));
   if (!sendToGame('settingsChanged', serialized)) {
     settingsSaveInFlight = null;
     const latest = settingsSaveQueued || serialized;
     settingsSaveQueued = null;
     const cached = savePendingSettings(latest);
-    saveResult(false, cached
-      ? 'Settings pending native save; will retry on the next connection'
-      : 'Settings are active for this session only; native save unavailable');
+    saveResult(false, cached ? 'status.pendingRetry' : 'status.sessionOnly');
   }
 }
 
@@ -203,13 +203,13 @@ function persistConfig() {
 
   if (settingsSaveInFlight) {
     settingsSaveQueued = serialized;
-    statusText('Saving latest settings…');
+    statusText(t('status.savingLatest'));
     return;
   }
   dispatchSettingsSave(serialized);
 }
 
-function settingsSaveResult(ok, detail) {
+function settingsSaveResult(ok, detail, param) {
   if (!settingsSaveInFlight) return;
   const attempted = settingsSaveInFlight;
   const queued = settingsSaveQueued;
@@ -219,29 +219,29 @@ function settingsSaveResult(ok, detail) {
   if (queued) {
     // Keep the newest payload recoverable while it waits for its own result.
     savePendingSettings(queued);
-    saveResult(ok, detail);
+    saveResult(ok, detail, param);
     dispatchSettingsSave(queued);
   } else if (ok) {
     clearPendingSettings();
-    saveResult(ok, detail);
+    saveResult(ok, detail, param);
   } else if (!savePendingSettings(attempted)) {
-    detail = detail + ' Current session only: pending settings could not be cached.';
-    saveResult(ok, detail);
+    saveResult(ok, t(detail, {detail: param}) + ' ' + t('status.notCached'));
   } else {
-    saveResult(ok, detail);
+    saveResult(ok, detail, param);
   }
 }
 
 function diagnosticsResult(data) {
-  document.getElementById('diagnostics-output').textContent =
-    'Chronicle ' + data.version + ' / PrismaUI API ' + data.api + '\n' +
-    'Game connection: ' + (data.bridge ? 'connected' : 'missing') + '\n' +
-    'Game loaded: ' + data.gameLoaded + ' · Window visible: ' + data.visible + '\n' +
-    'Mouse focus: ' + data.focus + ' · Subtitle polling: ' + data.poller + '\n' +
-    'HUD subtitle path: ' + (data.hudPath || '(none resolved)') + '\n' +
-    'Messages captured this load: ' + data.messages + '\n' +
-    'Last subtitle: ' + (data.lastSubtitle || '(none captured yet)') + '\n' +
-    'Settings: ' + data.settingsFile;
+  document.getElementById('diagnostics-output').textContent = [
+    'Chronicle ' + data.version + ' / PrismaUI API ' + data.api,
+    t('diag.connection', {value: t(data.bridge ? 'diag.connected' : 'diag.missing')}),
+    t('diag.state', {loaded: data.gameLoaded, visible: data.visible}),
+    t('diag.focus', {focus: data.focus, poller: data.poller}),
+    t('diag.hudPath', {value: data.hudPath || t('diag.noneResolved')}),
+    t('diag.messages', {value: data.messages}),
+    t('diag.lastSubtitle', {value: data.lastSubtitle || t('diag.noneYet')}),
+    t('diag.settings', {value: data.settingsFile}),
+  ].join('\n');
 }
 
 function matchesFilters(entry) {
@@ -261,7 +261,8 @@ function refreshSpeakerOptions() {
   const selected = select.value;
   select.replaceChildren();
   const all = document.createElement('option');
-  all.value = ''; all.textContent = 'All speakers'; select.appendChild(all);
+  all.value = ''; all.textContent = t('ui.allSpeakers'); select.appendChild(all);
+  if (all.dataset) all.dataset.i18n = 'ui.allSpeakers'; // re-translated on language change
   [...new Set(messages.map(entry => entry.speaker).filter(Boolean))].sort().forEach(name => {
     const option = document.createElement('option'); option.value = name; option.textContent = name;
     select.appendChild(option);
@@ -283,7 +284,7 @@ function copyHistory() {
   box.hidden = false; box.value = visibleHistoryText(); box.focus(); box.select();
   let copied = false;
   try { copied = document.execCommand('copy'); } catch (_) {}
-  statusText(copied ? 'Filtered history copied' : 'Press Ctrl+C to copy the selected history');
+  statusText(t(copied ? 'status.copied' : 'status.pressCtrlC'));
 }
 
 function resetWindowPosition() {
