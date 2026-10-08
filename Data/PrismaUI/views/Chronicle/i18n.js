@@ -172,9 +172,23 @@ const STRINGS = {
     'sp.diagnostics': 'Diagnostics',
     'sp.apply': 'Apply',
 
+    "sp.autoHide": "Auto-hide after (s)",
+
+    "sp.autoHideHint": "Fades the whole window when nothing new arrives. 0 = never",
+
+    "sp.rememberHidden": "Remember hidden state",
+
+    "sp.rememberHiddenHint": "If you hide Chronicle with the show/hide key, keep it hidden after loading",
+
+    "sp.toggleHotkey": "Show/hide hotkey",
+
+    "sp.toggleHotkeyHint": "Hides or shows Chronicle; the settings hotkey also brings it back. Backspace removes the key",
+
+    "hotkey.none": "None",
+
     'hotkey.press': 'Press a key…',
     'hotkey.applyToSave': 'Click Apply to save.',
-    'hotkey.clash': 'Interact and Input hotkeys are both {key}. Choose different keys.',
+    "hotkey.clashAny": "Two hotkeys are both {key}. Choose different keys.",
     'hotkey.numpad': "Number-pad keys can't be used. Use the number keys above the letters instead.",
     'hotkey.unsupported': "That key can't be used. Choose a letter, number, Enter or F1–F12.",
   },
@@ -333,9 +347,23 @@ const STRINGS = {
     'sp.diagnostics': 'Diagnostic',
     'sp.apply': 'Appliquer',
 
+    "sp.autoHide": "Masquer après (s)",
+
+    "sp.autoHideHint": "Fait disparaître toute la fenêtre quand rien de nouveau n'arrive. 0 = jamais",
+
+    "sp.rememberHidden": "Mémoriser le masquage",
+
+    "sp.rememberHiddenHint": "Si vous masquez Chronicle avec la touche Afficher/Masquer, il reste masqué après le chargement",
+
+    "sp.toggleHotkey": "Touche Afficher/Masquer",
+
+    "sp.toggleHotkeyHint": "Affiche ou masque Chronicle ; la touche Paramètres le réaffiche aussi. Retour arrière supprime la touche",
+
+    "hotkey.none": "Aucune",
+
     'hotkey.press': 'Appuyez sur une touche…',
     'hotkey.applyToSave': 'Cliquez sur Appliquer pour enregistrer.',
-    'hotkey.clash': 'Les touches Interagir et Saisie sont toutes deux {key}. Choisissez des touches différentes.',
+    "hotkey.clashAny": "Deux raccourcis utilisent {key}. Choisissez des touches différentes.",
     'hotkey.numpad': 'Les touches du pavé numérique ne sont pas prises en charge. Utilisez les chiffres au-dessus des lettres.',
     'hotkey.unsupported': 'Cette touche ne peut pas être utilisée. Choisissez une lettre, un chiffre, Entrée ou F1–F12.',
   },
@@ -494,9 +522,23 @@ const STRINGS = {
     'sp.diagnostics': 'Diagnose',
     'sp.apply': 'Übernehmen',
 
+    "sp.autoHide": "Ausblenden nach (s)",
+
+    "sp.autoHideHint": "Blendet das ganze Fenster aus, wenn nichts Neues kommt. 0 = nie",
+
+    "sp.rememberHidden": "Ausgeblendet bleiben",
+
+    "sp.rememberHiddenHint": "Wenn Chronicle per Ein/Aus-Taste ausgeblendet wurde, bleibt es nach dem Laden ausgeblendet",
+
+    "sp.toggleHotkey": "Taste Ein-/Ausblenden",
+
+    "sp.toggleHotkeyHint": "Blendet Chronicle ein oder aus; die Einstellungstaste blendet es auch wieder ein. Rücktaste entfernt die Taste",
+
+    "hotkey.none": "Keine",
+
     'hotkey.press': 'Taste drücken…',
     'hotkey.applyToSave': 'Zum Speichern auf Übernehmen klicken.',
-    'hotkey.clash': 'Interagieren und Eingabe verwenden beide {key}. Bitte unterschiedliche Tasten wählen.',
+    "hotkey.clashAny": "Zwei Tastenkürzel verwenden {key}. Bitte unterschiedliche Tasten wählen.",
     'hotkey.numpad': 'Tasten des Ziffernblocks können nicht verwendet werden. Bitte die Zahlentasten über den Buchstaben verwenden.',
     'hotkey.unsupported': 'Diese Taste kann nicht verwendet werden. Bitte einen Buchstaben, eine Zahl, Eingabe oder F1–F12 wählen.',
   },
@@ -649,9 +691,23 @@ const STRINGS = {
     "sp.reset": "Ripristina",
     "sp.diagnostics": "Diagnostica",
     "sp.apply": "Applica",
+
+    "sp.autoHide": "Nascondi dopo (s)",
+
+    "sp.autoHideHint": "Dissolve l'intera finestra quando non arriva nulla di nuovo. 0 = mai",
+
+    "sp.rememberHidden": "Ricorda lo stato nascosto",
+
+    "sp.rememberHiddenHint": "Se nascondi Chronicle con il tasto Mostra/Nascondi, resta nascosto dopo il caricamento",
+
+    "sp.toggleHotkey": "Tasto Mostra/Nascondi",
+
+    "sp.toggleHotkeyHint": "Mostra o nasconde Chronicle; anche il tasto Impostazioni lo fa riapparire. Backspace rimuove il tasto",
+
+    "hotkey.none": "Nessuno",
     "hotkey.press": "Premi un tasto…",
     "hotkey.applyToSave": "Fai clic su Applica per salvare.",
-    "hotkey.clash": "I tasti Interagisci e Scrittura sono entrambi {key}. Scegli tasti diversi.",
+    "hotkey.clashAny": "Due tasti rapidi usano {key}. Scegli tasti diversi.",
     "hotkey.numpad": "I tasti del tastierino numerico non sono supportati. Usa i numeri sopra le lettere.",
     "hotkey.unsupported": "Questo tasto non può essere usato. Scegli una lettera, un numero, Invio o F1–F12.",
   },
@@ -804,9 +860,23 @@ const STRINGS = {
     "sp.reset": "Restablecer",
     "sp.diagnostics": "Diagnóstico",
     "sp.apply": "Aplicar",
+
+    "sp.autoHide": "Ocultar tras (s)",
+
+    "sp.autoHideHint": "Desvanece toda la ventana cuando no llega nada nuevo. 0 = nunca",
+
+    "sp.rememberHidden": "Recordar oculto",
+
+    "sp.rememberHiddenHint": "Si ocultas Chronicle con la tecla Mostrar/Ocultar, sigue oculto tras cargar",
+
+    "sp.toggleHotkey": "Tecla Mostrar/Ocultar",
+
+    "sp.toggleHotkeyHint": "Muestra u oculta Chronicle; la tecla Ajustes también lo vuelve a mostrar. Retroceso quita la tecla",
+
+    "hotkey.none": "Ninguna",
     "hotkey.press": "Pulsa una tecla…",
     "hotkey.applyToSave": "Pulsa Aplicar para guardar.",
-    "hotkey.clash": "Las teclas Interactuar y Escribir son ambas {key}. Elige teclas distintas.",
+    "hotkey.clashAny": "Dos atajos usan {key}. Elige teclas distintas.",
     "hotkey.numpad": "Las teclas del teclado numérico no se admiten. Usa los números de encima de las letras.",
     "hotkey.unsupported": "Esa tecla no se puede usar. Elige una letra, un número, Intro o F1–F12.",
   },
@@ -959,9 +1029,23 @@ const STRINGS = {
     "sp.reset": "Resetuj",
     "sp.diagnostics": "Diagnostyka",
     "sp.apply": "Zastosuj",
+
+    "sp.autoHide": "Ukryj po (s)",
+
+    "sp.autoHideHint": "Wygasza całe okno, gdy nic nowego nie przychodzi. 0 = nigdy",
+
+    "sp.rememberHidden": "Pamiętaj ukrycie",
+
+    "sp.rememberHiddenHint": "Jeśli ukryjesz Chronicle klawiszem Pokaż/Ukryj, pozostanie ukryte po wczytaniu",
+
+    "sp.toggleHotkey": "Klawisz Pokaż/Ukryj",
+
+    "sp.toggleHotkeyHint": "Pokazuje lub ukrywa Chronicle; klawisz ustawień też je przywraca. Backspace usuwa klawisz",
+
+    "hotkey.none": "Brak",
     "hotkey.press": "Naciśnij klawisz…",
     "hotkey.applyToSave": "Kliknij Zastosuj, aby zapisać.",
-    "hotkey.clash": "Klawisze interakcji i pisania to oba {key}. Wybierz różne klawisze.",
+    "hotkey.clashAny": "Dwa skróty używają {key}. Wybierz różne klawisze.",
     "hotkey.numpad": "Klawiszy klawiatury numerycznej nie można używać. Użyj cyfr nad literami.",
     "hotkey.unsupported": "Tego klawisza nie można użyć. Wybierz literę, cyfrę, Enter lub F1–F12.",
   },
@@ -1114,9 +1198,23 @@ const STRINGS = {
     "sp.reset": "Sıfırla",
     "sp.diagnostics": "Tanılama",
     "sp.apply": "Uygula",
+
+    "sp.autoHide": "Şu süre sonra gizle (sn)",
+
+    "sp.autoHideHint": "Yeni bir şey gelmediğinde tüm pencereyi soldurur. 0 = asla",
+
+    "sp.rememberHidden": "Gizli durumu hatırla",
+
+    "sp.rememberHiddenHint": "Chronicle'ı Göster/Gizle tuşuyla gizlerseniz yüklemeden sonra da gizli kalır",
+
+    "sp.toggleHotkey": "Göster/Gizle tuşu",
+
+    "sp.toggleHotkeyHint": "Chronicle'ı gösterir veya gizler; Ayarlar tuşu da geri getirir. Geri silme tuşu kısayolu kaldırır",
+
+    "hotkey.none": "Yok",
     "hotkey.press": "Bir tuşa basın…",
     "hotkey.applyToSave": "Kaydetmek için Uygula'ya tıklayın.",
-    "hotkey.clash": "Etkileşim ve Yazma tuşlarının ikisi de {key}. Farklı tuşlar seçin.",
+    "hotkey.clashAny": "İki kısayol da {key}. Farklı tuşlar seçin.",
     "hotkey.numpad": "Sayısal tuş takımı tuşları kullanılamaz. Harflerin üstündeki rakamları kullanın.",
     "hotkey.unsupported": "Bu tuş kullanılamaz. Bir harf, rakam, Enter veya F1–F12 seçin.",
   },
@@ -1269,9 +1367,23 @@ const STRINGS = {
     "sp.reset": "重置",
     "sp.diagnostics": "诊断",
     "sp.apply": "应用",
+
+    "sp.autoHide": "自动隐藏（秒）",
+
+    "sp.autoHideHint": "没有新消息时淡出整个窗口。0 = 从不",
+
+    "sp.rememberHidden": "记住隐藏状态",
+
+    "sp.rememberHiddenHint": "用显示/隐藏键隐藏 Chronicle 后，加载存档时保持隐藏",
+
+    "sp.toggleHotkey": "显示/隐藏键",
+
+    "sp.toggleHotkeyHint": "显示或隐藏 Chronicle；设置键也能让它重新显示。按 Backspace 清除按键",
+
+    "hotkey.none": "无",
     "hotkey.press": "请按下按键…",
     "hotkey.applyToSave": "点击“应用”保存。",
-    "hotkey.clash": "互动键和输入键都是 {key}。请选择不同的按键。",
+    "hotkey.clashAny": "有两个快捷键都是 {key}。请选择不同的按键。",
     "hotkey.numpad": "不能使用小键盘按键，请使用字母上方的数字键。",
     "hotkey.unsupported": "无法使用此按键。请选择字母、数字、Enter 或 F1–F12。",
   },
@@ -1424,9 +1536,23 @@ const STRINGS = {
     "sp.reset": "リセット",
     "sp.diagnostics": "診断",
     "sp.apply": "適用",
+
+    "sp.autoHide": "自動非表示（秒）",
+
+    "sp.autoHideHint": "新しいメッセージがないとウィンドウ全体をフェードアウト。0 = しない",
+
+    "sp.rememberHidden": "非表示状態を記憶",
+
+    "sp.rememberHiddenHint": "表示/非表示キーで隠した場合、ロード後も非表示のまま",
+
+    "sp.toggleHotkey": "表示/非表示キー",
+
+    "sp.toggleHotkeyHint": "Chronicle の表示と非表示を切り替えます。設定キーでも再表示できます。Backspace でキーを解除",
+
+    "hotkey.none": "なし",
     "hotkey.press": "キーを押してください…",
     "hotkey.applyToSave": "「適用」で保存します。",
-    "hotkey.clash": "操作キーと入力キーがどちらも {key} です。別のキーを選んでください。",
+    "hotkey.clashAny": "2 つのホットキーがどちらも {key} です。別のキーを選んでください。",
     "hotkey.numpad": "テンキーは使えません。文字の上にある数字キーを使ってください。",
     "hotkey.unsupported": "このキーは使えません。文字、数字、Enter、F1–F12 から選んでください。",
   },
@@ -1579,9 +1705,23 @@ const STRINGS = {
     "sp.reset": "초기화",
     "sp.diagnostics": "진단",
     "sp.apply": "적용",
+
+    "sp.autoHide": "자동 숨김 (초)",
+
+    "sp.autoHideHint": "새 메시지가 없으면 창 전체를 서서히 숨깁니다. 0 = 사용 안 함",
+
+    "sp.rememberHidden": "숨김 상태 기억",
+
+    "sp.rememberHiddenHint": "표시/숨김 키로 숨긴 경우 불러온 후에도 숨긴 상태로 유지",
+
+    "sp.toggleHotkey": "표시/숨김 키",
+
+    "sp.toggleHotkeyHint": "Chronicle을 표시하거나 숨깁니다. 설정 키로도 다시 표시됩니다. Backspace로 키를 지웁니다",
+
+    "hotkey.none": "없음",
     "hotkey.press": "키를 누르세요…",
     "hotkey.applyToSave": "'적용'을 눌러 저장하세요.",
-    "hotkey.clash": "상호작용 키와 입력 키가 모두 {key}입니다. 다른 키를 선택하세요.",
+    "hotkey.clashAny": "두 단축키가 모두 {key}입니다. 다른 키를 선택하세요.",
     "hotkey.numpad": "숫자 키패드는 사용할 수 없습니다. 문자 위의 숫자 키를 사용하세요.",
     "hotkey.unsupported": "이 키는 사용할 수 없습니다. 문자, 숫자, Enter 또는 F1–F12를 선택하세요.",
   },
