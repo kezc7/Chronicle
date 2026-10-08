@@ -357,7 +357,7 @@ void Chronicle::SendMessage(std::string_view channel, std::string_view speaker, 
 void Chronicle::OnPlayerInput(std::string_view text)
 {
     if (!m_gameLoaded || m_hidden || text.size() > 8192) return;
-    SendMessage("player", "Player", text);
+    SendMessage("player", PlayerDisplayName(), text);
     if (auto* events = SKSE::GetModCallbackEventSource()) {
         SKSE::ModCallbackEvent event{
             RE::BSFixedString("SkyrimNet_PlayerInput"), RE::BSFixedString(std::string(text).c_str()), 0.0f, nullptr};
@@ -367,16 +367,36 @@ void Chronicle::OnPlayerInput(std::string_view text)
 
 void Chronicle::OnConsoleCommand(std::string_view text)
 {
-    if (!m_gameLoaded || m_hidden || text.empty() || text.size() > 8192) return;
+    // Each outcome is logged so user logs show why a command did nothing.
+    const auto shown = std::string(text.substr(0, 200));
+    if (!m_gameLoaded || m_hidden || text.empty() || text.size() > 8192) {
+        spdlog::info("Chronicle: console command '{}' ignored (loaded={}, hidden={}, length={})",
+            shown, m_gameLoaded.load(), m_hidden.load(), text.size());
+        return;
+    }
     std::string command(text);
     if (command.front() == '/') command.erase(0, 1);
     const auto factory = RE::IFormFactory::GetConcreteFormFactoryByType<RE::Script>();
-    if (!factory) return;
-    std::unique_ptr<RE::Script> script(factory->Create());
-    if (script) {
-        script->SetCommand(command);
-        CompileAndRun(script.get(), RE::PlayerCharacter::GetSingleton());
+    if (!factory) {
+        spdlog::warn("Chronicle: console command '{}' failed: no script factory", shown);
+        return;
     }
+    std::unique_ptr<RE::Script> script(factory->Create());
+    if (!script) {
+        spdlog::warn("Chronicle: console command '{}' failed: could not create script", shown);
+        return;
+    }
+    script->SetCommand(command);
+    SendMessage("console", "", "> " + command);
+
+    // Commands print synchronously into the console log; post what this one added.
+    auto* log = RE::ConsoleLog::GetSingleton();
+    const std::string before = log ? log->buffer.c_str() : "";
+    CompileAndRun(script.get(), RE::PlayerCharacter::GetSingleton());
+    const auto output = log ? ChronicleRuntime::ConsoleOutputSince(before, log->buffer.c_str()) : std::string{};
+    const auto lines = ChronicleRuntime::ConsoleLines(output, 50);
+    for (const auto& line : lines) SendMessage("console", "", line);
+    spdlog::info("Chronicle: console command '{}' run, {} output line(s)", shown, lines.size());
 }
 
 void Chronicle::ApplyNativeSettings(const nlohmann::json& settings)
@@ -391,6 +411,11 @@ void Chronicle::ApplyNativeSettings(const nlohmann::json& settings)
     m_state.hideMenus = hideMenus;
     m_state.hidePhoto = hidePhoto;
     m_combatHits = general.value("combat_hits", true);
+    m_hideGameNotifications = general.value("hide_game_notifications", false);
+    m_chatboxEnabled = general.value("enabled", true);
+    const auto& channels = settings.at("channels");
+    m_notificationChannel = !channels.contains("notification") || !channels.at("notification").is_object() ||
+        channels.at("notification").value("enabled", true);
     std::vector<std::string> extraHudPaths;
     if (const auto it = settings.find("hud_subtitle_paths"); it != settings.end() && it->is_array()) {
         for (const auto& value : *it) {
