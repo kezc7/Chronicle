@@ -154,7 +154,8 @@ RE::BSEventNotifyControl SkyrimNetEventSink::ProcessEvent(
             spdlog::debug("Chronicle: ignored non-JSON SkyrimNet speech event: {}", e.what());
         }
     } else if (eventName == "SkyrimNet_PlayerInput") {
-        Chronicle::GetSingleton()->SendMessage("player", "Player", strArg);
+        // Same speaker as OnPlayerInput, so the echo of our own event is deduplicated.
+        Chronicle::GetSingleton()->SendMessage("player", PlayerDisplayName(), strArg);
     }
 
     return RE::BSEventNotifyControl::kContinue;
@@ -248,27 +249,43 @@ RE::BSEventNotifyControl LevelUpEventSink::ProcessEvent(
 
 namespace
 {
-    struct HUDNotificationsProcessMessage
+    // HUDMenu receives each HUD message (HUDData) before it is displayed. On
+    // 1.6.1170 notifications never reach HUDNotifications::ProcessMessage (the
+    // menu queues them itself), so capture them here from the message data.
+    struct HUDMenuProcessMessage
     {
-        // Entries the original appends to the queue are exactly what the game
-        // decided to show (duplicates it cancels are never added).
-        static bool Thunk(RE::HUDNotifications* a_this, RE::UIMessage* a_message)
+        // Returns true when the game's own display of this notification should be
+        // suppressed ("notifications only in Chronicle").
+        static bool Capture(const RE::UIMessage& a_message)
         {
-            const auto before = a_this->queue.size();
-            const bool result = Original(a_this, a_message);
+            if (a_message.type.get() != RE::UI_MESSAGE_TYPE::kUpdate || !a_message.data) return false;
+            // Identify HUDData exactly by its vtable before reading any of its fields.
+            static const auto hudDataVtable = REL::Relocation<std::uintptr_t>{ RE::VTABLE_HUDData[0] }.address();
+            if (*reinterpret_cast<const std::uintptr_t*>(a_message.data) != hudDataVtable) return false;
+
+            const auto* hud = static_cast<const RE::HUDData*>(a_message.data);
+            const auto type = static_cast<std::uint32_t>(hud->type.get());
+            const std::string text = ChronicleRuntime::StripHtml(hud->text.c_str());
+            if (!ChronicleRuntime::IsNotificationType(type) || text.empty()) return false;
+
+            auto* chronicle = Chronicle::GetSingleton();
+            chronicle->SendMessage(ChronicleRuntime::NotificationChannel(type), "",
+                std::string(ChronicleRuntime::NotificationPrefix(type)) + text);
+            // Only plain notifications (type 1); quest and skill banners stay on screen.
+            return type == 1 && chronicle->ShouldHideGameNotification();
+        }
+
+        static RE::UI_MESSAGE_RESULTS Thunk(RE::HUDMenu* a_this, RE::UIMessage& a_message)
+        {
+            bool suppress = false;
             try {
-                for (auto i = before; i < a_this->queue.size(); ++i) {
-                    const auto& entry = a_this->queue[i];
-                    auto text = ChronicleRuntime::NotificationText(entry.text.c_str(), entry.status.c_str());
-                    if (!text.empty()) {
-                        Chronicle::GetSingleton()->SendMessage(
-                            ChronicleRuntime::NotificationChannel(entry.type), "", text);
-                    }
-                }
+                suppress = Capture(a_message);
             } catch (...) {
                 // Never let capture failures escape into the game's UI code.
             }
-            return result;
+            // The UI system still releases the message; the HUD just never shows it.
+            if (suppress) return RE::UI_MESSAGE_RESULTS::kHandled;
+            return Original(a_this, a_message);
         }
 
         static inline REL::Relocation<decltype(Thunk)> Original;
@@ -277,8 +294,8 @@ namespace
 
 void NotificationHook::Install()
 {
-    REL::Relocation<std::uintptr_t> vtable{ RE::VTABLE_HUDNotifications[0] };
-    HUDNotificationsProcessMessage::Original = vtable.write_vfunc(0x2, HUDNotificationsProcessMessage::Thunk);
+    REL::Relocation<std::uintptr_t> vtable{ RE::VTABLE_HUDMenu[0] };
+    HUDMenuProcessMessage::Original = vtable.write_vfunc(0x4, HUDMenuProcessMessage::Thunk);
     spdlog::info("Chronicle: HUD notification hook installed");
 }
 
@@ -343,24 +360,6 @@ void SubtitlePoller::Stop()
     m_activeSubtitles.clear();
     m_lastText.clear();
     spdlog::info("Chronicle: subtitle polling stopped");
-}
-
-// Strip HTML tags from subtitle text (GFx returns htmlText with <font> etc.)
-static std::string StripHtmlTags(const std::string& a_input)
-{
-    std::string out;
-    out.reserve(a_input.size());
-    bool inTag = false;
-    for (char c : a_input) {
-        if (c == '<') {
-            inTag = true;
-        } else if (c == '>') {
-            inTag = false;
-        } else if (!inTag) {
-            out += c;
-        }
-    }
-    return out;
 }
 
 void SubtitlePoller::PollOnce()
@@ -448,7 +447,7 @@ void SubtitlePoller::PollOnce()
                 break;
             }
 
-            std::string text = std::string_view(path).ends_with(".htmlText") ? StripHtmlTags(raw) : std::string(raw);
+            std::string text = std::string_view(path).ends_with(".htmlText") ? ChronicleRuntime::StripHtml(raw) : std::string(raw);
             if (text.empty() || text == m_lastText) {
                 break;
             }

@@ -1,12 +1,15 @@
-# Chronicle 1.2.7
+# Chronicle 1.2.13
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
 
 It captures Skyrim subtitles and notifications into a compact, filterable chat
-window. Notifications (items, quests) are captured as the game queues them;
-skill increases, Words of Power, level-ups and game saves go to System. SkyrimNet/narrator/player/combat channels are optional and hidden by
-default on a fresh install. Existing preferences are preserved.
+window. Notifications from the game and mods (items, gold, quest objectives) are
+captured as the HUD receives them; skill increases, Words of Power, level-ups and
+game saves go to System. Optionally, the game's own corner notifications can be
+hidden so they only appear in Chronicle. SkyrimNet/narrator/player/combat/console
+channels are optional and hidden by default on a fresh install. Existing preferences
+are preserved.
 
 ## Controls
 
@@ -99,6 +102,26 @@ page and development preview files are excluded.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.2.13 changes
+
+1.2.8–1.2.12 were test builds; this is the first update after the 1.2.7 Nexus release.
+
+- Notifications now actually reach Chronicle. Since 1.2.2 the hook sat on
+  `HUDNotifications::ProcessMessage`, which on 1.6.1170 never receives
+  notifications (the HUD menu queues them itself). Chronicle now hooks
+  `HUDMenu::ProcessMessage` and reads each notification's `HUDData` text, identified
+  by its vtable. This covers game and mod notifications alike.
+- Mod notification formatting (`<font color=...>` and similar) is stripped.
+- Quest and objective lines are labelled, e.g. "New objective: …" and
+  "Objective completed: …".
+- New setting **Notifications only in Chronicle** (General → Behaviour, default off):
+  hides the game's corner notifications while Chronicle is visible, the chatbox is
+  on and the Notifications channel is enabled. Quest and skill banners still show.
+- Console commands echo in Chronicle (`> command`) along with their output (first 50
+  lines; the rest stay in Skyrim's console). Console lines now also show in the
+  All tab. Every command and its outcome is written to `Chronicle.log`.
+- Messages you type (Player channel) show your character's name instead of "Player".
 
 ## 1.2.7 changes
 
