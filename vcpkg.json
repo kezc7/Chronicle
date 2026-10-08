@@ -1,6 +1,6 @@
 {
     "name": "chronicle",
-    "version-string": "1.2.19",
+    "version-string": "1.2.20",
     "description": "In-game chatbox and message log for Skyrim SE",
     "features": {
         "plugin": {
