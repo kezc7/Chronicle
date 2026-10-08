@@ -1,6 +1,10 @@
 'use strict';
 
 const runtime = { connected: false, loaded: false, visible: false, profile: '', character: '' };
+// Chat window themes (styles.css body[data-theme] blocks); anything else,
+// including a missing value, falls back to the default Skyrim theme.
+const THEMES = ['skyrim', 'daedric', 'dwemer', 'classic-mmo', 'modern', 'minimal', 'transparent', 'high-contrast'];
+function normalizeTheme(theme) { return THEMES.includes(theme) ? theme : 'skyrim'; }
 let interactionOpen = false;
 let historySaveTimer = null;
 let bootstrapTimer = null;
