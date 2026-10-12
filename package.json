@@ -1,6 +1,7 @@
 {
   "name": "chronicle-skse-ui",
-  "version": "1.2.23",
+  "version": "1.2.25",
+  "license": "GPL-3.0-or-later",
   "private": true,
   "scripts": {
     "test": "node --test tests/*.test.cjs",

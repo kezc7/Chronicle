@@ -1,4 +1,4 @@
-# Chronicle 1.2.23
+# Chronicle 1.2.25
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -99,9 +99,35 @@ Archives use the project version, configuration, and timestamp. Every archive en
 is compared by SHA-256 with the staged build. The obsolete standalone settings
 page and development preview files are excluded.
 
+## License
+
+Chronicle's original code, web UI, tests, build scripts, and documentation are
+licensed under the GNU General Public License, version 3 or any later version.
+The complete license text is in [`LICENSE`](LICENSE). Third-party components and
+their separate notices are listed in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+
+Release archives include both files. The corresponding source is the repository
+contents at [github.com/kezc7/Chronicle](https://github.com/kezc7/Chronicle),
+including the build and packaging scripts and the pinned dependency configuration.
+The archive does not include Skyrim, SKSE, Address Library, or PrismaUI runtime
+files; obtain those separately under their own licenses.
+
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.2.25 changes
+
+- The player's dialogue choices now appear in the Dialogue channel under the
+  player's name. Skyrim's player lines are silent menu options rather than
+  subtitles, so Chronicle logs the chosen option as the NPC starts answering it.
+
+## 1.2.24 changes
+
+- Chronicle hides in more full-screen menus, following "Hide in menus": character
+  creation (RaceSex Menu, used by RaceMenu), books and notes, lockpicking, training,
+  gifting to followers, tutorials, credits and the Creations/mod menu. The Dialogue
+  Menu stays visible so conversations remain readable.
 
 ## 1.2.23 changes
 

@@ -1,3 +1,43 @@
+/*
+ * Chronicle — Skyrim SE/AE chat and activity log
+ * Copyright (C) 2026 kezc7
+ *
+ * This file is part of Chronicle.
+ *
+ * Chronicle is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free
+ * Software Foundation, either version 3 of the License, or (at your option)
+ * any later version.
+ *
+ * Chronicle is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with Chronicle. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/*
+ * Chronicle — Skyrim SE/AE chat and activity log
+ * Copyright (C) 2026 kezc7
+ *
+ * This file is part of Chronicle.
+ *
+ * Chronicle is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free
+ * Software Foundation, either version 3 of the License, or (at your option)
+ * any later version.
+ *
+ * Chronicle is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with Chronicle. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #pragma once
 #include <algorithm>
 #include <cstdint>
@@ -54,6 +94,16 @@ namespace ChronicleRuntime
     inline bool IsNotificationType(std::uint32_t type)
     {
         return type == 1 || (type >= 14 && type <= 22);
+    }
+
+    // The player's dialogue choice is logged when the NPC starts answering it:
+    // the answer is the chosen option's own info, or another info of its topic.
+    // A greeting or follow-up line belongs to neither, so nothing is logged.
+    inline bool AnswersChoice(const void* answerInfo, const void* answerTopic,
+        const void* choiceInfo, const void* choiceTopic)
+    {
+        if (!answerInfo) return false;
+        return answerInfo == choiceInfo || (choiceTopic && answerTopic == choiceTopic);
     }
 
     inline std::string_view NotificationChannel(std::uint32_t type)
@@ -407,7 +457,12 @@ namespace ChronicleRuntime
             // without it Chronicle stays on top of those menus.
             name == "MeridianUI_FocusMenu" ||
             // Skyrim's own console (~) is drawn under PrismaUI too.
-            name == "Console";
+            name == "Console" ||
+            // Other full-screen vanilla menus (RaceSex Menu is character
+            // creation, also used by RaceMenu). Dialogue Menu stays visible.
+            name == "RaceSex Menu" || name == "Book Menu" || name == "Lockpicking Menu" ||
+            name == "Training Menu" || name == "GiftMenu" || name == "Tutorial Menu" ||
+            name == "Credits Menu" || name == "Mod Manager Menu";
     }
 
     inline bool InterruptsFocus(std::string_view name)

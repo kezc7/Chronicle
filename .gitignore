@@ -35,5 +35,5 @@ vcpkg_installed/
 Thumbs.db
 Desktop.ini
 
-# Claude Code worktrees
+# Local worktrees
 .claude/

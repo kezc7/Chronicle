@@ -1,3 +1,8 @@
+# Chronicle — Skyrim SE/AE chat and activity log
+# Copyright (C) 2026 kezc7
+# This file is part of Chronicle and is licensed under the GNU GPL, version 3
+# or any later version. See LICENSE.
+
 cmake_minimum_required(VERSION 3.23)
 
 set(VCPKG_TARGET_TRIPLET x64-windows-static)
@@ -6,7 +11,7 @@ set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CAC
 
 project(
     Chronicle
-    VERSION 1.2.23
+    VERSION 1.2.25
     DESCRIPTION "In-game chatbox and message log for Skyrim SE"
     LANGUAGES CXX
 )

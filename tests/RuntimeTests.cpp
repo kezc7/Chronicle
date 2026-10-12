@@ -1,3 +1,23 @@
+/*
+ * Chronicle — Skyrim SE/AE chat and activity log
+ * Copyright (C) 2026 kezc7
+ *
+ * This file is part of Chronicle.
+ *
+ * Chronicle is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free
+ * Software Foundation, either version 3 of the License, or (at your option)
+ * any later version.
+ *
+ * Chronicle is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with Chronicle. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #include "RuntimePolicy.h"
 #include <stdexcept>
 #include <string>
@@ -43,6 +63,16 @@ int main()
     Require(!state.Visible());
     state.Menu("Console", false);
     Require(state.Visible());
+    state.Menu("RaceSex Menu", true); // character creation / RaceMenu
+    Require(!state.Visible());
+    state.Menu("RaceSex Menu", false);
+    state.Menu("Book Menu", true);
+    Require(!state.Visible());
+    state.Menu("Book Menu", false);
+    state.Menu("Dialogue Menu", true); // conversations stay visible
+    Require(state.Visible());
+    state.Menu("Dialogue Menu", false);
+    Require(state.Visible());
     state.userHidden = true; // show/hide hotkey
     Require(!state.Visible());
     state.userHidden = false;
@@ -61,6 +91,16 @@ int main()
     Require(ChronicleRuntime::ReportDeath(Side::Other, Side::Player));
     Require(ChronicleRuntime::ReportDeath(Side::Player, Side::Other));
     Require(!ChronicleRuntime::ReportDeath(Side::Other, Side::Other)); // guards vs. a dragon
+    // Player dialogue choices: logged only when the NPC answers that choice.
+    {
+        int infoA = 0, infoB = 0, topicA = 0, topicB = 0;
+        using ChronicleRuntime::AnswersChoice;
+        Require(AnswersChoice(&infoA, &topicA, &infoA, &topicA));   // NPC answers the chosen option
+        Require(AnswersChoice(&infoB, &topicA, &infoA, &topicA));   // another answer of the same topic
+        Require(!AnswersChoice(&infoB, &topicB, &infoA, &topicA));  // greeting / unrelated line
+        Require(!AnswersChoice(nullptr, nullptr, &infoA, &topicA)); // NPC not talking
+        Require(!AnswersChoice(&infoB, nullptr, &infoA, nullptr));  // unknown topics never match
+    }
     // Scaleform HTML in mod notifications.
     Require(ChronicleRuntime::StripHtml("<font color='#00FFFFFF'>The Curators Companion: Start up tasks complete...</font>")
         == "The Curators Companion: Start up tasks complete...");

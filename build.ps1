@@ -1,3 +1,8 @@
+# Chronicle — Skyrim SE/AE chat and activity log
+# Copyright (C) 2026 kezc7
+# This file is part of Chronicle and is licensed under the GNU GPL, version 3
+# or any later version. See LICENSE.
+
 # Chronicle build script
 param(
     [string]$Config = "Debug"

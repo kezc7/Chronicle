@@ -1,3 +1,43 @@
+/*
+ * Chronicle — Skyrim SE/AE chat and activity log
+ * Copyright (C) 2026 kezc7
+ *
+ * This file is part of Chronicle.
+ *
+ * Chronicle is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free
+ * Software Foundation, either version 3 of the License, or (at your option)
+ * any later version.
+ *
+ * Chronicle is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with Chronicle. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/*
+ * Chronicle — Skyrim SE/AE chat and activity log
+ * Copyright (C) 2026 kezc7
+ *
+ * This file is part of Chronicle.
+ *
+ * Chronicle is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free
+ * Software Foundation, either version 3 of the License, or (at your option)
+ * any later version.
+ *
+ * Chronicle is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with Chronicle. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #include "Events.h"
 #include "Chronicle.h"
 
@@ -324,6 +364,7 @@ void SubtitlePoller::Start()
     m_pending = false;
     m_activeSubtitles.clear();
     m_lastText.clear();
+    m_lastTopicInfo = nullptr;
     spdlog::info("Chronicle: subtitle polling started");
 
     // Spawn a background thread that sleeps kPollInterval then schedules a
@@ -367,6 +408,7 @@ void SubtitlePoller::Stop()
     m_pending = false;
     m_activeSubtitles.clear();
     m_lastText.clear();
+    m_lastTopicInfo = nullptr;
     spdlog::info("Chronicle: subtitle polling stopped");
 }
 
@@ -375,6 +417,25 @@ void SubtitlePoller::PollOnce()
     // This runs on the main game thread. Do NOT call AddTask here.
     if (!m_running) {
         return;
+    }
+
+    // --- Player dialogue choices ---
+    // The player's lines are silent menu choices, never subtitles. When the NPC
+    // starts answering, log the option the player picked first.
+    {
+        auto* ui = RE::UI::GetSingleton();
+        auto* topics = ui && ui->IsMenuOpen(RE::DialogueMenu::MENU_NAME) ? RE::MenuTopicManager::GetSingleton() : nullptr;
+        auto* info = topics ? topics->currentTopicInfo : nullptr;
+        if (info != m_lastTopicInfo) {
+            m_lastTopicInfo = info;
+            const auto* chosen = info ? topics->lastSelectedDialogue : nullptr;
+            if (chosen && ChronicleRuntime::AnswersChoice(info, info->parentTopic, chosen->parentTopicInfo, chosen->parentTopic)) {
+                const auto text = ChronicleRuntime::StripHtml(chosen->topicText.c_str());
+                if (!text.empty()) {
+                    Chronicle::GetSingleton()->SendMessage("dialogue", PlayerDisplayName(), text);
+                }
+            }
+        }
     }
 
     // --- Path 1: SubtitleManager ---

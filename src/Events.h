@@ -1,3 +1,43 @@
+/*
+ * Chronicle — Skyrim SE/AE chat and activity log
+ * Copyright (C) 2026 kezc7
+ *
+ * This file is part of Chronicle.
+ *
+ * Chronicle is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free
+ * Software Foundation, either version 3 of the License, or (at your option)
+ * any later version.
+ *
+ * Chronicle is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with Chronicle. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/*
+ * Chronicle — Skyrim SE/AE chat and activity log
+ * Copyright (C) 2026 kezc7
+ *
+ * This file is part of Chronicle.
+ *
+ * Chronicle is free software: you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free
+ * Software Foundation, either version 3 of the License, or (at your option)
+ * any later version.
+ *
+ * Chronicle is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with Chronicle. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #pragma once
 
 #include "PCH.h"
@@ -60,7 +100,7 @@ private:
 };
 
 // Native combat/death events involving the player. These keep the Combat
-// channel useful even when no AI integration is installed.
+// channel useful even when no external dialogue integration is installed.
 class CombatEventSink final : public RE::BSTEventSink<RE::TESHitEvent>
 {
 public:
@@ -165,6 +205,8 @@ private:
     void PollOnce();
 
     std::string m_lastText;
+    // NPC line being answered; only compared, never dereferenced.
+    const RE::TESTopicInfo* m_lastTopicInfo = nullptr;
     std::vector<std::string> m_extraHudPaths;
     std::string m_lastHudPath;
     std::unordered_set<std::string> m_activeSubtitles;

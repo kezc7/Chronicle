@@ -1,3 +1,8 @@
+rem Chronicle — Skyrim SE/AE chat and activity log
+rem Copyright (C) 2026 kezc7
+rem This file is part of Chronicle and is licensed under the GNU GPL, version 3
+rem or any later version. See LICENSE.
+
 @echo off
 setlocal
 
