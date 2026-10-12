@@ -1,0 +1,44 @@
+{
+  "version": 2,
+  "general": {
+    "enabled": true,
+    "input_hotkey": "Enter",
+    "interact_hotkey": "F8",
+    "config_hotkey": "N",
+    "max_messages": 100,
+    "message_fade_time": 0,
+    "persist_history": true,
+    "hide_in_menus": true,
+    "hide_in_photo_mode": true,
+    "combat_hits": true,
+    "hide_game_notifications": false,
+    "language": "auto",
+    "toggle_hotkey": "",
+    "remember_hidden": true,
+    "user_hidden": false,
+    "auto_hide": 0
+  },
+  "window": {
+    "position_x": 20,
+    "position_y": null,
+    "width": 520,
+    "height": 240,
+    "opacity": 0.65,
+    "font_size": 13,
+    "theme": "skyrim",
+    "anchor": "custom"
+  },
+  "channels": {
+    "all":       { "enabled": true,  "colour": null,      "prefix": "",         "show_timestamp": false },
+    "dialogue":  { "enabled": true,  "colour": "#ffffff",  "prefix": "",         "show_timestamp": false },
+    "system":    { "enabled": true,  "colour": "#f5c518",  "prefix": "[SYSTEM]", "show_timestamp": false },
+    "notification": { "enabled": true, "colour": "#facc15", "prefix": "[INFO]", "show_timestamp": false },
+    "skyrimnet": { "enabled": false, "colour": "#7ec8f5",  "prefix": "",         "show_timestamp": false },
+    "narrator":  { "enabled": false, "colour": "#c084fc",  "prefix": "[NARR]",   "show_timestamp": false },
+    "player":    { "enabled": false, "colour": "#86efac",  "prefix": "",         "show_timestamp": false },
+    "combat":    { "enabled": false, "colour": "#fb923c",  "prefix": "[COMBAT]", "show_timestamp": false },
+    "console":   { "enabled": false, "colour": "#94a3b8",  "prefix": "[CON]",    "show_timestamp": false }
+  },
+  "speaker_colours": {},
+  "hud_subtitle_paths": []
+}
