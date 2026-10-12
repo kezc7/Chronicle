@@ -1,6 +1,10 @@
 /*
- * PrismaUI API header — copied from https://github.com/PrismaUI-SKSE/example-skse-plugin
- * Do not modify this file.
+ * Third-party PrismaUI API header, copied from:
+ * https://github.com/PrismaUI-SKSE/example-skse-plugin
+ *
+ * For modders: Copy this file into your own project if you wish to use this API.
+ * This interface artifact is retained under its upstream terms and is not
+ * relicensed by Chronicle's GPL notice. See THIRD_PARTY_NOTICES.md.
  */
 #pragma once
 

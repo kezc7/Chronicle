@@ -1,3 +1,8 @@
+# Chronicle — Skyrim SE/AE chat and activity log
+# Copyright (C) 2026 kezc7
+# This file is part of Chronicle and is licensed under the GNU GPL, version 3
+# or any later version. See LICENSE.
+
 param([ValidateSet('Debug','Release','RelWithDebInfo')][string]$Config = 'Debug')
 $ErrorActionPreference = 'Stop'
 $projectRoot = $PSScriptRoot
@@ -15,7 +20,7 @@ Copy-Item -LiteralPath "$projectRoot\out\build\x64-$Config\Chronicle.dll" -Desti
 foreach ($file in 'index.html','script.js','controls.js','bridge.js','i18n.js','styles.css','config.json') {
     Copy-Item -LiteralPath "$projectRoot\Data\PrismaUI\views\Chronicle\$file" -Destination "$stage\PrismaUI\views\Chronicle\$file"
 }
-Copy-Item -LiteralPath "$projectRoot\README.md", "$projectRoot\LICENSE" -Destination $stage
+Copy-Item -LiteralPath "$projectRoot\README.md", "$projectRoot\LICENSE", "$projectRoot\THIRD_PARTY_NOTICES.md" -Destination $stage
 $zip = Join-Path $projectRoot "out\$name.zip"
 # Build the archive directly so entry names always use '/' (Windows PowerShell 5.1 Compress-Archive writes '\').
 Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
