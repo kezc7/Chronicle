@@ -1,0 +1,15 @@
+{
+    "name": "chronicle",
+    "version-string": "1.2.25",
+    "license": "GPL-3.0-or-later",
+    "description": "In-game chatbox and message log for Skyrim SE",
+    "features": {
+        "plugin": {
+            "description": "Default Plugin",
+            "dependencies": [ "commonlibsse-ng", "nlohmann-json" ]
+        }
+    },
+    "default-features": [
+        "plugin"
+    ]
+}
