@@ -462,6 +462,8 @@ void Chronicle::ApplyNativeSettings(const nlohmann::json& settings)
     m_state.hideMenus = hideMenus;
     m_state.hidePhoto = hidePhoto;
     m_combatHits = general.value("combat_hits", true);
+    m_dialogueRadius = ChronicleRuntime::NormalizeDialogueRadius(
+        general.value("dialogue_radius", 0.0F));
     m_hideGameNotifications = general.value("hide_game_notifications", false);
     m_chatboxEnabled = general.value("enabled", true);
     m_language = static_cast<int>(ChronicleRuntime::ResolveLanguage(
