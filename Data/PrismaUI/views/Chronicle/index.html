@@ -136,6 +136,13 @@
               </label>
             </div>
             <div class="sp-row">
+              <label><span data-i18n="sp.dialogueRadius">NPC speech radius</span><span class="sp-hint" data-i18n="sp.dialogueRadiusHint">Only log NPC speech within this distance. 0 = unlimited.</span></label>
+              <div class="sp-slider">
+                <input type="range" id="sp-dialogue-radius" min="0" max="5000" step="25" value="0" />
+                <input type="number" id="sp-dialogue-radius-val" class="sp-position-val" min="0" max="5000" step="25" value="0" />
+              </div>
+            </div>
+            <div class="sp-row">
               <label><span data-i18n="sp.hideGameNotifications">Notifications only in Chronicle</span><span class="sp-hint" data-i18n="sp.hideGameNotificationsHint">Hides the game's corner notifications while Chronicle is visible. Quest and skill banners still show.</span></label>
               <label class="sp-toggle">
                 <input type="checkbox" id="sp-hide-game-notifications" />
@@ -285,6 +292,13 @@
             <div class="sp-hint sp-section-hint" data-i18n="sp.speakerColoursHint">
               Add an exact NPC display name. Matching speaker labels use this colour.
               Names seen in your current history are suggested as you type.
+            </div>
+            <div class="sp-row">
+              <label><span data-i18n="sp.speakerColourMode">Colour mode</span><span class="sp-hint" data-i18n="sp.speakerColourModeHint">White keeps the current appearance; manual colours always override automatic colours.</span></label>
+              <select id="sp-speaker-colour-mode">
+                <option value="white" data-i18n="sp.speakerColourWhite">White</option>
+                <option value="automatic" data-i18n="sp.speakerColourAutomatic">Automatic palette</option>
+              </select>
             </div>
             <div class="sp-speaker-add">
               <input id="sp-speaker-name" type="text" list="sp-speaker-options"
