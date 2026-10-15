@@ -175,10 +175,15 @@ body.interacting .message.fading { opacity: 1; }
   margin-right: 3px;
 }
 
-/* Channel colours — applied to .speaker */
+/* Channel colours — applied to speaker labels. System and notification colours
+   also apply to their prefixes and message bodies for readability. */
 .message[data-channel="dialogue"]  .speaker { color: #ffffff; }
-.message[data-channel="system"]    .speaker { color: #f5c518; }
-.message[data-channel="notification"] .speaker { color: #facc15; }
+.message[data-channel="system"] .speaker,
+.message[data-channel="system"] .prefix,
+.message[data-channel="system"] .text { color: #f5c518; }
+.message[data-channel="notification"] .speaker,
+.message[data-channel="notification"] .prefix,
+.message[data-channel="notification"] .text { color: #fde68a; }
 .message[data-channel="skyrimnet"] .speaker { color: #7ec8f5; }
 .message[data-channel="narrator"]  .speaker { color: #c084fc; }
 .message[data-channel="player"]    .speaker { color: #86efac; }

@@ -40,6 +40,7 @@
 
 #pragma once
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -49,6 +50,21 @@
 
 namespace ChronicleRuntime
 {
+    // Dialogue radius is measured in Skyrim world units. Zero disables the
+    // filter so older settings keep the existing unlimited behaviour.
+    inline constexpr float kMaxDialogueRadius = 5000.0F;
+
+    inline float NormalizeDialogueRadius(float radius) noexcept
+    {
+        if (!std::isfinite(radius)) return 0.0F;
+        return std::clamp(radius, 0.0F, kMaxDialogueRadius);
+    }
+
+    inline bool WithinDialogueRadius(float distance, float radius) noexcept
+    {
+        return radius <= 0.0F || distance <= radius;
+    }
+
     // HUDNotifications queue entries carry a HUDData::Type. Skill increases
     // (20) and Words of Power (21, 22) are character progression and go to
     // System; items, quests and script notifications stay Notifications.
