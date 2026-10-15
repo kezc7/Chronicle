@@ -210,6 +210,7 @@ private:
     std::vector<std::string> m_extraHudPaths;
     std::string m_lastHudPath;
     std::unordered_set<std::string> m_activeSubtitles;
+    bool m_managerSubtitleActive = false;
     std::atomic<std::uint64_t> m_generation{ 0 };
     std::atomic<bool> m_pending{ false };
     std::atomic<bool> m_running{ false };

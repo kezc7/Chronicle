@@ -176,6 +176,10 @@ const STRINGS = {
     'sp.showHitsHint': 'Kills and deaths are always shown. Spells like Flames hit every second.',
     'sp.speakerColours': 'NPC speaker name colours',
     'sp.speakerColoursHint': 'Add an exact NPC display name. Matching speaker labels use this colour. Names seen in your current history are suggested as you type.',
+    'sp.speakerColourMode': 'Colour mode',
+    'sp.speakerColourModeHint': 'White keeps the current appearance; manual colours always override automatic colours.',
+    'sp.speakerColourWhite': 'White',
+    'sp.speakerColourAutomatic': 'Automatic palette',
     'sp.npcName': 'NPC display name',
     'sp.newColour': 'New speaker colour',
     'sp.addUpdate': 'Add / Update',
@@ -189,6 +193,9 @@ const STRINGS = {
     "sp.autoHide": "Auto-hide after (s)",
 
     "sp.autoHideHint": "Fades the whole window when nothing new arrives. 0 = never",
+
+    "sp.dialogueRadius": "NPC speech radius",
+    "sp.dialogueRadiusHint": "Only log NPC speech within this distance. 0 = unlimited.",
 
     "sp.rememberHidden": "Remember hidden state",
 
@@ -351,6 +358,10 @@ const STRINGS = {
     'sp.showHitsHint': 'Les morts sont toujours affichées. Les sorts comme Flammes touchent chaque seconde.',
     'sp.speakerColours': 'Couleurs des noms de PNJ',
     'sp.speakerColoursHint': "Saisissez le nom exact d'un PNJ. Ses répliques utiliseront cette couleur. Les noms présents dans l'historique sont proposés pendant la saisie.",
+    'sp.speakerColourMode': 'Mode de couleur',
+    'sp.speakerColourModeHint': "Blanc conserve l'apparence actuelle ; les couleurs manuelles ont toujours priorité sur les couleurs automatiques.",
+    'sp.speakerColourWhite': 'Blanc',
+    'sp.speakerColourAutomatic': 'Palette automatique',
     'sp.npcName': 'Nom du PNJ',
     'sp.newColour': 'Nouvelle couleur',
     'sp.addUpdate': 'Ajouter / Modifier',
@@ -364,6 +375,9 @@ const STRINGS = {
     "sp.autoHide": "Masquer après (s)",
 
     "sp.autoHideHint": "Fait disparaître toute la fenêtre quand rien de nouveau n'arrive. 0 = jamais",
+
+    "sp.dialogueRadius": "Rayon de parole des PNJ",
+    "sp.dialogueRadiusHint": "Enregistre uniquement les paroles des PNJ dans cette distance. 0 = illimité.",
 
     "sp.rememberHidden": "Mémoriser le masquage",
 
@@ -526,6 +540,10 @@ const STRINGS = {
     'sp.showHitsHint': 'Tötungen und Tode werden immer angezeigt. Zauber wie Flammen treffen jede Sekunde.',
     'sp.speakerColours': 'Farben für NPC-Namen',
     'sp.speakerColoursHint': 'Genauen NPC-Namen eingeben. Passende Sprechernamen erhalten diese Farbe. Namen aus dem aktuellen Verlauf werden beim Tippen vorgeschlagen.',
+    'sp.speakerColourMode': 'Farbmodus',
+    'sp.speakerColourModeHint': 'Weiß behält das aktuelle Erscheinungsbild bei; manuelle Farben haben immer Vorrang vor automatischen Farben.',
+    'sp.speakerColourWhite': 'Weiß',
+    'sp.speakerColourAutomatic': 'Automatische Palette',
     'sp.npcName': 'NPC-Name',
     'sp.newColour': 'Neue Sprecherfarbe',
     'sp.addUpdate': 'Hinzufügen / Ändern',
@@ -539,6 +557,9 @@ const STRINGS = {
     "sp.autoHide": "Ausblenden nach (s)",
 
     "sp.autoHideHint": "Blendet das ganze Fenster aus, wenn nichts Neues kommt. 0 = nie",
+
+    "sp.dialogueRadius": "Sprechreichweite der NPCs",
+    "sp.dialogueRadiusHint": "Nur NPC-Sprache innerhalb dieser Entfernung protokollieren. 0 = unbegrenzt.",
 
     "sp.rememberHidden": "Ausgeblendet bleiben",
 
@@ -696,6 +717,10 @@ const STRINGS = {
     "sp.showHitsHint": "Uccisioni e morti sono sempre mostrate. Incantesimi come Fiamme colpiscono ogni secondo.",
     "sp.speakerColours": "Colori dei nomi dei PNG",
     "sp.speakerColoursHint": "Inserisci il nome esatto di un PNG. Le sue battute useranno questo colore. I nomi presenti nella cronologia vengono suggeriti mentre scrivi.",
+    "sp.speakerColourMode": "Modalità colore",
+    "sp.speakerColourModeHint": "Il bianco mantiene l'aspetto attuale; i colori manuali hanno sempre la precedenza su quelli automatici.",
+    "sp.speakerColourWhite": "Bianco",
+    "sp.speakerColourAutomatic": "Tavolozza automatica",
     "sp.npcName": "Nome del PNG",
     "sp.newColour": "Nuovo colore",
     "sp.addUpdate": "Aggiungi / Modifica",
@@ -709,6 +734,9 @@ const STRINGS = {
     "sp.autoHide": "Nascondi dopo (s)",
 
     "sp.autoHideHint": "Dissolve l'intera finestra quando non arriva nulla di nuovo. 0 = mai",
+
+    "sp.dialogueRadius": "Raggio del parlato degli NPC",
+    "sp.dialogueRadiusHint": "Registra solo il parlato degli NPC entro questa distanza. 0 = illimitato.",
 
     "sp.rememberHidden": "Ricorda lo stato nascosto",
 
@@ -865,6 +893,10 @@ const STRINGS = {
     "sp.showHitsHint": "Las muertes siempre se muestran. Hechizos como Llamas golpean cada segundo.",
     "sp.speakerColours": "Colores de nombres de PNJ",
     "sp.speakerColoursHint": "Escribe el nombre exacto de un PNJ. Sus frases usarán este color. Los nombres del historial se sugieren mientras escribes.",
+    "sp.speakerColourMode": "Modo de color",
+    "sp.speakerColourModeHint": "El blanco conserva el aspecto actual; los colores manuales siempre tienen prioridad sobre los automáticos.",
+    "sp.speakerColourWhite": "Blanco",
+    "sp.speakerColourAutomatic": "Paleta automática",
     "sp.npcName": "Nombre del PNJ",
     "sp.newColour": "Color nuevo",
     "sp.addUpdate": "Añadir / Cambiar",
@@ -878,6 +910,9 @@ const STRINGS = {
     "sp.autoHide": "Ocultar tras (s)",
 
     "sp.autoHideHint": "Desvanece toda la ventana cuando no llega nada nuevo. 0 = nunca",
+
+    "sp.dialogueRadius": "Radio de habla de los NPC",
+    "sp.dialogueRadiusHint": "Registra solo el habla de los NPC dentro de esta distancia. 0 = ilimitado.",
 
     "sp.rememberHidden": "Recordar oculto",
 
@@ -1034,6 +1069,10 @@ const STRINGS = {
     "sp.showHitsHint": "Zabójstwa i śmierci są zawsze pokazywane. Zaklęcia takie jak Płomienie trafiają co sekundę.",
     "sp.speakerColours": "Kolory imion NPC",
     "sp.speakerColoursHint": "Wpisz dokładne imię NPC. Jego kwestie otrzymają ten kolor. Imiona z bieżącej historii są podpowiadane podczas pisania.",
+    "sp.speakerColourMode": "Tryb kolorów",
+    "sp.speakerColourModeHint": "Biały zachowuje obecny wygląd; kolory ręczne zawsze mają pierwszeństwo przed automatycznymi.",
+    "sp.speakerColourWhite": "Biały",
+    "sp.speakerColourAutomatic": "Paleta automatyczna",
     "sp.npcName": "Imię NPC",
     "sp.newColour": "Nowy kolor",
     "sp.addUpdate": "Dodaj / Zmień",
@@ -1047,6 +1086,9 @@ const STRINGS = {
     "sp.autoHide": "Ukryj po (s)",
 
     "sp.autoHideHint": "Wygasza całe okno, gdy nic nowego nie przychodzi. 0 = nigdy",
+
+    "sp.dialogueRadius": "Zasięg mowy NPC",
+    "sp.dialogueRadiusHint": "Zapisuj tylko mowę NPC w tej odległości. 0 = bez ograniczeń.",
 
     "sp.rememberHidden": "Pamiętaj ukrycie",
 
@@ -1203,6 +1245,10 @@ const STRINGS = {
     "sp.showHitsHint": "Öldürmeler ve ölümler her zaman gösterilir. Alev gibi büyüler her saniye vurur.",
     "sp.speakerColours": "NPC adı renkleri",
     "sp.speakerColoursHint": "Bir NPC'nin tam adını girin. Konuşmaları bu rengi kullanır. Geçmişteki adlar yazarken önerilir.",
+    "sp.speakerColourMode": "Renk modu",
+    "sp.speakerColourModeHint": "Beyaz mevcut görünümü korur; manuel renkler her zaman otomatik renklerin önüne geçer.",
+    "sp.speakerColourWhite": "Beyaz",
+    "sp.speakerColourAutomatic": "Otomatik palet",
     "sp.npcName": "NPC adı",
     "sp.newColour": "Yeni renk",
     "sp.addUpdate": "Ekle / Güncelle",
@@ -1216,6 +1262,9 @@ const STRINGS = {
     "sp.autoHide": "Şu süre sonra gizle (sn)",
 
     "sp.autoHideHint": "Yeni bir şey gelmediğinde tüm pencereyi soldurur. 0 = asla",
+
+    "sp.dialogueRadius": "NPC konuşma yarıçapı",
+    "sp.dialogueRadiusHint": "Yalnızca bu mesafe içindeki NPC konuşmalarını kaydet. 0 = sınırsız.",
 
     "sp.rememberHidden": "Gizli durumu hatırla",
 
@@ -1372,6 +1421,10 @@ const STRINGS = {
     "sp.showHitsHint": "击杀和死亡始终显示。火焰术等法术每秒都会命中。",
     "sp.speakerColours": "NPC 名称颜色",
     "sp.speakerColoursHint": "输入 NPC 的准确名称，其对话将使用此颜色。输入时会提示当前记录中出现过的名称。",
+    "sp.speakerColourMode": "颜色模式",
+    "sp.speakerColourModeHint": "白色保留当前外观；手动颜色始终优先于自动颜色。",
+    "sp.speakerColourWhite": "白色",
+    "sp.speakerColourAutomatic": "自动调色板",
     "sp.npcName": "NPC 名称",
     "sp.newColour": "新颜色",
     "sp.addUpdate": "添加 / 更新",
@@ -1385,6 +1438,9 @@ const STRINGS = {
     "sp.autoHide": "自动隐藏（秒）",
 
     "sp.autoHideHint": "没有新消息时淡出整个窗口。0 = 从不",
+
+    "sp.dialogueRadius": "NPC 对话范围",
+    "sp.dialogueRadiusHint": "仅记录此距离内的 NPC 对话。0 = 不限距离。",
 
     "sp.rememberHidden": "记住隐藏状态",
 
@@ -1541,6 +1597,10 @@ const STRINGS = {
     "sp.showHitsHint": "撃破と死亡は常に表示されます。「炎」などの呪文は毎秒ヒットします。",
     "sp.speakerColours": "NPC 名の色",
     "sp.speakerColoursHint": "NPC の正確な名前を入力すると、その台詞にこの色が使われます。入力中に履歴内の名前が候補として表示されます。",
+    "sp.speakerColourMode": "色モード",
+    "sp.speakerColourModeHint": "白は現在の表示を維持します。手動色は自動色より常に優先されます。",
+    "sp.speakerColourWhite": "白",
+    "sp.speakerColourAutomatic": "自動パレット",
     "sp.npcName": "NPC の名前",
     "sp.newColour": "新しい色",
     "sp.addUpdate": "追加 / 更新",
@@ -1554,6 +1614,9 @@ const STRINGS = {
     "sp.autoHide": "自動非表示（秒）",
 
     "sp.autoHideHint": "新しいメッセージがないとウィンドウ全体をフェードアウト。0 = しない",
+
+    "sp.dialogueRadius": "NPC 会話の範囲",
+    "sp.dialogueRadiusHint": "この距離内の NPC の会話だけを記録。0 = 無制限。",
 
     "sp.rememberHidden": "非表示状態を記憶",
 
@@ -1710,6 +1773,10 @@ const STRINGS = {
     "sp.showHitsHint": "처치와 사망은 항상 표시됩니다. 화염 같은 주문은 매초 적중합니다.",
     "sp.speakerColours": "NPC 이름 색상",
     "sp.speakerColoursHint": "NPC의 정확한 이름을 입력하면 그 대사에 이 색상이 사용됩니다. 입력하는 동안 기록에 있는 이름이 제안됩니다.",
+    "sp.speakerColourMode": "색상 모드",
+    "sp.speakerColourModeHint": "흰색은 현재 모양을 유지하며, 수동 색상은 항상 자동 색상보다 우선합니다.",
+    "sp.speakerColourWhite": "흰색",
+    "sp.speakerColourAutomatic": "자동 팔레트",
     "sp.npcName": "NPC 이름",
     "sp.newColour": "새 색상",
     "sp.addUpdate": "추가 / 변경",
@@ -1723,6 +1790,9 @@ const STRINGS = {
     "sp.autoHide": "자동 숨김 (초)",
 
     "sp.autoHideHint": "새 메시지가 없으면 창 전체를 서서히 숨깁니다. 0 = 사용 안 함",
+
+    "sp.dialogueRadius": "NPC 대화 반경",
+    "sp.dialogueRadiusHint": "이 거리 안의 NPC 대화만 기록합니다. 0 = 제한 없음.",
 
     "sp.rememberHidden": "숨김 상태 기억",
 

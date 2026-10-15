@@ -80,6 +80,28 @@ namespace
         }
         return std::string(a_fallback);
     }
+
+    bool IsWithinDialogueRadius(RE::TESObjectREFR* a_speaker, float a_radius)
+    {
+        if (a_radius <= 0.0F || !a_speaker) {
+            return true;
+        }
+
+        auto* player = RE::PlayerCharacter::GetSingleton();
+        if (!player) {
+            // If Skyrim is between player instances, keep the line rather
+            // than dropping game text because the distance cannot be read.
+            return true;
+        }
+
+        const auto speakerPosition = a_speaker->GetPosition();
+        const auto playerPosition = player->GetPosition();
+        const auto dx = speakerPosition.x - playerPosition.x;
+        const auto dy = speakerPosition.y - playerPosition.y;
+        const auto dz = speakerPosition.z - playerPosition.z;
+        const auto distance = std::sqrt(dx * dx + dy * dy + dz * dz);
+        return ChronicleRuntime::WithinDialogueRadius(distance, a_radius);
+    }
 }
 
 void SubtitlePoller::SetExtraHudPaths(std::vector<std::string> paths)
@@ -363,6 +385,7 @@ void SubtitlePoller::Start()
     const auto generation = ++m_generation;
     m_pending = false;
     m_activeSubtitles.clear();
+    m_managerSubtitleActive = false;
     m_lastText.clear();
     m_lastTopicInfo = nullptr;
     spdlog::info("Chronicle: subtitle polling started");
@@ -407,6 +430,7 @@ void SubtitlePoller::Stop()
     }
     m_pending = false;
     m_activeSubtitles.clear();
+    m_managerSubtitleActive = false;
     m_lastText.clear();
     m_lastTopicInfo = nullptr;
     spdlog::info("Chronicle: subtitle polling stopped");
@@ -444,25 +468,33 @@ void SubtitlePoller::PollOnce()
     {
         auto* mgr = RE::SubtitleManager::GetSingleton();
         std::unordered_set<std::string> current;
+        bool managerSubtitleActive = false;
+        const auto dialogueRadius = Chronicle::GetSingleton()->DialogueRadius();
         if (mgr) for (const auto& info : mgr->subtitles) {
             std::string text = info.subtitle.c_str();
             if (!text.empty()) {
+                managerSubtitleActive = true;
                 std::string speakerName;
-                if (auto speakerRef = info.speaker.get()) {
+                auto speakerRef = info.speaker.get();
+                if (speakerRef) {
                     if (auto* name = speakerRef->GetDisplayFullName()) {
                         speakerName = name;
                     }
                 }
 
                 const auto key = speakerName + '\0' + text;
-                current.insert(key);
-                if (!m_activeSubtitles.contains(key)) {
+                const bool withinRadius = IsWithinDialogueRadius(speakerRef.get(), dialogueRadius);
+                if (withinRadius) {
+                    current.insert(key);
+                }
+                if (withinRadius && !m_activeSubtitles.contains(key)) {
                     Chronicle::GetSingleton()->SendMessage("dialogue", speakerName, text);
                 }
                 m_lastText = text;
             }
         }
         m_activeSubtitles = std::move(current);
+        m_managerSubtitleActive = managerSubtitleActive;
     }
 
     // --- Path 2: HUD Menu GFx movie ---
@@ -470,7 +502,7 @@ void SubtitlePoller::PollOnce()
     // by writing directly into the Scaleform movie — bypassing SubtitleManager.
     // We read the live text field value to capture what the player sees.
     {
-        m_lastHudPath = m_activeSubtitles.empty() ? "none resolved" : "SubtitleManager";
+        m_lastHudPath = m_managerSubtitleActive ? "SubtitleManager" : "none resolved";
         auto* ui = RE::UI::GetSingleton();
         if (!ui) {
             m_lastHudPath = "HUD Menu unavailable";
@@ -479,7 +511,7 @@ void SubtitlePoller::PollOnce()
 
         // Notifications are captured by NotificationHook, not polled here.
         // Prefer the attributed manager entries while they are active.
-        if (!m_activeSubtitles.empty()) return;
+        if (m_managerSubtitleActive) return;
         auto hudMenuPtr = ui->GetMenu("HUD Menu");
         if (!hudMenuPtr || !hudMenuPtr->uiMovie) {
             return;

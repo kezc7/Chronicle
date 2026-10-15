@@ -35,6 +35,7 @@ const DEFAULT_CONFIG = {
     hide_in_menus: true,
     hide_in_photo_mode: true,
     combat_hits: true,
+    dialogue_radius: 0,       // Skyrim world units; 0 = unlimited
     hide_game_notifications: false,
     language: 'auto',          // 'auto' follows Skyrim's sLanguage
     toggle_hotkey: '',         // show/hide hotkey; '' = none
@@ -56,13 +57,14 @@ const DEFAULT_CONFIG = {
     all:       { enabled: true,  colour: null,       prefix: '',         show_timestamp: false },
     dialogue:  { enabled: true,  colour: '#ffffff',  prefix: '',         show_timestamp: false },
     system:    { enabled: true,  colour: '#f5c518',  prefix: '[SYSTEM]', show_timestamp: false },
-    notification: { enabled: true, colour: '#facc15', prefix: '[INFO]', show_timestamp: false },
+    notification: { enabled: true, colour: '#fde68a', prefix: '[INFO]', show_timestamp: false },
     skyrimnet: { enabled: false,  colour: '#7ec8f5',  prefix: '',         show_timestamp: false },
     narrator:  { enabled: false,  colour: '#c084fc',  prefix: '[NARR]',   show_timestamp: false },
     player:    { enabled: false,  colour: '#86efac',  prefix: '',         show_timestamp: false },
     combat:    { enabled: false,  colour: '#fb923c',  prefix: '[COMBAT]', show_timestamp: false },
     console:   { enabled: false, colour: '#94a3b8',  prefix: '[CON]',    show_timestamp: false },
   },
+  speaker_colour_mode: 'white', // 'white' keeps the default; 'automatic' colours unconfigured speakers
   // Exact display-name overrides for speaker labels.
   speaker_colours: {},
   // Extra Scaleform paths for HUD subtitle replacers, one per line in settings.
@@ -115,6 +117,7 @@ function normalizeConfig() {
     }
   }
   normalizeSpeakerColours();
+  config.speaker_colour_mode = config.speaker_colour_mode === 'automatic' ? 'automatic' : 'white';
   config.hud_subtitle_paths = Array.isArray(config.hud_subtitle_paths)
     ? [...new Set(config.hud_subtitle_paths
       .filter(path => typeof path === 'string')
@@ -129,6 +132,7 @@ function normalizeConfig() {
   g.message_fade_time = clamp(Number(g.message_fade_time) || 0, 0, 60);
   g.persist_history = g.persist_history !== false;
   g.combat_hits = g.combat_hits !== false;
+  g.dialogue_radius = clamp(Number(g.dialogue_radius) || 0, 0, 5000);
   g.hide_game_notifications = g.hide_game_notifications === true;
   g.language = normalizeLanguage(g.language);
   if (typeof g.toggle_hotkey !== 'string' || !/^(Enter|[a-z0-9]|F([1-9]|1[0-2]))?$/i.test(g.toggle_hotkey)) g.toggle_hotkey = '';
@@ -192,6 +196,21 @@ function normalizeSpeakerColours() {
   config.speaker_colours = clean;
 }
 
+const AUTOMATIC_SPEAKER_COLOURS = [
+  '#fca5a5', '#fdba74', '#fde68a', '#bef264', '#86efac', '#5eead4',
+  '#67e8f9', '#93c5fd', '#a5b4fc', '#c4b5fd', '#f0abfc', '#f9a8d4',
+  '#fb7185', '#fb923c', '#facc15', '#a3e635', '#4ade80', '#2dd4bf',
+  '#22d3ee', '#60a5fa', '#818cf8', '#8b5cf6', '#d946ef', '#ec4899',
+];
+
+function automaticSpeakerColour(name) {
+  let hash = 2166136261;
+  for (const character of name.toLowerCase()) {
+    hash = Math.imul(hash ^ character.charCodeAt(0), 16777619);
+  }
+  return AUTOMATIC_SPEAKER_COLOURS[(hash >>> 0) % AUTOMATIC_SPEAKER_COLOURS.length];
+}
+
 function speakerColour(speaker) {
   const name = String(speaker || '').trim();
   if (!name) return '';
@@ -199,7 +218,8 @@ function speakerColour(speaker) {
   const folded = name.toLowerCase();
   const match = Object.entries(config.speaker_colours)
     .find(([savedName]) => savedName.toLowerCase() === folded);
-  return match ? match[1] : '';
+  if (match) return match[1];
+  return config.speaker_colour_mode === 'automatic' ? automaticSpeakerColour(name) : '';
 }
 
 // ---------------------------------------------------------------------------
@@ -269,7 +289,13 @@ function applyConfig() {
   }
   const rules = Object.entries(config.channels)
     .filter(([ch, v]) => DEFAULT_CONFIG.channels[ch] && v && /^#[0-9a-f]{6}$/i.test(v.colour))
-    .map(([ch, v]) => `.message[data-channel="${ch}"] .speaker { color: ${v.colour}; }`);
+    .map(([ch, v]) => {
+      const speakerRule = `.message[data-channel="${ch}"] .speaker { color: ${v.colour}; }`;
+      if (ch !== 'system' && ch !== 'notification') return speakerRule;
+      return `${speakerRule}
+.message[data-channel="${ch}"] .prefix,
+.message[data-channel="${ch}"] .text { color: ${v.colour}; }`;
+    });
   styleEl.textContent = rules.join('\n');
   applySpeakerColours();
 
@@ -609,6 +635,8 @@ function populateSettingsForm() {
   document.getElementById('sp-max-messages').value  = g.max_messages;
   document.getElementById('sp-persist-history').checked = g.persist_history !== false;
   document.getElementById('sp-combat-hits').checked = g.combat_hits !== false;
+  document.getElementById('sp-dialogue-radius').value = g.dialogue_radius;
+  document.getElementById('sp-dialogue-radius-val').value = g.dialogue_radius;
   document.getElementById('sp-hide-game-notifications').checked = g.hide_game_notifications === true;
 
   const fadeEl = document.getElementById('sp-fade-time');
@@ -632,6 +660,7 @@ function populateSettingsForm() {
   document.getElementById('sp-auto-hide').value = g.auto_hide;
   document.getElementById('sp-auto-hide-val').value = g.auto_hide;
   document.getElementById('sp-anchor').value = w.anchor || 'custom';
+  document.getElementById('sp-speaker-colour-mode').value = config.speaker_colour_mode;
   document.getElementById('sp-hud-subtitle-paths').value = config.hud_subtitle_paths.join('\n');
   syncPositionControls();
 
@@ -777,6 +806,7 @@ function collectSettingsFromForm() {
       hide_in_menus:      document.getElementById('sp-hide-menus').checked,
       hide_in_photo_mode: document.getElementById('sp-hide-photo').checked,
       combat_hits:        document.getElementById('sp-combat-hits').checked,
+      dialogue_radius:    clamp(Number(document.getElementById('sp-dialogue-radius-val').value) || 0, 0, 5000),
       hide_game_notifications: document.getElementById('sp-hide-game-notifications').checked,
       language:           document.getElementById('sp-language').value || 'auto',
       toggle_hotkey:      document.getElementById('sp-toggle-hotkey').value || '',
@@ -799,6 +829,8 @@ function collectSettingsFromForm() {
       position_x: Number(document.getElementById('sp-position-x').value),
       position_y: Number(document.getElementById('sp-position-y').value),
     },
+    speaker_colour_mode: document.getElementById('sp-speaker-colour-mode').value === 'automatic'
+      ? 'automatic' : 'white',
     channels,
     speaker_colours: collectSpeakerColours(),
     hud_subtitle_paths: document.getElementById('sp-hud-subtitle-paths').value
@@ -876,6 +908,11 @@ document.getElementById('sp-reset').addEventListener('click', () => {
 
 document.getElementById('sp-test').addEventListener('click', runDiagnostics);
 document.getElementById('sp-speaker-add').addEventListener('click', addSpeakerColour);
+document.getElementById('sp-speaker-colour-mode').addEventListener('change', event => {
+  config.speaker_colour_mode = event.target.value === 'automatic' ? 'automatic' : 'white';
+  applySpeakerColours();
+  statusText(t('status.speakerPreview'));
+});
 document.getElementById('sp-speaker-name').addEventListener('keydown', event => {
   if (event.key === 'Enter') {
     addSpeakerColour();
@@ -1214,6 +1251,15 @@ document.getElementById('sp-position-x').addEventListener('input', event => prev
 document.getElementById('sp-position-y').addEventListener('input', event => previewPosition('position_y', event.target.value));
 document.getElementById('sp-position-x-val').addEventListener('change', event => previewPosition('position_x', event.target.value));
 document.getElementById('sp-position-y-val').addEventListener('change', event => previewPosition('position_y', event.target.value));
+const dialogueRadiusSlider = document.getElementById('sp-dialogue-radius');
+const dialogueRadiusValue = document.getElementById('sp-dialogue-radius-val');
+function syncDialogueRadius(value) {
+  const radius = clamp(Number(value) || 0, 0, 5000);
+  dialogueRadiusSlider.value = radius;
+  dialogueRadiusValue.value = radius;
+}
+dialogueRadiusSlider.addEventListener('input', event => syncDialogueRadius(event.target.value));
+dialogueRadiusValue.addEventListener('input', event => syncDialogueRadius(event.target.value));
 // Hotkey boxes: click one, then press the key. Typing a key name was easy to
 // get wrong, and an invalid value silently fell back to the default. Only keys
 // the native side understands are accepted: letters, digits, Enter, F1–F12.
