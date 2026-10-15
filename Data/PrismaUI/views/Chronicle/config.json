@@ -11,6 +11,7 @@
     "hide_in_menus": true,
     "hide_in_photo_mode": true,
     "combat_hits": true,
+    "dialogue_radius": 0,
     "hide_game_notifications": false,
     "language": "auto",
     "toggle_hotkey": "",
@@ -32,13 +33,14 @@
     "all":       { "enabled": true,  "colour": null,      "prefix": "",         "show_timestamp": false },
     "dialogue":  { "enabled": true,  "colour": "#ffffff",  "prefix": "",         "show_timestamp": false },
     "system":    { "enabled": true,  "colour": "#f5c518",  "prefix": "[SYSTEM]", "show_timestamp": false },
-    "notification": { "enabled": true, "colour": "#facc15", "prefix": "[INFO]", "show_timestamp": false },
+    "notification": { "enabled": true, "colour": "#fde68a", "prefix": "[INFO]", "show_timestamp": false },
     "skyrimnet": { "enabled": false, "colour": "#7ec8f5",  "prefix": "",         "show_timestamp": false },
     "narrator":  { "enabled": false, "colour": "#c084fc",  "prefix": "[NARR]",   "show_timestamp": false },
     "player":    { "enabled": false, "colour": "#86efac",  "prefix": "",         "show_timestamp": false },
     "combat":    { "enabled": false, "colour": "#fb923c",  "prefix": "[COMBAT]", "show_timestamp": false },
     "console":   { "enabled": false, "colour": "#94a3b8",  "prefix": "[CON]",    "show_timestamp": false }
   },
+  "speaker_colour_mode": "white",
   "speaker_colours": {},
   "hud_subtitle_paths": []
 }

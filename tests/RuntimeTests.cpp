@@ -84,6 +84,13 @@ int main()
     Require(!state.Visible());
     Require(!ChronicleRuntime::InterruptsFocus("PrismaUI_FocusMenu"));
     Require(ChronicleRuntime::InterruptsFocus("InventoryMenu"));
+    // NPC speech radius: zero keeps the legacy unlimited behaviour and
+    // positive values include the boundary while invalid/large values clamp.
+    Require(ChronicleRuntime::NormalizeDialogueRadius(0.0F) == 0.0F);
+    Require(ChronicleRuntime::NormalizeDialogueRadius(6000.0F) == ChronicleRuntime::kMaxDialogueRadius);
+    Require(ChronicleRuntime::WithinDialogueRadius(500.0F, 0.0F));
+    Require(ChronicleRuntime::WithinDialogueRadius(500.0F, 500.0F));
+    Require(!ChronicleRuntime::WithinDialogueRadius(500.1F, 500.0F));
     // Combat deaths: player and followers in, unrelated fights out.
     using ChronicleRuntime::Side;
     Require(ChronicleRuntime::ReportDeath(Side::Other, Side::Ally));   // Serana kills a vampire

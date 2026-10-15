@@ -87,6 +87,7 @@ public:
     bool OnHotkey(std::uint32_t scanCode, bool shift);
     bool ShouldConsumeKeyboardInput() const { return m_keyboardCapture.load(); }
     bool ShowCombatHits() const { return m_combatHits.load(); }
+    float DialogueRadius() const { return m_dialogueRadius.load(); }
     // A line Chronicle writes itself, in the chosen language (game text is already localized).
     std::string Text(ChronicleRuntime::Phrase a_phrase, std::string_view a_value = {}) const
     {
@@ -155,6 +156,7 @@ private:
     std::atomic<std::uint64_t> m_focusRevision{ 0 };
     std::atomic<bool> m_keyboardCapture{ false };
     std::atomic<bool> m_combatHits{ true };
+    std::atomic<float> m_dialogueRadius{ 0.0F };
     std::atomic<int> m_language{ 0 };  // ChronicleRuntime::Lang
     std::string m_gameLanguage;        // Skyrim's sLanguage, read once at data load
     std::atomic<bool> m_hideGameNotifications{ false };

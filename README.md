@@ -1,4 +1,4 @@
-# Chronicle 1.2.26
+# Chronicle 1.2.30
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -18,10 +18,15 @@ are preserved.
 - **Shift+N** opens settings. **Apply** saves and keeps the panel open to show the result.
 - Settings includes live **Position X/Y** sliders; the box moves as the sliders move.
 - **Channels → NPC speaker name colours** lets you assign exact display-name colours;
-  changes preview immediately and are saved with **Apply**.
+  changes preview immediately and are saved with **Apply**. The same section can
+  optionally assign stable automatic colours to speakers while keeping manual
+  overrides; white remains the default.
 - **Additional GFx paths** under General → HUD subtitle compatibility lets HUD
   replacers supply extra subtitle fields without recompiling. Diagnostics reports
   the path currently resolving, or that none resolved.
+- **NPC speech radius** under General → Behaviour filters attributed NPC dialogue
+  by distance from the player. `0` keeps the default unlimited range; the value
+  uses Skyrim world units.
 - **Enter** opens chat input. Submitting sends a SkyrimNet player-input event;
   responding to it requires a compatible integration. Console commands are optional
   and are executed in Skyrim when the Console channel is enabled and selected.
@@ -115,6 +120,23 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.2.30 changes
+
+- Added optional automatic NPC speaker colours with a stable 24-colour palette.
+- White remains the default, and manually assigned NPC colours take priority.
+- Notification channel colours now apply to the `[INFO]` prefix and message text;
+  the default is a brighter, more readable yellow.
+- System channel colours now apply to the `[SYSTEM]` prefix and message text.
+
+## 1.2.29 changes
+
+## 1.2.28 changes
+
+## 1.2.27 changes
+
+- Added configurable NPC speech radius filtering. Set it under General → Behaviour;
+  `0` keeps the previous unlimited range.
 
 ## 1.2.26 changes
 
