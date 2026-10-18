@@ -319,6 +319,32 @@ RE::BSEventNotifyControl LevelUpEventSink::ProcessEvent(
 
 namespace
 {
+    // Resolve a translation key through the game's Scaleform translator, which
+    // already holds every Interface/Translations file. Unknown keys stay as-is.
+    std::string TranslateKey(const std::string& a_text)
+    {
+        if (!ChronicleRuntime::IsTranslationKey(a_text)) return a_text;
+        const auto* manager = RE::BSScaleformManager::GetSingleton();
+        if (!manager || !manager->loader) return a_text;
+        auto* translator = manager->loader->GetStateAddRef<RE::GFxTranslator>(RE::GFxState::StateType::kTranslator);
+        if (!translator) return a_text;
+
+        std::string translated;
+        if (const auto key = SKSE::stl::utf8_to_utf16(a_text)) {
+            RE::GFxWStringBuffer result;
+            RE::GFxTranslator::TranslateInfo info;
+            info.key = key->c_str();
+            info.result = std::addressof(result);
+            translator->Translate(std::addressof(info));
+            if (info.flags.all(RE::GFxTranslator::TranslateInfo::kTranslated) && !result.empty()) {
+                translated = SKSE::stl::utf16_to_utf8(std::wstring_view(result)).value_or(std::string{});
+            }
+        }
+        translator->Release();
+        translated = ChronicleRuntime::StripHtml(translated);
+        return translated.empty() ? a_text : translated;
+    }
+
     // HUDMenu receives each HUD message (HUDData) before it is displayed. On
     // 1.6.1170 notifications never reach HUDNotifications::ProcessMessage (the
     // menu queues them itself), so capture them here from the message data.
@@ -335,7 +361,7 @@ namespace
 
             const auto* hud = static_cast<const RE::HUDData*>(a_message.data);
             const auto type = static_cast<std::uint32_t>(hud->type.get());
-            const std::string text = ChronicleRuntime::StripHtml(hud->text.c_str());
+            const std::string text = TranslateKey(ChronicleRuntime::StripHtml(hud->text.c_str()));
             if (!ChronicleRuntime::IsNotificationType(type) || text.empty()) return false;
 
             auto* chronicle = Chronicle::GetSingleton();

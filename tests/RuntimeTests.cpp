@@ -115,6 +115,11 @@ int main()
     Require(ChronicleRuntime::StripHtml("  <b></b>  ") == "");
     Require(ChronicleRuntime::StripHtml("a < b") == "a < b"); // unclosed '<' is text
     Require(ChronicleRuntime::StripHtml("Iron Sword added") == "Iron Sword added");
+    Require(ChronicleRuntime::IsTranslationKey("$YASTM_Notification_SoulCaptured"));
+    Require(!ChronicleRuntime::IsTranslationKey("$"));
+    Require(!ChronicleRuntime::IsTranslationKey("$500 gold added"));
+    Require(!ChronicleRuntime::IsTranslationKey("Soul captured"));
+    Require(!ChronicleRuntime::IsTranslationKey(""));
     // HUD message filtering: notifications, quests and progression only.
     Require(ChronicleRuntime::IsNotificationType(1));
     Require(ChronicleRuntime::IsNotificationType(14));

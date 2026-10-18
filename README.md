@@ -1,4 +1,4 @@
-# Chronicle 1.2.30
+# Chronicle 1.2.31
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -120,6 +120,12 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.2.31 changes
+
+- Notifications that mods send as translation keys (for example
+  `$YASTM_Notification_SoulCaptured`) now show the translated text, as the
+  game's own HUD does.
 
 ## 1.2.30 changes
 

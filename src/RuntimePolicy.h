@@ -104,6 +104,16 @@ namespace ChronicleRuntime
         return out.substr(first, out.find_last_not_of(" \t\r\n") - first + 1);
     }
 
+    // Mods can send a Scaleform translation key ("$YASTM_Notification_SoulCaptured")
+    // that the HUD movie only resolves as it draws the text. Keys are single
+    // tokens; anything with whitespace is ordinary text that happens to start
+    // with '$'.
+    inline bool IsTranslationKey(std::string_view text)
+    {
+        return text.size() > 1 && text.front() == '$' &&
+               text.find_first_of(" \t\r\n") == std::string_view::npos;
+    }
+
     // HUDData types worth logging: notifications (1), quest and objective
     // updates (14-19), skill increases (20) and Words of Power (21, 22).
     // Crosshair, activate prompts and subtitles are left out.
