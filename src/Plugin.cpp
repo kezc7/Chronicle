@@ -18,26 +18,6 @@
  * with Chronicle. If not, see <https://www.gnu.org/licenses/>.
  */
 
-/*
- * Chronicle — Skyrim SE/AE chat and activity log
- * Copyright (C) 2026 kezc7
- *
- * This file is part of Chronicle.
- *
- * Chronicle is free software: you can redistribute it and/or modify it under
- * the terms of the GNU General Public License as published by the Free
- * Software Foundation, either version 3 of the License, or (at your option)
- * any later version.
- *
- * Chronicle is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with Chronicle. If not, see <https://www.gnu.org/licenses/>.
- */
-
 #include "PCH.h"
 #include "Chronicle.h"
 #include "Events.h"
@@ -46,11 +26,9 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 {
     SKSE::Init(a_skse);
 
-    // ---- Logging setup -------------------------------------------------------
-    // Keep logs in SKSE's standard per-user directory:
-    // Documents\My Games\Skyrim Special Edition\SKSE.
-    // Do not write beside the DLL, since that puts logs under Data/SKSE/Plugins.
-    // We never let a logging failure prevent the plugin from loading.
+    // Log to Documents\My Games\Skyrim Special Edition\SKSE, not beside the DLL
+    // (that would put logs under Data/SKSE/Plugins). A logging failure never
+    // stops the plugin from loading.
 
     std::vector<spdlog::sink_ptr> sinks;
 
@@ -61,7 +39,6 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
         } catch (...) {}
     };
 
-    // Documents\My Games\Skyrim Special Edition\SKSE\Chronicle.log
     if (auto logDir = ChronicleLogDirectory(); logDir) {
         tryAddFileSink(*logDir / "Chronicle.log");
     }
@@ -107,7 +84,6 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
         });
     }
 
-    // ---- Message listeners ---------------------------------------------------
     SKSE::GetMessagingInterface()->RegisterListener([](SKSE::MessagingInterface::Message* a_msg) {
         switch (a_msg->type) {
         case SKSE::MessagingInterface::kDataLoaded:
