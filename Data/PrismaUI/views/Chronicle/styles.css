@@ -5,10 +5,6 @@
  * or any later version. See LICENSE.
  */
 
-/* ============================================================
-   Chronicle — In-Game Chatbox
-   ============================================================ */
-
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
