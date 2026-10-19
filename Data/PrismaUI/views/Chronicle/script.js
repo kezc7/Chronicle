@@ -12,15 +12,9 @@
 // FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
 // more details. See LICENSE.
 
-/* ============================================================
-   Chronicle — Chat Window Script
-   ============================================================ */
-
 'use strict';
 
-// ---------------------------------------------------------------------------
 // Config defaults
-// ---------------------------------------------------------------------------
 
 const DEFAULT_CONFIG = {
   version: 2,
@@ -84,9 +78,7 @@ const inputHistory = [];
 let inputHistoryIndex = -1;
 
 
-// ---------------------------------------------------------------------------
 // Utility
-// ---------------------------------------------------------------------------
 
 function deepMerge(target, source) {
   for (const key of Object.keys(source)) {
@@ -222,9 +214,7 @@ function speakerColour(speaker) {
   return config.speaker_colour_mode === 'automatic' ? automaticSpeakerColour(name) : '';
 }
 
-// ---------------------------------------------------------------------------
 // Config loading / saving
-// ---------------------------------------------------------------------------
 
 async function loadConfig() {
   try {
@@ -304,9 +294,7 @@ function applyConfig() {
   requestAnimationFrame(updateResizeHandlePosition);
 }
 
-// ---------------------------------------------------------------------------
 // Message rendering
-// ---------------------------------------------------------------------------
 
 /**
  * Called by the C++ plugin via PrismaUI Invoke.
@@ -458,9 +446,7 @@ function runDiagnostics() {
   }
 }
 
-// ---------------------------------------------------------------------------
 // Channel tabs
-// ---------------------------------------------------------------------------
 
 function switchChannel(channel) {
   activeChannel = channel;
@@ -516,9 +502,7 @@ function toggleChannelMenu() {
   label.setAttribute('aria-expanded', 'true');
 }
 
-// ---------------------------------------------------------------------------
 // Input bar
-// ---------------------------------------------------------------------------
 
 let inputOpen = false;
 
@@ -572,9 +556,7 @@ function submitInput() {
   closeInteraction();
 }
 
-// ---------------------------------------------------------------------------
 // Settings panel
-// ---------------------------------------------------------------------------
 
 let settingsOpen = false;
 let settingsSnapshot = null;
@@ -890,7 +872,6 @@ bindSlider('sp-fade-time', 'sp-fade-time-val', v => v);
   });
 })();
 
-// Settings close button
 document.getElementById('sp-close').addEventListener('click', closeSettings);
 
 // Settings Apply / Reset
@@ -933,7 +914,6 @@ document.getElementById('sp-speaker-colour-list').addEventListener('click', even
   removeSpeakerColour(button.closest('.sp-speaker-row'));
 });
 
-// Gear icon button
 document.getElementById('settings-btn').addEventListener('click', e => {
   e.stopPropagation();
   toggleSettings();
@@ -959,15 +939,11 @@ document.getElementById('message-list').addEventListener('scroll', e => {
   }
 });
 
-// ---------------------------------------------------------------------------
 // PrismaUI bridge
-// ---------------------------------------------------------------------------
 
 // sendToGame is provided by bridge.js.
 
-// ---------------------------------------------------------------------------
 // Window visibility (called by C++ plugin)
-// ---------------------------------------------------------------------------
 
 function hideWindow() {
   document.getElementById('chronicle-window').classList.add('hidden');
@@ -980,9 +956,7 @@ function showWindow() {
   setTimeout(() => win.classList.remove('fading-in'), 300);
 }
 
-// ---------------------------------------------------------------------------
 // Save window position/size
-// ---------------------------------------------------------------------------
 
 function saveWindowState(x, y, w, h) {
   config.window.position_x = x;
@@ -1040,9 +1014,7 @@ function previewPosition(axis, value) {
   document.getElementById(axis === 'position_x' ? 'sp-position-x-val' : 'sp-position-y-val').value = numeric;
 }
 
-// ---------------------------------------------------------------------------
 // Drag to move
-// ---------------------------------------------------------------------------
 
 (function initDrag() {
   const win = document.getElementById('chronicle-window');
@@ -1085,9 +1057,7 @@ function previewPosition(axis, value) {
   });
 })();
 
-// ---------------------------------------------------------------------------
 // Resize handle
-// ---------------------------------------------------------------------------
 
 (function initResize() {
   const win = document.getElementById('chronicle-window');
@@ -1131,9 +1101,7 @@ function previewPosition(axis, value) {
   });
 })();
 
-// ---------------------------------------------------------------------------
 // Keyboard handling
-// ---------------------------------------------------------------------------
 
 document.addEventListener('keydown', e => {
   if (!runtime.visible || !runtime.loaded || e.repeat) return;
@@ -1201,9 +1169,7 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// ---------------------------------------------------------------------------
 // Channel tab clicks
-// ---------------------------------------------------------------------------
 
 document.getElementById('channel-tabs').addEventListener('click', e => {
   const tab = e.target.closest('.tab[data-channel]');
@@ -1222,9 +1188,7 @@ channelPicker.addEventListener('click', e => {
   if (inputOpen) document.getElementById('chat-input').focus();
 });
 
-// ---------------------------------------------------------------------------
 // Init
-// ---------------------------------------------------------------------------
 
 loadConfig().then(() => {
   let saved = null;

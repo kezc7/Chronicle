@@ -18,26 +18,6 @@
  * with Chronicle. If not, see <https://www.gnu.org/licenses/>.
  */
 
-/*
- * Chronicle — Skyrim SE/AE chat and activity log
- * Copyright (C) 2026 kezc7
- *
- * This file is part of Chronicle.
- *
- * Chronicle is free software: you can redistribute it and/or modify it under
- * the terms of the GNU General Public License as published by the Free
- * Software Foundation, either version 3 of the License, or (at your option)
- * any later version.
- *
- * Chronicle is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with Chronicle. If not, see <https://www.gnu.org/licenses/>.
- */
-
 #include "Events.h"
 #include "Chronicle.h"
 
@@ -119,8 +99,6 @@ void SubtitlePoller::SetExtraHudPaths(std::vector<std::string> paths)
     spdlog::info("Chronicle: {} additional HUD subtitle path(s) configured", m_extraHudPaths.size());
 }
 
-// ---- MenuEventSink --------------------------------------------------------
-
 RE::BSEventNotifyControl MenuEventSink::ProcessEvent(
     const RE::MenuOpenCloseEvent* a_event,
     RE::BSTEventSource<RE::MenuOpenCloseEvent>*)
@@ -142,13 +120,10 @@ RE::BSEventNotifyControl MenuEventSink::ProcessEvent(
         SubtitlePoller::GetSingleton().Start();
     }
 
-    // Route to OnMenuOpenClose — it filters to the known hide-list internally
     chronicle->OnMenuOpenClose(menuName, a_event->opening);
 
     return RE::BSEventNotifyControl::kContinue;
 }
-
-// ---- SkyrimNetEventSink ---------------------------------------------------
 
 RE::BSEventNotifyControl SkyrimNetEventSink::ProcessEvent(
     const SKSE::ModCallbackEvent* a_event,
@@ -222,8 +197,6 @@ RE::BSEventNotifyControl SkyrimNetEventSink::ProcessEvent(
 
     return RE::BSEventNotifyControl::kContinue;
 }
-
-// ---- Native combat/death sinks -------------------------------------------
 
 RE::BSEventNotifyControl CombatEventSink::ProcessEvent(
     const RE::TESHitEvent* a_event,
@@ -315,8 +288,6 @@ RE::BSEventNotifyControl LevelUpEventSink::ProcessEvent(
     return RE::BSEventNotifyControl::kContinue;
 }
 
-// ---- HUD notification hook ------------------------------------------------
-
 namespace
 {
     // HUDMenu receives each HUD message (HUDData) before it is displayed. On
@@ -368,8 +339,6 @@ void NotificationHook::Install()
     HUDMenuProcessMessage::Original = vtable.write_vfunc(0x4, HUDMenuProcessMessage::Thunk);
     spdlog::info("Chronicle: HUD notification hook installed");
 }
-
-// ---- SubtitlePoller -------------------------------------------------------
 
 void SubtitlePoller::Start()
 {
@@ -536,14 +505,12 @@ void SubtitlePoller::PollOnce()
                 continue;
             }
 
-            // We found the right path (GetVariable succeeded and returned a string).
             pathResolved = true;
             m_lastHudPath = std::string(path);
 
             const char* raw = gfxVal.GetString();
             if (!raw || raw[0] == '\0') {
-                // Subtitle field is empty — no subtitle on screen right now.
-                // Clear m_lastText so we don't suppress the same line if it repeats.
+                // No subtitle on screen; clear m_lastText so a repeated line is logged again.
                 m_lastText.clear();
                 break;
             }
@@ -560,7 +527,6 @@ void SubtitlePoller::PollOnce()
             return;
         }
 
-        // If no GFx path resolved at all, log once at debug level so we can diagnose
         if (!pathResolved) {
             m_lastHudPath = "none resolved";
             static bool s_warned = false;
