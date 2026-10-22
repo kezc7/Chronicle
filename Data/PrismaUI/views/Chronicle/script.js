@@ -921,6 +921,9 @@ document.getElementById('settings-btn').addEventListener('click', e => {
 
 document.getElementById('clear-history').addEventListener('click', e => {
   e.stopPropagation();
+  // Only a deliberate click while interacting clears; a key press reaching a
+  // focused button outside an interaction must not erase the history.
+  if (!interactionOpen) return;
   clearHistory();
 });
 
@@ -1104,8 +1107,15 @@ function previewPosition(axis, value) {
 // Keyboard handling
 
 document.addEventListener('keydown', e => {
+  if (runtime.nativeHotkeys && !interactionOpen) {
+    // Keys reach the page only while it holds focus, so with nothing open
+    // that focus is stale. Keep game keys (Tab, Space, Enter) away from the
+    // window's buttons and give the keyboard back to Skyrim.
+    e.preventDefault();
+    sendToGame('focusReleased', '');
+    return;
+  }
   if (!runtime.visible || !runtime.loaded || e.repeat) return;
-  if (runtime.nativeHotkeys && !interactionOpen) return;
   if (e.key === 'Escape' && interactionOpen) {
     closeInteraction();
     document.getElementById('copy-output').hidden = true;
