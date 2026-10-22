@@ -84,6 +84,22 @@ int main()
     Require(!state.Visible());
     Require(!ChronicleRuntime::InterruptsFocus("PrismaUI_FocusMenu"));
     Require(ChronicleRuntime::InterruptsFocus("InventoryMenu"));
+    // Menus opened by other mods: overlays keep Chronicle's focus, input menus take it.
+    Require(!ChronicleRuntime::InterruptsFocus("SomeMinimapMenu", 0));            // HUD widget
+    Require(!ChronicleRuntime::InterruptsFocus("TrueHUD", 1u << 1 | 1u << 8));     // always open, requires update
+    Require(ChronicleRuntime::InterruptsFocus("Dialogue Menu", 1u << 2));         // uses cursor
+    Require(ChronicleRuntime::InterruptsFocus("MessageBoxMenu", 1u << 4));        // modal
+    Require(ChronicleRuntime::InterruptsFocus("CustomMenu", 1u << 0));            // pauses the game
+    Require(ChronicleRuntime::InterruptsFocus("Favorites", 1u << 3));             // menu input context
+    Require(ChronicleRuntime::InterruptsFocus("UnknownModMenu"));                 // flags unknown
+    Require(ChronicleRuntime::InterruptsFocus("Console", 0));                     // blocking by name
+    Require(!ChronicleRuntime::InterruptsFocus("PrismaUI_FocusMenu", ChronicleRuntime::kInputMenuFlags));
+    // Focus granted but not reported yet is not a loss until the grace period ends.
+    Require(!ChronicleRuntime::FocusLost(false, false, 0));
+    Require(!ChronicleRuntime::FocusLost(false, false, ChronicleRuntime::kFocusGraceMs - 1));
+    Require(ChronicleRuntime::FocusLost(false, false, ChronicleRuntime::kFocusGraceMs));
+    Require(!ChronicleRuntime::FocusLost(true, true, 5000));
+    Require(ChronicleRuntime::FocusLost(false, true, 0));  // seen, then taken away
     // NPC speech radius: zero keeps the legacy unlimited behaviour and
     // positive values include the boundary while invalid/large values clamp.
     Require(ChronicleRuntime::NormalizeDialogueRadius(0.0F) == 0.0F);

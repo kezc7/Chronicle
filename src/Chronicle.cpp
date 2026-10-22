@@ -280,8 +280,15 @@ void Chronicle::Tick()
 {
     if (!m_gameLoaded) return;
     // Menus can unfocus a view without delivering an Escape key to JavaScript.
-    if (m_prismaUI && m_view && m_hadFocus && !m_prismaUI->HasFocus(m_view)) {
+    if (!m_prismaUI || !m_view || !m_hadFocus) return;
+    const bool focused = m_prismaUI->HasFocus(m_view);
+    m_focusSeen = m_focusSeen || focused;
+    const auto waited = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - m_focusGrantedAt).count();
+    if (ChronicleRuntime::FocusLost(focused, m_focusSeen, static_cast<int>(std::min<long long>(waited, 60000)))) {
+        spdlog::info("Chronicle: focus {}", m_focusSeen ? "lost" : "never arrived");
         m_hadFocus = false;
+        m_focusSeen = false;
         m_keyboardCapture = false;
         ++m_focusRevision;
         InvokeUI("closeInteraction(false)");
@@ -296,7 +303,16 @@ void Chronicle::OnMenuOpenClose(std::string_view name, bool opening)
         m_state.Menu(name, true);
         PublishRuntime();
     }
-    if (opening && ChronicleRuntime::InterruptsFocus(name)) ForceCloseInput();
+    if (opening) {
+        std::uint32_t flags = ChronicleRuntime::kInputMenuFlags;
+        if (auto* ui = RE::UI::GetSingleton()) {
+            if (const auto menu = ui->GetMenu(name)) flags = menu->menuFlags.underlying();
+        }
+        if (ChronicleRuntime::InterruptsFocus(name, flags)) {
+            if (m_keyboardCapture || m_hadFocus) spdlog::info("Chronicle: '{}' opened, closing Chronicle input", name);
+            ForceCloseInput();
+        }
+    }
     m_state.Menu(name, opening);
     // One deferred reconciliation lets Skyrim finish updating its menu stack.
     MainTask([this, menu = std::string(name), opening] {
@@ -314,6 +330,7 @@ void Chronicle::ForceCloseInput()
 {
     ++m_focusRevision; // invalidate any focus request queued before this menu/load
     m_hadFocus = false;
+    m_focusSeen = false;
     m_keyboardCapture = false;
     if (!m_prismaUI || !m_view || !m_viewReady) return;
     if (m_prismaUI->HasFocus(m_view)) m_prismaUI->Unfocus(m_view);
@@ -337,6 +354,8 @@ void Chronicle::RequestFocus()
         }
         const bool focused = m_prismaUI->Focus(m_view, false, false);
         m_hadFocus = focused;
+        m_focusSeen = focused && m_prismaUI->HasFocus(m_view);
+        m_focusGrantedAt = std::chrono::steady_clock::now();
         m_keyboardCapture = focused;
         spdlog::info("Chronicle: focus request -> {}", focused ? "success" : "FAILED");
         InvokeUI(focused ? "focusResult(true, 'focus.active')" :
