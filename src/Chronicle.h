@@ -142,7 +142,9 @@ private:
     std::atomic<bool> m_chatboxEnabled{ true };
     std::atomic<bool> m_notificationChannel{ true };
     std::atomic<std::uint64_t> m_worldRevision{ 0 };
-    bool m_hadFocus{ false };
+    bool m_hadFocus{ false };   // Focus() succeeded for the current interaction
+    bool m_focusSeen{ false };  // HasFocus() has reported it since then
+    std::chrono::steady_clock::time_point m_focusGrantedAt;
     bool m_bootstrapped{ false };
     std::uint32_t m_interactKey{ VK_F8 };
     std::uint32_t m_settingsKey{ 'N' };
