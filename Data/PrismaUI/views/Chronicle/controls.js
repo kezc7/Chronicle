@@ -70,7 +70,12 @@ function closeInteraction(release = true) {
 }
 
 function focusResult(success, reason) {
-  if (success && (!interactionOpen || !focusPending)) return false;
+  if (success && (!interactionOpen || !focusPending)) {
+    // A grant that arrives after the interaction closed would leave Chronicle
+    // holding the keyboard with nothing open; hand it straight back.
+    if (!interactionOpen) sendToGame('focusReleased', '');
+    return false;
+  }
   focusPending = false;
   if (!success) closeInteraction(false);
   document.body.classList.toggle('mouse-active', success);

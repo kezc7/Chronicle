@@ -1,4 +1,4 @@
-# Chronicle 1.2.30
+# Chronicle 1.2.32
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -120,6 +120,16 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.2.32 changes
+
+- Shift+N settings no longer close straight after opening: menus from other mods
+  that do not take input (HUD widgets, minimaps) no longer close Chronicle, and
+  focus is not treated as lost before PrismaUI reports it.
+- Chronicle no longer keeps the keyboard when nothing is open: a late focus grant
+  is handed back, and the first key press returns control to Skyrim.
+- The Clear button only works on a click during an interaction, so game keys
+  (Tab, Space) can no longer erase the history through it.
 
 ## 1.2.30 changes
 

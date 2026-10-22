@@ -461,9 +461,29 @@ namespace ChronicleRuntime
             name == "Credits Menu" || name == "Mod Manager Menu";
     }
 
-    inline bool InterruptsFocus(std::string_view name)
+    // IMenu flags of a menu that takes the player's input (CommonLib's
+    // UI_MENU_FLAGS kPausesGame, kUsesCursor, kUsesMenuContext and kModal).
+    inline constexpr std::uint32_t kInputMenuFlags = 1u << 0 | 1u << 2 | 1u << 3 | 1u << 4;
+
+    // Opening a menu that takes input releases Chronicle's focus. Overlay
+    // menus (HUD widgets, minimaps) open and close at any time, including
+    // while PrismaUI's focus menu opens, and must not close a panel the
+    // player just opened. A menu whose flags are unknown counts as input.
+    inline bool InterruptsFocus(std::string_view name, std::uint32_t menuFlags = kInputMenuFlags)
     {
-        return name != "PrismaUI_FocusMenu" && name != "HUD Menu" && name != "Cursor Menu";
+        if (name == "PrismaUI_FocusMenu" || name == "HUD Menu" || name == "Cursor Menu") return false;
+        return IsBlocking(name) || (menuFlags & kInputMenuFlags) != 0;
+    }
+
+    // PrismaUI's Focus() can succeed before HasFocus() reports the view as
+    // focused. Focus counts as lost only once it was seen, or when it never
+    // arrives within the grace period; earlier ticks would close a panel
+    // that is still opening.
+    inline constexpr int kFocusGraceMs = 1000;
+
+    inline bool FocusLost(bool hasFocus, bool seen, int msSinceGranted)
+    {
+        return !hasFocus && (seen || msSinceGranted >= kFocusGraceMs);
     }
 
     // SKSE::log::log_directory() reads the "My Games" folder name via AE ID
