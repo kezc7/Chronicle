@@ -154,6 +154,10 @@ namespace NotificationHook
 // that re-enqueues itself causes an infinite loop and freezes the game.
 // We therefore use a background thread for timing and fire one-shot AddTask
 // calls that read SubtitleManager on the main thread without re-enqueueing.
+//
+// The HUD movie is Scaleform and is only read from AddUITask: reading it from
+// AddTask raced the HUD's own updates and crashed inside GetVariable with
+// HUD-heavy setups. The UI task copies the text out; the next poll handles it.
 
 class SubtitlePoller
 {
@@ -180,6 +184,19 @@ private:
     // Does NOT re-enqueue itself; the background thread schedules the next call.
     void PollOnce();
 
+    struct HudRead
+    {
+        enum class Status { kNoUi, kNoMovie, kNotFound, kFound };
+        Status status = Status::kNoUi;
+        std::string path;
+        std::string text;
+    };
+
+    // Runs on SKSE's UI task queue; touches only the HUD movie.
+    static HudRead ReadHudSubtitle(const std::vector<std::string>& a_paths);
+    void RequestHudRead();
+    void HandleHudRead();
+
     std::string m_lastText;
     // NPC line being answered; only compared, never dereferenced.
     const RE::TESTopicInfo* m_lastTopicInfo = nullptr;
@@ -190,6 +207,9 @@ private:
     std::atomic<std::uint64_t> m_generation{ 0 };
     std::atomic<bool> m_pending{ false };
     std::atomic<bool> m_running{ false };
+    std::mutex m_hudMutex;
+    std::optional<HudRead> m_hudRead;  // latest UI-task result, guarded by m_hudMutex
+    std::atomic<bool> m_hudPending{ false };
     // Declared last so it joins before the state it uses is destroyed.
     std::jthread m_worker;
 
