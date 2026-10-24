@@ -127,6 +127,8 @@ actual cursor routing, menu events, or SKSE serialization; those need an in-game
   movie from SKSE's general task queue, which could race the HUD's own updates
   and crash inside the game (seen with InfinityUI, moreHUD and other HUD mods).
   The HUD is now only read from SKSE's UI task queue.
+- Lines you type in the input bar now always show in the All tab, even with
+  the Player channel turned off (it is off by default, which hid them).
 
 ## 1.2.32 changes
 

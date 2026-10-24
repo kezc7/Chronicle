@@ -129,3 +129,12 @@ test('the Clear button only clears during an interaction', () => {
   nodes.get('clear-history').dispatch('click');
   assert.equal(vm.runInContext('messages.length', context), 0);
 });
+
+test('typed lines show in All even with the Player channel off', () => {
+  const {context} = setup();
+  assert.equal(vm.runInContext('config.channels.player.enabled', context), false);
+  context.addMessage({channel: 'player', speaker: 'Dragonborn', message: 'Hello'});
+  context.addMessage({channel: 'combat', speaker: '', message: 'Hit'});
+  const hidden = vm.runInContext('JSON.stringify(messages.map(entry => entry.el.classList.contains("hidden")))', context);
+  assert.equal(hidden, '[false,true]');
+});
