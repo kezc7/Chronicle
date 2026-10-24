@@ -1,6 +1,6 @@
 {
     "name": "chronicle",
-    "version-string": "1.2.25",
+    "version-string": "1.2.34",
     "license": "GPL-3.0-or-later",
     "description": "In-game chatbox and message log for Skyrim SE",
     "features": {
