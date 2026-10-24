@@ -129,6 +129,9 @@ actual cursor routing, menu events, or SKSE serialization; those need an in-game
   The HUD is now only read from SKSE's UI task queue.
 - Lines you type in the input bar now always show in the All tab, even with
   the Player channel turned off (it is off by default, which hid them).
+- Chronicle now hides while SKSE Menu Framework (version 3) has a window open,
+  and under mod menus opened as SKSE's CustomMenu, such as Swiftly Order Squad's
+  follower commands.
 
 ## 1.2.32 changes
 

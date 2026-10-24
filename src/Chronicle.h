@@ -59,6 +59,7 @@ public:
     void OnPostLoadGame();
     void OnWorldReady();
     void Tick();
+    void PollMenuFramework();
     void Bootstrap();
     void Diagnostics();
     void ExportHistory(std::string_view text);
@@ -132,6 +133,7 @@ private:
     std::deque<std::string> m_pendingUI;
     // Runtime state is only accessed on Skyrim's main thread.
     ChronicleRuntime::State m_state;
+    bool m_menuFrameworkOpen{ false };
     std::atomic<std::uint64_t> m_focusRevision{ 0 };
     std::atomic<bool> m_keyboardCapture{ false };
     std::atomic<bool> m_combatHits{ true };

@@ -441,6 +441,10 @@ namespace ChronicleRuntime
             name == "CookingMenu" || name == "Cooking Menu";
     }
 
+    // SKSE Menu Framework draws its windows itself and opens no game menu;
+    // Chronicle reports its blocking windows under this name.
+    inline constexpr std::string_view kMenuFrameworkMenu = "SKSE Menu Framework";
+
     inline bool IsBlocking(std::string_view name)
     {
         return IsTransition(name) || name == "SystemMenu" || name == "TweenMenu" ||
@@ -458,7 +462,10 @@ namespace ChronicleRuntime
             // creation, also used by RaceMenu). Dialogue Menu stays visible.
             name == "RaceSex Menu" || name == "Book Menu" || name == "Lockpicking Menu" ||
             name == "Training Menu" || name == "GiftMenu" || name == "Tutorial Menu" ||
-            name == "Credits Menu" || name == "Mod Manager Menu";
+            name == "Credits Menu" || name == "Mod Manager Menu" ||
+            // SKSE's menu for mod SWFs opened with UI.OpenCustomMenu (e.g.
+            // Swiftly Order Squad's follower commands).
+            name == "CustomMenu" || name == kMenuFrameworkMenu;
     }
 
     // IMenu flags of a menu that takes the player's input (CommonLib's

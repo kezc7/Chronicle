@@ -63,6 +63,14 @@ int main()
     Require(!state.Visible());
     state.Menu("Console", false);
     Require(state.Visible());
+    state.Menu("CustomMenu", true); // mod SWF menus (e.g. Swiftly Order Squad)
+    Require(!state.Visible());
+    state.Menu("CustomMenu", false);
+    state.Menu(ChronicleRuntime::kMenuFrameworkMenu, true); // SKSE Menu Framework window
+    Require(!state.Visible());
+    Require(ChronicleRuntime::InterruptsFocus(ChronicleRuntime::kMenuFrameworkMenu, 0));
+    state.Menu(ChronicleRuntime::kMenuFrameworkMenu, false);
+    Require(state.Visible());
     state.Menu("RaceSex Menu", true); // character creation / RaceMenu
     Require(!state.Visible());
     state.Menu("RaceSex Menu", false);
