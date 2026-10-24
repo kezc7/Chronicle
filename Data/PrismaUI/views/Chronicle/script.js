@@ -395,6 +395,8 @@ function applySpeakerColours() {
 }
 
 function shouldShowMessage(channel) {
+  // The player's own typed lines always show in All, even with the Player channel off.
+  if (channel === 'player' && activeChannel === 'all') return true;
   if (!config.channels[channel]?.enabled) return false;
   // Console is off by default, so users who enable it see its lines in All too.
   if (activeChannel === 'all') return true;
