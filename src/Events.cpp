@@ -357,10 +357,7 @@ void SubtitlePoller::Start()
     m_managerSubtitleActive = false;
     m_lastText.clear();
     m_lastTopicInfo = nullptr;
-    {
-        std::scoped_lock lock(m_hudMutex);
-        m_hudRead.reset();
-    }
+    ResetHudRead();
     spdlog::info("Chronicle: subtitle polling started");
 
     // Spawn a background thread that sleeps kPollInterval then schedules a
@@ -406,10 +403,7 @@ void SubtitlePoller::Stop()
     m_managerSubtitleActive = false;
     m_lastText.clear();
     m_lastTopicInfo = nullptr;
-    {
-        std::scoped_lock lock(m_hudMutex);
-        m_hudRead.reset();
-    }
+    ResetHudRead();
     spdlog::info("Chronicle: subtitle polling stopped");
 }
 
@@ -482,8 +476,7 @@ void SubtitlePoller::PollOnce()
     // Prefer the attributed manager entries while they are active.
     if (m_managerSubtitleActive) {
         m_lastHudPath = "SubtitleManager";
-        std::scoped_lock lock(m_hudMutex);
-        m_hudRead.reset();
+        ResetHudRead();
         return;
     }
     HandleHudRead();
@@ -531,11 +524,13 @@ void SubtitlePoller::RequestHudRead()
 
     std::vector<std::string> paths(kDefaultHudSubtitlePaths.begin(), kDefaultHudSubtitlePaths.end());
     paths.insert(paths.end(), m_extraHudPaths.begin(), m_extraHudPaths.end());
-    tasks->AddUITask([this, generation = m_generation.load(), paths = std::move(paths)]() {
+    tasks->AddUITask([this, epoch = m_hudEpoch.load(), paths = std::move(paths)]() {
         try {
             auto result = ReadHudSubtitle(paths);
-            if (generation == m_generation) {
-                std::scoped_lock lock(m_hudMutex);
+            std::scoped_lock lock(m_hudMutex);
+            // A reset since this read was queued (poller restart, or the
+            // SubtitleManager took over) makes the text stale: drop it.
+            if (epoch == m_hudEpoch) {
                 m_hudRead = std::move(result);
             }
         } catch (...) {
@@ -543,6 +538,13 @@ void SubtitlePoller::RequestHudRead()
         }
         m_hudPending = false;
     });
+}
+
+void SubtitlePoller::ResetHudRead()
+{
+    std::scoped_lock lock(m_hudMutex);
+    ++m_hudEpoch;
+    m_hudRead.reset();
 }
 
 void SubtitlePoller::HandleHudRead()
