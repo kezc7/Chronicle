@@ -441,6 +441,10 @@ namespace ChronicleRuntime
             name == "CookingMenu" || name == "Cooking Menu";
     }
 
+    // SKSE Menu Framework draws its windows itself and opens no game menu;
+    // Chronicle reports its blocking windows under this name.
+    inline constexpr std::string_view kMenuFrameworkMenu = "SKSE Menu Framework";
+
     inline bool IsBlocking(std::string_view name)
     {
         return IsTransition(name) || name == "SystemMenu" || name == "TweenMenu" ||
@@ -458,12 +462,21 @@ namespace ChronicleRuntime
             // creation, also used by RaceMenu). Dialogue Menu stays visible.
             name == "RaceSex Menu" || name == "Book Menu" || name == "Lockpicking Menu" ||
             name == "Training Menu" || name == "GiftMenu" || name == "Tutorial Menu" ||
-            name == "Credits Menu" || name == "Mod Manager Menu";
+            name == "Credits Menu" || name == "Mod Manager Menu" || name == kMenuFrameworkMenu;
     }
 
     // IMenu flags of a menu that takes the player's input (CommonLib's
     // UI_MENU_FLAGS kPausesGame, kUsesCursor, kUsesMenuContext and kModal).
     inline constexpr std::uint32_t kInputMenuFlags = 1u << 0 | 1u << 2 | 1u << 3 | 1u << 4;
+
+    // SKSE's CustomMenu hosts whatever SWF a mod opens with UI.OpenCustomMenu:
+    // a command menu that pauses the game or takes the cursor (Swiftly Order
+    // Squad's follower commands) hides Chronicle; a widget opened with no
+    // flags is an overlay and does not. Unknown flags count as input.
+    inline bool HidesChronicle(std::string_view name, std::uint32_t menuFlags = kInputMenuFlags)
+    {
+        return IsBlocking(name) || (name == "CustomMenu" && (menuFlags & kInputMenuFlags) != 0);
+    }
 
     // Opening a menu that takes input releases Chronicle's focus. Overlay
     // menus (HUD widgets, minimaps) open and close at any time, including
@@ -510,11 +523,13 @@ namespace ChronicleRuntime
         bool userHidden = false;  // hidden with the show/hide hotkey
         std::unordered_set<std::string> menus;
 
-        void Menu(std::string_view name, bool opening)
+        void Menu(std::string_view name, bool opening, std::uint32_t menuFlags = kInputMenuFlags)
         {
-            if (!IsBlocking(name)) return;
-            if (opening) menus.emplace(name);
-            else menus.erase(std::string(name));
+            if (!opening) {
+                menus.erase(std::string(name));
+                return;
+            }
+            if (HidesChronicle(name, menuFlags)) menus.emplace(name);
         }
 
         bool Visible() const

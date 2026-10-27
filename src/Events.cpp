@@ -357,6 +357,7 @@ void SubtitlePoller::Start()
     m_managerSubtitleActive = false;
     m_lastText.clear();
     m_lastTopicInfo = nullptr;
+    ResetHudRead();
     spdlog::info("Chronicle: subtitle polling started");
 
     // Spawn a background thread that sleeps kPollInterval then schedules a
@@ -402,6 +403,7 @@ void SubtitlePoller::Stop()
     m_managerSubtitleActive = false;
     m_lastText.clear();
     m_lastTopicInfo = nullptr;
+    ResetHudRead();
     spdlog::info("Chronicle: subtitle polling stopped");
 }
 
@@ -470,64 +472,101 @@ void SubtitlePoller::PollOnce()
     // The HUD displays subtitles for ALL speech (ambient, idle, scene dialogue)
     // by writing directly into the Scaleform movie — bypassing SubtitleManager.
     // We read the live text field value to capture what the player sees.
+    // Notifications are captured by NotificationHook, not polled here.
+    // Prefer the attributed manager entries while they are active.
+    if (m_managerSubtitleActive) {
+        m_lastHudPath = "SubtitleManager";
+        ResetHudRead();
+        return;
+    }
+    HandleHudRead();
+    RequestHudRead();
+}
+
+SubtitlePoller::HudRead SubtitlePoller::ReadHudSubtitle(const std::vector<std::string>& a_paths)
+{
+    HudRead result;
+    auto* ui = RE::UI::GetSingleton();
+    if (!ui) {
+        return result;
+    }
+    result.status = HudRead::Status::kNoMovie;
+    auto hudMenuPtr = ui->GetMenu("HUD Menu");
+    if (!hudMenuPtr || !hudMenuPtr->uiMovie) {
+        return result;
+    }
+
+    // Try known ActionScript paths for the subtitle TextField.
+    // Vanilla HUD uses the first; some replacer mods use alternate names.
+    result.status = HudRead::Status::kNotFound;
+    auto* movie = hudMenuPtr->uiMovie.get();
+    for (const auto& path : a_paths) {
+        RE::GFxValue gfxVal;
+        if (!movie->GetVariable(&gfxVal, path.c_str()) || !gfxVal.IsString()) {
+            continue;
+        }
+        result.status = HudRead::Status::kFound;
+        result.path = path;
+        if (const char* raw = gfxVal.GetString()) {
+            result.text = raw;
+        }
+        break;
+    }
+    return result;
+}
+
+void SubtitlePoller::RequestHudRead()
+{
+    auto* tasks = SKSE::GetTaskInterface();
+    if (!tasks || m_hudPending.exchange(true)) {
+        return;
+    }
+
+    std::vector<std::string> paths(kDefaultHudSubtitlePaths.begin(), kDefaultHudSubtitlePaths.end());
+    paths.insert(paths.end(), m_extraHudPaths.begin(), m_extraHudPaths.end());
+    tasks->AddUITask([this, epoch = m_hudEpoch.load(), paths = std::move(paths)]() {
+        try {
+            auto result = ReadHudSubtitle(paths);
+            std::scoped_lock lock(m_hudMutex);
+            // A reset since this read was queued (poller restart, or the
+            // SubtitleManager took over) makes the text stale: drop it.
+            if (epoch == m_hudEpoch) {
+                m_hudRead = std::move(result);
+            }
+        } catch (...) {
+            spdlog::error("Chronicle: HUD subtitle read rejected");
+        }
+        m_hudPending = false;
+    });
+}
+
+void SubtitlePoller::ResetHudRead()
+{
+    std::scoped_lock lock(m_hudMutex);
+    ++m_hudEpoch;
+    m_hudRead.reset();
+}
+
+void SubtitlePoller::HandleHudRead()
+{
+    std::optional<HudRead> read;
     {
-        m_lastHudPath = m_managerSubtitleActive ? "SubtitleManager" : "none resolved";
-        auto* ui = RE::UI::GetSingleton();
-        if (!ui) {
-            m_lastHudPath = "HUD Menu unavailable";
-            return;
-        }
+        std::scoped_lock lock(m_hudMutex);
+        read.swap(m_hudRead);
+    }
+    if (!read) {
+        return;
+    }
 
-        // Notifications are captured by NotificationHook, not polled here.
-        // Prefer the attributed manager entries while they are active.
-        if (m_managerSubtitleActive) return;
-        auto hudMenuPtr = ui->GetMenu("HUD Menu");
-        if (!hudMenuPtr || !hudMenuPtr->uiMovie) {
-            return;
-        }
-
-        auto* movie = hudMenuPtr->uiMovie.get();
-
-        // Try known ActionScript paths for the subtitle TextField.
-        // Vanilla HUD uses the first; some replacer mods use alternate names.
-        bool pathResolved = false;
-        std::vector<std::string_view> paths;
-        paths.reserve(kDefaultHudSubtitlePaths.size() + m_extraHudPaths.size());
-        for (auto* path : kDefaultHudSubtitlePaths) paths.emplace_back(path);
-        for (const auto& path : m_extraHudPaths) paths.emplace_back(path);
-
-        for (const auto path : paths) {
-            RE::GFxValue gfxVal;
-            if (!movie->GetVariable(&gfxVal, path.data())) {
-                continue;
-            }
-            if (!gfxVal.IsString()) {
-                continue;
-            }
-
-            pathResolved = true;
-            m_lastHudPath = std::string(path);
-
-            const char* raw = gfxVal.GetString();
-            if (!raw || raw[0] == '\0') {
-                // No subtitle on screen; clear m_lastText so a repeated line is logged again.
-                m_lastText.clear();
-                break;
-            }
-
-            std::string text = std::string_view(path).ends_with(".htmlText") ? ChronicleRuntime::StripHtml(raw) : std::string(raw);
-            if (text.empty() || text == m_lastText) {
-                break;
-            }
-
-            m_lastText = text;
-            spdlog::debug("Chronicle: subtitle (hud): '{}'", text);
-            // No speaker name available from this path
-            Chronicle::GetSingleton()->SendMessage("dialogue", "", text);
-            return;
-        }
-
-        if (!pathResolved) {
+    switch (read->status) {
+    case HudRead::Status::kNoUi:
+        m_lastHudPath = "HUD Menu unavailable";
+        return;
+    case HudRead::Status::kNoMovie:
+        m_lastHudPath = "none resolved";
+        return;
+    case HudRead::Status::kNotFound:
+        {
             m_lastHudPath = "none resolved";
             static bool s_warned = false;
             if (!s_warned) {
@@ -535,6 +574,26 @@ void SubtitlePoller::PollOnce()
                 spdlog::warn("Chronicle: HUD subtitle GFx paths not found — "
                              "subtitle capture may be incomplete");
             }
+            return;
         }
+    case HudRead::Status::kFound:
+        break;
     }
+
+    m_lastHudPath = read->path;
+    if (read->text.empty()) {
+        // No subtitle on screen; clear m_lastText so a repeated line is logged again.
+        m_lastText.clear();
+        return;
+    }
+
+    std::string text = read->path.ends_with(".htmlText") ? ChronicleRuntime::StripHtml(read->text) : std::move(read->text);
+    if (text.empty() || text == m_lastText) {
+        return;
+    }
+
+    m_lastText = text;
+    spdlog::debug("Chronicle: subtitle (hud): '{}'", text);
+    // No speaker name available from this path
+    Chronicle::GetSingleton()->SendMessage("dialogue", "", text);
 }

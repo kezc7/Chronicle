@@ -249,9 +249,16 @@ void Chronicle::UpdateVisibility()
             "AlchemyMenu", "Alchemy Menu", "EnchantingMenu", "Enchanting Menu",
             "CookingMenu", "Cooking Menu", "PhotoMenu", "MeridianUI_FocusMenu", "Console",
             "RaceSex Menu", "Book Menu", "Lockpicking Menu", "Training Menu", "GiftMenu",
-            "Tutorial Menu", "Credits Menu", "Mod Manager Menu"
+            "Tutorial Menu", "Credits Menu", "Mod Manager Menu", "CustomMenu"
         };
-        for (auto name : names) m_state.Menu(name, ui->IsMenuOpen(name));
+        for (auto name : names) {
+            const bool open = ui->IsMenuOpen(name);
+            auto flags = ChronicleRuntime::kInputMenuFlags;
+            if (open) {
+                if (const auto menu = ui->GetMenu(name)) flags = menu->menuFlags.underlying();
+            }
+            m_state.Menu(name, open, flags);
+        }
     }
     const bool visible = m_state.Visible();
     if (!visible && !m_hidden) ForceCloseInput();
@@ -279,6 +286,7 @@ void Chronicle::PublishRuntime()
 void Chronicle::Tick()
 {
     if (!m_gameLoaded) return;
+    PollMenuFramework();
     // Menus can unfocus a view without delivering an Escape key to JavaScript.
     if (!m_prismaUI || !m_view || !m_hadFocus) return;
     const bool focused = m_prismaUI->HasFocus(m_view);
@@ -296,6 +304,21 @@ void Chronicle::Tick()
     }
 }
 
+void Chronicle::PollMenuFramework()
+{
+    // SKSE Menu Framework 3 exports this; older versions and absent installs are skipped.
+    using IsOpenFn = bool (*)();
+    static const auto isOpen = [] {
+        const auto module = GetModuleHandleW(L"SKSEMenuFramework.dll");
+        return module ? reinterpret_cast<IsOpenFn>(GetProcAddress(module, "IsAnyBlockingWindowOpened")) : nullptr;
+    }();
+    if (!isOpen) return;
+    const bool open = isOpen();
+    if (open == m_menuFrameworkOpen) return;
+    m_menuFrameworkOpen = open;
+    OnMenuOpenClose(ChronicleRuntime::kMenuFrameworkMenu, open);
+}
+
 void Chronicle::OnMenuOpenClose(std::string_view name, bool opening)
 {
     if (opening && name == "Main Menu") {
@@ -303,8 +326,8 @@ void Chronicle::OnMenuOpenClose(std::string_view name, bool opening)
         m_state.Menu(name, true);
         PublishRuntime();
     }
+    std::uint32_t flags = ChronicleRuntime::kInputMenuFlags;
     if (opening) {
-        std::uint32_t flags = ChronicleRuntime::kInputMenuFlags;
         if (auto* ui = RE::UI::GetSingleton()) {
             if (const auto menu = ui->GetMenu(name)) flags = menu->menuFlags.underlying();
         }
@@ -313,7 +336,7 @@ void Chronicle::OnMenuOpenClose(std::string_view name, bool opening)
             ForceCloseInput();
         }
     }
-    m_state.Menu(name, opening);
+    m_state.Menu(name, opening, flags);
     // One deferred reconciliation lets Skyrim finish updating its menu stack.
     MainTask([this, menu = std::string(name), opening] {
         if (!opening && (menu == "Loading Menu" || menu == "Fader Menu") && !m_gameLoaded) {
