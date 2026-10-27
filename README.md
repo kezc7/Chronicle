@@ -1,4 +1,4 @@
-# Chronicle 1.2.34
+# Chronicle 1.2.35
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -121,7 +121,7 @@ For browser development, `node tests/preview.cjs` serves a local preview with mo
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
 
-## 1.2.34 changes
+## 1.2.35 changes
 
 - Fixed a crash in the HUD subtitle reader. Chronicle read the HUD's Scaleform
   movie from SKSE's general task queue, which could race the HUD's own updates
@@ -129,11 +129,14 @@ actual cursor routing, menu events, or SKSE serialization; those need an in-game
   The HUD is now only read from SKSE's UI task queue.
 - Lines you type in the input bar now always show in the All tab, even with
   the Player channel turned off (it is off by default, which hid them).
-- Chronicle now hides while SKSE Menu Framework (version 3) has a window open,
-  and under mod menus opened as SKSE's CustomMenu, such as Swiftly Order Squad's
-  follower commands.
+- Chronicle now hides while SKSE Menu Framework (version 3) has a window open
+  that takes your input (its mod settings windows); its overlay widgets do not
+  hide it. Chronicle also hides under mod menus opened as SKSE's CustomMenu
+  that pause the game or take the cursor, such as Swiftly Order Squad's
+  follower commands. CustomMenu widgets that only draw on screen leave
+  Chronicle alone.
 
-1.2.33 was a test build.
+1.2.33 and 1.2.34 were test builds.
 
 ## 1.2.32 changes
 

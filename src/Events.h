@@ -196,6 +196,8 @@ private:
     static HudRead ReadHudSubtitle(const std::vector<std::string>& a_paths);
     void RequestHudRead();
     void HandleHudRead();
+    // Drops the stored result and any read still in flight.
+    void ResetHudRead();
 
     std::string m_lastText;
     // NPC line being answered; only compared, never dereferenced.
@@ -209,6 +211,7 @@ private:
     std::atomic<bool> m_running{ false };
     std::mutex m_hudMutex;
     std::optional<HudRead> m_hudRead;  // latest UI-task result, guarded by m_hudMutex
+    std::atomic<std::uint64_t> m_hudEpoch{ 0 };  // bumped by ResetHudRead; stale reads are dropped
     std::atomic<bool> m_hudPending{ false };
     // Declared last so it joins before the state it uses is destroyed.
     std::jthread m_worker;

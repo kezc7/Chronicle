@@ -63,9 +63,19 @@ int main()
     Require(!state.Visible());
     state.Menu("Console", false);
     Require(state.Visible());
-    state.Menu("CustomMenu", true); // mod SWF menus (e.g. Swiftly Order Squad)
+    state.Menu("CustomMenu", true); // mod SWF menus (e.g. Swiftly Order Squad); unknown flags count as input
     Require(!state.Visible());
     state.Menu("CustomMenu", false);
+    Require(state.Visible());
+    state.Menu("CustomMenu", true, 1u << 0); // pauses the game: a command menu
+    Require(!state.Visible());
+    state.Menu("CustomMenu", false, 1u << 0);
+    Require(state.Visible());
+    state.Menu("CustomMenu", true, 0); // no flags: an overlay widget, not a menu
+    Require(state.Visible());
+    Require(!ChronicleRuntime::InterruptsFocus("CustomMenu", 0));
+    state.Menu("CustomMenu", false, 0);
+    Require(state.Visible());
     state.Menu(ChronicleRuntime::kMenuFrameworkMenu, true); // SKSE Menu Framework window
     Require(!state.Visible());
     Require(ChronicleRuntime::InterruptsFocus(ChronicleRuntime::kMenuFrameworkMenu, 0));
