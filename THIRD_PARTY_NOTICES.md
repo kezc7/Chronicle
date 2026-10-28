@@ -15,6 +15,14 @@ into your own project if you wish to use this API.” The header is retained as 
 separately identified interface artifact and is not relicensed by Chronicle's GPL
 notice.
 
+## Magelight UI API header
+
+`src/MagelightUI_API.h` is copied from [Magelight UI](https://github.com/Severause/MagelightUI)
+(`api/MagelightUI_API.h`), Copyright (c) 2026 Severause, MIT License. It is used
+only by the Magelight build variant and is retained under its upstream terms;
+it is not relicensed by Chronicle's GPL notice. Chronicle's release archives do
+not redistribute the Magelight runtime.
+
 ## Build and link dependencies
 
 - [CommonLibSSE-NG](https://github.com/community-shaders/CommonLibSSE-NG), resolved

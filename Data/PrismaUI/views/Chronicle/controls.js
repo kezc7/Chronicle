@@ -14,7 +14,7 @@
 
 'use strict';
 
-const runtime = { connected: false, loaded: false, visible: false, profile: '', character: '', gameLanguage: '' };
+const runtime = { connected: false, loaded: false, visible: false, profile: '', character: '', gameLanguage: '', host: '' };
 // Chat window themes (styles.css body[data-theme] blocks); anything else,
 // including a missing value, falls back to the default Skyrim theme.
 const THEMES = ['skyrim', 'daedric', 'dwemer', 'classic-mmo', 'modern', 'minimal', 'transparent', 'high-contrast'];
@@ -137,6 +137,12 @@ function nativeBootstrap(data) {
   runtime.connected = true;
   runtime.nativeHotkeys = data.nativeHotkeys === true;
   runtime.gameLanguage = data.gameLanguage || ''; // Skyrim's sLanguage, for "Auto"
+  runtime.host = data.host || 'PrismaUI';
+  // A host whose pages cannot fetch config.json (Magelight) sends the bundled
+  // first-run defaults; the saved settings file still wins.
+  if (data.defaults && typeof data.defaults === 'object' && !Array.isArray(data.defaults)) {
+    config = deepMerge(config, data.defaults);
+  }
   if (data.settings) config = deepMerge(deepMerge({}, DEFAULT_CONFIG), data.settings);
   normalizeConfig();
   applyConfig();
@@ -261,7 +267,7 @@ function settingsSaveResult(ok, detail, param) {
 
 function diagnosticsResult(data) {
   document.getElementById('diagnostics-output').textContent = [
-    'Chronicle ' + data.version + ' / PrismaUI API ' + data.api,
+    'Chronicle ' + data.version + ' / ' + (data.host || 'PrismaUI') + ' API ' + data.api,
     t('diag.connection', {value: t(data.bridge ? 'diag.connected' : 'diag.missing')}),
     t('diag.state', {loaded: data.gameLoaded, visible: data.visible}),
     t('diag.focus', {focus: data.focus, poller: data.poller}),

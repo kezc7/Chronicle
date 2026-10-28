@@ -217,11 +217,16 @@ function speakerColour(speaker) {
 // Config loading / saving
 
 async function loadConfig() {
+  // Magelight's Content-Security-Policy blocks a page from fetching its own
+  // files; its native side sends config.json with nativeBootstrap instead.
+  const hostFetchesDefaults = typeof window !== 'undefined' && !!window.__MAGELIGHT__;
   try {
-    const res = await fetch('config.json?_=' + Date.now());
-    if (res.ok) {
-      const saved = await res.json();
-      config = deepMerge(config, saved);
+    if (!hostFetchesDefaults) {
+      const res = await fetch('config.json?_=' + Date.now());
+      if (res.ok) {
+        const saved = await res.json();
+        config = deepMerge(config, saved);
+      }
     }
   } catch (_) {
     // First run or file missing — defaults apply

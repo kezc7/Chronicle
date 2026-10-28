@@ -117,6 +117,8 @@ int main()
     Require(ChronicleRuntime::InterruptsFocus("UnknownModMenu"));                 // flags unknown
     Require(ChronicleRuntime::InterruptsFocus("Console", 0));                     // blocking by name
     Require(!ChronicleRuntime::InterruptsFocus("PrismaUI_FocusMenu", ChronicleRuntime::kInputMenuFlags));
+    Require(!ChronicleRuntime::InterruptsFocus("MagelightFocus", ChronicleRuntime::kInputMenuFlags));
+    Require(!ChronicleRuntime::HidesChronicle("MagelightFocus", ChronicleRuntime::kInputMenuFlags));
     // Focus granted but not reported yet is not a loss until the grace period ends.
     Require(!ChronicleRuntime::FocusLost(false, false, 0));
     Require(!ChronicleRuntime::FocusLost(false, false, ChronicleRuntime::kFocusGraceMs - 1));

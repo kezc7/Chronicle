@@ -164,3 +164,34 @@ test('a failed first save still dispatches the queued newest save', () => {
   context.settingsSaveResult(true, 'B saved');
   assert.equal(saved.has('chronicle_pending_settings'), false);
 });
+
+test('host-supplied first-run defaults apply without a settings file and lose to it', () => {
+  const {context} = setup();
+  const calls = [];
+  context.sendToGame = (event, value) => { calls.push([event, value]); return true; };
+
+  // Magelight: the page cannot fetch config.json, so the DLL sends it.
+  context.nativeBootstrap({
+    settings: null, defaults: {general: {hide_in_menus: false, max_messages: 250}},
+    warning: '', version: '1.2.37', host: 'Magelight',
+  });
+  assert.equal(vm.runInContext('config.general.hide_in_menus', context), false);
+  assert.equal(vm.runInContext('config.general.max_messages', context), 250);
+  assert.equal(vm.runInContext('runtime.host', context), 'Magelight');
+  // The first-run migration persists the merged defaults as the settings file.
+  assert.equal(calls.length, 1);
+  assert.equal(JSON.parse(calls[0][1]).general.max_messages, 250);
+
+  // A saved settings file is authoritative over the bundled defaults.
+  context.nativeBootstrap({
+    settings: {general: {hide_in_menus: true}, window: {}, channels: {}, speaker_colours: {}, hud_subtitle_paths: []},
+    defaults: {general: {hide_in_menus: false, max_messages: 250}},
+    warning: '', version: '1.2.37', host: 'Magelight',
+  });
+  assert.equal(vm.runInContext('config.general.hide_in_menus', context), true);
+  assert.equal(vm.runInContext('config.general.max_messages', context), 100);
+
+  // PrismaUI sends no defaults and no host name.
+  context.nativeBootstrap({settings: null, defaults: null, warning: '', version: '1.2.37'});
+  assert.equal(vm.runInContext('runtime.host', context), 'PrismaUI');
+});
