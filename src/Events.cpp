@@ -99,6 +99,13 @@ void SubtitlePoller::SetExtraHudPaths(std::vector<std::string> paths)
     spdlog::info("Chronicle: {} additional HUD subtitle path(s) configured", m_extraHudPaths.size());
 }
 
+void SubtitlePoller::SetHudCapture(bool enabled)
+{
+    if (m_hudCapture.exchange(enabled) != enabled || !enabled) {
+        spdlog::info("Chronicle: HUD subtitle capture {}", enabled ? "enabled" : "disabled by hud_subtitle_capture");
+    }
+}
+
 RE::BSEventNotifyControl MenuEventSink::ProcessEvent(
     const RE::MenuOpenCloseEvent* a_event,
     RE::BSTEventSource<RE::MenuOpenCloseEvent>*)
@@ -476,6 +483,11 @@ void SubtitlePoller::PollOnce()
     // Prefer the attributed manager entries while they are active.
     if (m_managerSubtitleActive) {
         m_lastHudPath = "SubtitleManager";
+        ResetHudRead();
+        return;
+    }
+    if (!m_hudCapture) {
+        m_lastHudPath = "disabled (hud_subtitle_capture)";
         ResetHudRead();
         return;
     }
