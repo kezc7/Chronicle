@@ -174,6 +174,9 @@ public:
     void Start();
     void Stop();
     void SetExtraHudPaths(std::vector<std::string> paths);
+    // "hud_subtitle_capture": false in Chronicle.json stops every read of the
+    // HUD movie; SubtitleManager and notification capture are unaffected.
+    void SetHudCapture(bool enabled);
     bool IsRunning() const { return m_running.load(); }
     std::string LastHudPath() const { return m_lastHudPath.empty() ? "not polled" : m_lastHudPath; }
 
@@ -212,6 +215,7 @@ private:
     std::mutex m_hudMutex;
     std::optional<HudRead> m_hudRead;  // latest UI-task result, guarded by m_hudMutex
     std::atomic<std::uint64_t> m_hudEpoch{ 0 };  // bumped by ResetHudRead; stale reads are dropped
+    std::atomic<bool> m_hudCapture{ true };
     std::atomic<bool> m_hudPending{ false };
     // Declared last so it joins before the state it uses is destroyed.
     std::jthread m_worker;
