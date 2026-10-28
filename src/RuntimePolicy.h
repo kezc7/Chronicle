@@ -518,11 +518,14 @@ namespace ChronicleRuntime
 
     // Opening a menu that takes input releases Chronicle's focus. Overlay
     // menus (HUD widgets, minimaps) open and close at any time, including
-    // while PrismaUI's focus menu opens, and must not close a panel the
+    // while the host's focus menu opens, and must not close a panel the
     // player just opened. A menu whose flags are unknown counts as input.
+    // PrismaUI_FocusMenu and MagelightFocus are the engine menus the two web
+    // hosts push while one of their views owns input, Chronicle's included.
     inline bool InterruptsFocus(std::string_view name, std::uint32_t menuFlags = kInputMenuFlags)
     {
-        if (name == "PrismaUI_FocusMenu" || name == "HUD Menu" || name == "Cursor Menu") return false;
+        if (name == "PrismaUI_FocusMenu" || name == "MagelightFocus" ||
+            name == "HUD Menu" || name == "Cursor Menu") return false;
         return IsBlocking(name) || (menuFlags & kInputMenuFlags) != 0;
     }
 

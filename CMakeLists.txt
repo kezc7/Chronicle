@@ -25,6 +25,20 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
 
+# Web UI host the DLL talks to. PrismaUI is the release build; Magelight is
+# the beta build (pages under Data/Magelight/Chronicle/views). One host per DLL.
+set(CHRONICLE_UI_HOST "PrismaUI" CACHE STRING "Web UI host: PrismaUI or Magelight")
+set_property(CACHE CHRONICLE_UI_HOST PROPERTY STRINGS PrismaUI Magelight)
+if(CHRONICLE_UI_HOST STREQUAL "Magelight")
+    set(host_headers src/MagelightUI_API.h)
+    set(host_sources src/UiHostMagelight.cpp)
+elseif(CHRONICLE_UI_HOST STREQUAL "PrismaUI")
+    set(host_headers src/PrismaUI_API.h)
+    set(host_sources src/UiHostPrisma.cpp)
+else()
+    message(FATAL_ERROR "CHRONICLE_UI_HOST must be PrismaUI or Magelight, not '${CHRONICLE_UI_HOST}'")
+endif()
+
 set(headers
     src/PCH.h
     src/Chronicle.h
@@ -32,7 +46,8 @@ set(headers
     src/MessageBuilder.h
     src/Utf8.h
     src/RuntimePolicy.h
-    src/PrismaUI.h
+    src/UiHost.h
+    ${host_headers}
     src/History.h
     src/HistoryWriter.h
     src/DovahHubModule.h
@@ -46,7 +61,7 @@ set(sources
     src/Plugin.cpp
     src/Chronicle.cpp
     src/Events.cpp
-    src/PrismaUI.cpp
+    ${host_sources}
     src/HistoryWriter.cpp
     src/DovahHubModule.cpp
     src/Api.cpp
@@ -67,6 +82,11 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 
 # Single version source: bump VERSION above for every build that is handed out.
 target_compile_definitions(${PROJECT_NAME} PRIVATE CHRONICLE_VERSION="${PROJECT_VERSION}")
+# Chronicle_API.h reports which build this is.
+target_compile_definitions(${PROJECT_NAME} PRIVATE CHRONICLE_HOST_NAME="${CHRONICLE_UI_HOST}")
+if(CHRONICLE_UI_HOST STREQUAL "Magelight")
+    target_compile_definitions(${PROJECT_NAME} PRIVATE CHRONICLE_UI_HOST_MAGELIGHT=1)
+endif()
 
 if(MSVC)
     add_compile_definitions(_UNICODE)
@@ -106,3 +126,12 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         "$<TARGET_FILE_DIR:${PROJECT_NAME}>/Data"
     COMMENT "Copying Data directory to output"
 )
+if(CHRONICLE_UI_HOST STREQUAL "Magelight")
+    # The same page, at the path the Magelight host reads it from.
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/Data/PrismaUI/views/Chronicle"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/Data/Magelight/Chronicle/views"
+        COMMENT "Copying the page to Data/Magelight/Chronicle/views"
+    )
+endif()

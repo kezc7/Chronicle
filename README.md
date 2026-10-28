@@ -126,6 +126,19 @@ from there on either of its UI hosts. It does nothing without DovahHub.
 Do not extract the archive into the Skyrim game root unless your extractor is
 configured to merge the archive's contents into `Data`.
 
+### Magelight UI build (beta)
+
+A separate `Chronicle-Magelight-<version>` archive runs the same chat window on
+[Magelight UI](https://www.nexusmods.com/skyrimspecialedition/mods/193303)
+(0.30.1 or newer) instead of PrismaUI. Install one or the other, not both: both
+archives ship `Data/SKSE/Plugins/Chronicle.dll`. The Magelight archive's page is
+at `Data/Magelight/Chronicle/views/index.html`. Settings, hotkeys and the
+settings file are shared with the PrismaUI build; chat history is not, because
+Magelight keeps page storage in its own folder. Known differences: Magelight
+draws its own cursor while Chronicle has focus, Page Up (Magelight's toggle
+key) also releases Chronicle's focus, and the host's text gamma differs
+slightly. Diagnostics shows which host the DLL was built for.
+
 ## Build
 
 The project expects Visual Studio 18 with CMake, Ninja, and vcpkg installed.
@@ -136,7 +149,11 @@ Run `build.ps1` from PowerShell:
 ```
 
 The resulting plugin is written to `out/build/x64-Debug/Chronicle.dll` and the
-PrismaUI view files are copied beside it.
+PrismaUI view files are copied beside it. `-UiHost Magelight` builds the
+Magelight UI variant into `out/build/x64-Debug-Magelight` instead; the same
+switch on `package.ps1` produces the `Chronicle-Magelight-<version>` archive.
+The host is chosen at build time (CMake `CHRONICLE_UI_HOST`); one DLL talks to
+one host.
 
 Builds run C++ regression tests and Node.js bridge/history tests (Node.js required
 for development only). To build, test, and package matching DLL/UI assets:
@@ -197,6 +214,16 @@ actual cursor routing, menu events, or SKSE serialization; those need an in-game
   `Data/SKSE/Plugins/Chronicle/history/`, following Keep history and Clear
   history. A character's existing chat-window history is copied over the first
   time it loads.
+
+## 1.2.39 changes
+
+- New beta build on Magelight UI, packaged separately as
+  `Chronicle-Magelight-<version>`. The native code now talks to the web host
+  through one small interface with a PrismaUI backend (the release build,
+  unchanged in behaviour) and a Magelight backend. Under Magelight the page
+  cannot fetch its own `config.json`, so the DLL sends the first-run defaults
+  with the handshake; Magelight's focus menu (`MagelightFocus`) no longer
+  counts as a menu that closes Chronicle's input. Not yet verified in Skyrim.
 
 ## 1.2.38 changes
 

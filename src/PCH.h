@@ -20,8 +20,20 @@
 
 #pragma once
 
-// PrismaUI must come first — it sets WIN32_LEAN_AND_MEAN before <Windows.h>
+// The UI host header comes first: it sets WIN32_LEAN_AND_MEAN/NOMINMAX
+// before <Windows.h>. The Magelight build includes <Windows.h> the same way
+// itself (its API header is pulled in by UiHostMagelight.cpp only).
+#if CHRONICLE_UI_HOST_MAGELIGHT
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <Windows.h>
+#else
 #include "PrismaUI_API.h"
+#endif
 
 #include <RE/Skyrim.h>
 #include <SKSE/SKSE.h>

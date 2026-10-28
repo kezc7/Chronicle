@@ -3,22 +3,34 @@
 # This file is part of Chronicle and is licensed under the GNU GPL, version 3
 # or any later version. See LICENSE.
 
-param([ValidateSet('Debug','Release','RelWithDebInfo')][string]$Config = 'Debug')
+param(
+    [ValidateSet('Debug','Release','RelWithDebInfo')][string]$Config = 'Debug',
+    # PrismaUI packages as Chronicle-<version>; Magelight (beta) as Chronicle-Magelight-<version>
+    # with the page under Magelight/Chronicle/views instead of PrismaUI/views/Chronicle.
+    [ValidateSet('PrismaUI','Magelight')][string]$UiHost = 'PrismaUI'
+)
 $ErrorActionPreference = 'Stop'
 $projectRoot = $PSScriptRoot
-& "$projectRoot\build.ps1" -Config $Config
+& "$projectRoot\build.ps1" -Config $Config -UiHost $UiHost
 if ($LASTEXITCODE -ne 0) { throw 'Build failed; package not created' }
 $cmakeText = Get-Content -LiteralPath "$projectRoot\CMakeLists.txt" -Raw
 if ($cmakeText -notmatch 'VERSION\s+(\d+\.\d+\.\d+)') { throw 'Cannot find project version' }
 $version = $Matches[1]
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+$buildDir = "$projectRoot\out\build\x64-$Config"
+$viewDir = 'PrismaUI\views\Chronicle'
 $name = "Chronicle-$version-$Config-$stamp"
+if ($UiHost -eq 'Magelight') {
+    $buildDir += '-Magelight'
+    $viewDir = 'Magelight\Chronicle\views'
+    $name = "Chronicle-Magelight-$version-$Config-$stamp"
+}
 $stage = Join-Path $projectRoot "out\staging\$name"
-New-Item -ItemType Directory -Path "$stage\SKSE\Plugins", "$stage\PrismaUI\views\Chronicle" -Force | Out-Null
-Copy-Item -LiteralPath "$projectRoot\out\build\x64-$Config\Chronicle.dll" -Destination "$stage\SKSE\Plugins\Chronicle.dll"
+New-Item -ItemType Directory -Path "$stage\SKSE\Plugins", "$stage\$viewDir" -Force | Out-Null
+Copy-Item -LiteralPath "$buildDir\Chronicle.dll" -Destination "$stage\SKSE\Plugins\Chronicle.dll"
 # Explicit file list excludes the obsolete standalone settings page and all preview/test assets.
 foreach ($file in 'index.html','script.js','controls.js','bridge.js','i18n.js','styles.css','config.json') {
-    Copy-Item -LiteralPath "$projectRoot\Data\PrismaUI\views\Chronicle\$file" -Destination "$stage\PrismaUI\views\Chronicle\$file"
+    Copy-Item -LiteralPath "$projectRoot\Data\PrismaUI\views\Chronicle\$file" -Destination "$stage\$viewDir\$file"
 }
 # Chronicle's DovahHub tab: module pages live inside DovahHub's own view folder, on either UI host.
 $moduleDir = 'PrismaUI\views\DovahHub\modules\chronicle'

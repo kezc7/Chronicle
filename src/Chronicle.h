@@ -20,9 +20,9 @@
 
 #pragma once
 
-#include "PrismaUI.h"
 #include "PCH.h"
 #include "RuntimePolicy.h"
+#include "UiHost.h"
 #include "History.h"
 
 // Documents\My Games\Skyrim Special Edition\SKSE. SKSE::log::log_directory()
@@ -119,14 +119,11 @@ public:
     bool IsVisible() const { return !m_hidden.load(); }  // any thread
     void SetApiHidden(bool a_hidden);
 
-    // PrismaUI view handle — set in CreateView DOM-ready callback
-    PrismaView m_view{ 0 };
-
 private:
     Chronicle() = default;
 
     void RegisterEventSinks();
-    void InitPrismaUI();        // called on kDataLoaded — gets API + creates view
+    void InitUiHost();          // called on kDataLoaded — resolves the host + creates the view
     void OnViewReady();         // called by DOM-ready callback — registers JS listeners
     void FlushPendingUI();
     void RequestFocus();
@@ -142,10 +139,6 @@ private:
 
     bool IsDuplicate(std::string_view a_channel, std::string_view a_speaker, std::string_view a_message);
     void InvokeUI(std::string_view a_js);
-
-    PRISMA_UI_API::IVPrismaUI1* m_prismaUI{ nullptr };
-    PRISMA_UI_API::IVPrismaUI2* m_prismaV2{ nullptr };
-    bool m_hasV2{ false };  // true only when we got a real IVPrismaUI2, not a V1 cast
 
     std::atomic<bool> m_hidden{ true };
     std::atomic<bool> m_gameLoaded{ false };  // set true by OnPostLoadGame
