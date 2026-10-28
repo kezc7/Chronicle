@@ -500,6 +500,7 @@ void Chronicle::ApplyNativeSettings(const nlohmann::json& settings)
         }
     }
     SubtitlePoller::GetSingleton().SetExtraHudPaths(std::move(extraHudPaths));
+    SubtitlePoller::GetSingleton().SetHudCapture(settings.value("hud_subtitle_capture", true));
     auto key = [](std::string value, std::uint32_t fallback) -> std::uint32_t {
         std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
         if (value == "ENTER") return VK_RETURN;
