@@ -32,7 +32,7 @@ namespace
 {
     const std::filesystem::path kSettingsPath = L"Data/SKSE/Plugins/Chronicle.json";
 
-    // Own the callback payload before leaving PrismaUI's thread.
+    // Own the callback payload before leaving the UI host's thread.
     template<class F> void MainTask(F task)
     {
         if (auto* tasks = SKSE::GetTaskInterface()) {
@@ -98,7 +98,7 @@ void Chronicle::OnDataLoaded()
     m_language = static_cast<int>(ChronicleRuntime::ResolveLanguage("auto", m_gameLanguage));
     spdlog::info("Chronicle: game language '{}'", m_gameLanguage);
     RegisterEventSinks();
-    InitPrismaUI();
+    InitUiHost();
 }
 
 void Chronicle::OnPreLoadGame()
@@ -169,59 +169,40 @@ void Chronicle::RegisterEventSinks()
     if (auto* levels = RE::LevelIncrease::GetEventSource()) levels->AddEventSink(&LevelUpEventSink::GetSingleton());
 }
 
-void Chronicle::InitPrismaUI()
+void Chronicle::InitUiHost()
 {
-    m_prismaV2 = PRISMA_UI_API::RequestPluginAPI<PRISMA_UI_API::IVPrismaUI2>();
-    m_hasV2 = m_prismaV2 != nullptr;
-    m_prismaUI = m_prismaV2 ? m_prismaV2 : PRISMA_UI_API::RequestPluginAPI<PRISMA_UI_API::IVPrismaUI1>();
-    if (!m_prismaUI) {
-        spdlog::error("Chronicle: PrismaUI unavailable");
-        return;
-    }
-    m_view = m_prismaUI->CreateView("Chronicle/index.html", [](PrismaView view) {
-        MainTask([view]() {
-            auto* c = Chronicle::GetSingleton();
-            c->m_view = view;
-            c->OnViewReady();
-        });
+    const bool created = UiHost().CreateView([] {
+        MainTask([] { Chronicle::GetSingleton()->OnViewReady(); });
     });
-    if (m_view) m_prismaUI->Hide(m_view);
-    spdlog::info("Chronicle: view {} created, API v{}", m_view, m_hasV2 ? 2 : 1);
+    spdlog::info("Chronicle: {} host {}", UiHost().Name(), created ? "view created" : "unavailable");
 }
 
 void Chronicle::OnViewReady()
 {
-    if (!m_prismaUI || !m_view) return;
-    m_prismaUI->RegisterJSListener(m_view, "playerInput", [](const char* text) {
+    auto& host = UiHost();
+    if (!host.ViewValid()) return;
+    host.RegisterListener("playerInput", [](const char* text) {
         if (text) MainTask([payload = std::string(text)] { GetSingleton()->OnPlayerInput(payload); });
     });
-    m_prismaUI->RegisterJSListener(m_view, "consoleCommand", [](const char* text) {
+    host.RegisterListener("consoleCommand", [](const char* text) {
         if (text) MainTask([payload = std::string(text)] { GetSingleton()->OnConsoleCommand(payload); });
     });
-    m_prismaUI->RegisterJSListener(m_view, "settingsChanged", [](const char* text) {
+    host.RegisterListener("settingsChanged", [](const char* text) {
         if (text) MainTask([payload = std::string(text)] { GetSingleton()->OnSettingsChanged(payload); });
     });
-    m_prismaUI->RegisterJSListener(m_view, "exportHistory", [](const char* text) {
+    host.RegisterListener("exportHistory", [](const char* text) {
         if (text) MainTask([payload = std::string(text)] { GetSingleton()->ExportHistory(payload); });
     });
-    m_prismaUI->RegisterJSListener(m_view, "historyImport", [](const char* text) {
+    host.RegisterListener("historyImport", [](const char* text) {
         if (text) MainTask([payload = std::string(text)] { GetSingleton()->OnHistoryImport(payload); });
     });
-    m_prismaUI->RegisterJSListener(m_view, "historyCleared", [](const char* text) {
+    host.RegisterListener("historyCleared", [](const char* text) {
         if (text) MainTask([payload = std::string(text)] { GetSingleton()->OnHistoryCleared(payload); });
     });
-    m_prismaUI->RegisterJSListener(m_view, "focusAcquired", [](const char*) { GetSingleton()->RequestFocus(); });
-    m_prismaUI->RegisterJSListener(m_view, "focusReleased", [](const char*) { GetSingleton()->RequestUnfocus(); });
-    m_prismaUI->RegisterJSListener(m_view, "uiReady", [](const char*) { MainTask([] { GetSingleton()->Bootstrap(); }); });
-    m_prismaUI->RegisterJSListener(m_view, "diagnostics", [](const char*) { MainTask([] { GetSingleton()->Diagnostics(); }); });
-
-    if (m_prismaV2) {
-        // This is WEB console output, not Skyrim console-command output.
-        m_prismaV2->RegisterConsoleCallback(m_view,
-            [](PrismaView, PRISMA_UI_API::ConsoleMessageLevel, const char* text) {
-                if (text) spdlog::debug("Chronicle web: {}", text);
-            });
-    }
+    host.RegisterListener("focusAcquired", [](const char*) { GetSingleton()->RequestFocus(); });
+    host.RegisterListener("focusReleased", [](const char*) { GetSingleton()->RequestUnfocus(); });
+    host.RegisterListener("uiReady", [](const char*) { MainTask([] { GetSingleton()->Bootstrap(); }); });
+    host.RegisterListener("diagnostics", [](const char*) { MainTask([] { GetSingleton()->Diagnostics(); }); });
     m_viewReady = true;
     spdlog::info("Chronicle: listeners ready, waiting for UI handshake");
 }
@@ -243,9 +224,17 @@ void Chronicle::Bootstrap()
         warning = std::string("Settings file could not be loaded: ") + e.what();
         spdlog::warn("Chronicle: {}", warning);
     }
+    // Hosts whose pages cannot fetch config.json hand the first-run defaults over here.
+    nlohmann::json defaults = nullptr;
+    if (const auto text = UiHost().FirstRunDefaults(); !text.empty()) {
+        try { defaults = nlohmann::json::parse(text); }
+        catch (const std::exception& e) { spdlog::warn("Chronicle: bundled config.json unreadable: {}", e.what()); }
+    }
     m_bootstrapped = true;
     m_state.ready = true;
-    InvokeUI("nativeBootstrap(" + Json({{"settings", settings}, {"warning", warning}, {"version", CHRONICLE_VERSION}, {"nativeHotkeys", true}, {"gameLanguage", m_gameLanguage}}) + ")");
+    InvokeUI("nativeBootstrap(" + Json({{"settings", settings}, {"defaults", defaults}, {"warning", warning},
+        {"version", CHRONICLE_VERSION}, {"nativeHotkeys", true}, {"gameLanguage", m_gameLanguage},
+        {"host", UiHost().Name()}}) + ")");
     PublishRuntime();
     UpdateVisibility();
     FlushPendingUI();
@@ -276,10 +265,9 @@ void Chronicle::UpdateVisibility()
     }
     const bool visible = m_state.Visible();
     if (!visible && !m_hidden) ForceCloseInput();
-    if (m_prismaUI && m_view && m_viewReady) {
+    if (UiHost().ViewValid() && m_viewReady) {
         InvokeUI(visible ? "setVisibility(true)" : "setVisibility(false)");
-        if (visible) m_prismaUI->Show(m_view);
-        else m_prismaUI->Hide(m_view);
+        UiHost().Show(visible);
     }
     if (m_hidden.exchange(!visible) == visible) ChronicleApi::Dispatch(CHRONICLE_API::kMsgVisibility, { { "visible", visible } });
 }
@@ -314,8 +302,8 @@ void Chronicle::Tick()
     // Catches a DovahHub close whose message was missed.
     OnDovahHubOpen(DovahHubModule::IsOpen());
     // Menus can unfocus a view without delivering an Escape key to JavaScript.
-    if (!m_prismaUI || !m_view || !m_hadFocus) return;
-    const bool focused = m_prismaUI->HasFocus(m_view);
+    if (!UiHost().ViewValid() || !m_hadFocus) return;
+    const bool focused = UiHost().HasFocus();
     m_focusSeen = m_focusSeen || focused;
     const auto waited = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::steady_clock::now() - m_focusGrantedAt).count();
@@ -388,8 +376,8 @@ void Chronicle::ForceCloseInput()
     m_hadFocus = false;
     m_focusSeen = false;
     m_keyboardCapture = false;
-    if (!m_prismaUI || !m_view || !m_viewReady) return;
-    if (m_prismaUI->HasFocus(m_view)) m_prismaUI->Unfocus(m_view);
+    if (!UiHost().ViewValid() || !m_viewReady) return;
+    UiHost().Unfocus();
     InvokeUI("closeInteraction(false)");
 }
 
@@ -403,14 +391,15 @@ void Chronicle::RequestFocus()
             InvokeUI("focusResult(false, 'focus.unavailable')");
             return;
         }
-        if (m_prismaUI->HasAnyActiveFocus() && !m_prismaUI->HasFocus(m_view)) {
+        auto& host = UiHost();
+        if (host.AnyFocus() && !host.HasFocus()) {
             m_keyboardCapture = false;
             InvokeUI("focusResult(false, 'focus.otherMod')");
             return;
         }
-        const bool focused = m_prismaUI->Focus(m_view, false, false);
+        const bool focused = host.Focus();
         m_hadFocus = focused;
-        m_focusSeen = focused && m_prismaUI->HasFocus(m_view);
+        m_focusSeen = focused && host.HasFocus();
         m_focusGrantedAt = std::chrono::steady_clock::now();
         m_keyboardCapture = focused;
         spdlog::info("Chronicle: focus request -> {}", focused ? "success" : "FAILED");
@@ -606,13 +595,14 @@ void Chronicle::ToggleUserHidden()
 
 bool Chronicle::OnHotkey(std::uint32_t scanCode, bool shift)
 {
-    // PrismaUI routes keys to JS once focused. Native keys acquire the focus
+    // The host routes keys to JS once focused. Native keys acquire the focus
     // in the first place; otherwise a passive overlay cannot receive a hotkey.
     const auto key = MapVirtualKeyW(scanCode, MAPVK_VSC_TO_VK_EX);
+    auto& host = UiHost();
     // The show/hide key must work while Chronicle is hidden by it, but never
     // while typing (any focused view), in menus or in Skyrim's console.
-    const bool canToggle = m_bootstrapped && m_gameLoaded && m_prismaUI &&
-        !m_prismaUI->HasAnyActiveFocus() && m_state.menus.empty();
+    const bool canToggle = m_bootstrapped && m_gameLoaded && host.Available() &&
+        !host.AnyFocus() && m_state.menus.empty();
     if (canToggle && m_toggleKey && key == m_toggleKey && !shift) {
         MainTask([this] { ToggleUserHidden(); });
         return true;
@@ -626,9 +616,9 @@ bool Chronicle::OnHotkey(std::uint32_t scanCode, bool shift)
         MainTask([this] { if (!m_hidden && m_gameLoaded) InvokeUI("nativeHotkey(\"settings\")"); });
         return true;
     }
-    if (!m_bootstrapped || m_hidden || !m_gameLoaded || !m_prismaUI) return false;
-    if (m_prismaUI->HasAnyActiveFocus()) {
-        if (!m_prismaUI->HasFocus(m_view)) return false;
+    if (!m_bootstrapped || m_hidden || !m_gameLoaded || !host.Available()) return false;
+    if (host.AnyFocus()) {
+        if (!host.HasFocus()) return false;
         // Release natively too: if the view never receives keys, the close
         // hotkey/Escape must still return control to Skyrim. Letter/Enter
         // hotkeys are left to JS so typing in the input bar cannot close it.
@@ -791,9 +781,9 @@ void Chronicle::Diagnostics()
 {
     InvokeUI("diagnosticsResult(" + Json({
         {"version", CHRONICLE_VERSION}, {"bridge", m_bootstrapped}, {"gameLoaded", m_gameLoaded.load()},
-        {"visible", !m_hidden}, {"focus", m_prismaUI && m_prismaUI->HasFocus(m_view)},
+        {"visible", !m_hidden}, {"focus", UiHost().HasFocus()},
         {"poller", SubtitlePoller::GetSingleton().IsRunning()}, {"messages", m_messageCount},
-        {"lastSubtitle", m_lastSubtitle}, {"api", m_hasV2 ? 2 : 1},
+        {"lastSubtitle", m_lastSubtitle}, {"api", UiHost().ApiVersion()}, {"host", UiHost().Name()},
         {"hudPath", SubtitlePoller::GetSingleton().LastHudPath()},
         {"settingsFile", kSettingsPath.string()},
         {"historyLines", m_history.Size()}, {"historyKb", (m_history.Bytes() + 1023) / 1024},
@@ -827,8 +817,8 @@ bool Chronicle::IsDuplicate(std::string_view channel, std::string_view speaker, 
 
 void Chronicle::InvokeUI(std::string_view script)
 {
-    if (m_prismaUI && m_view && m_viewReady) {
+    if (UiHost().ViewValid() && m_viewReady) {
         const std::string terminated(script);
-        m_prismaUI->Invoke(m_view, terminated.c_str());
+        UiHost().Invoke(terminated.c_str());
     }
 }

@@ -5,7 +5,10 @@
 
 # Chronicle build script
 param(
-    [string]$Config = "Debug"
+    [string]$Config = "Debug",
+    # PrismaUI is the release build; Magelight is the beta build. Each host
+    # gets its own build directory so the two DLLs never overwrite each other.
+    [ValidateSet('PrismaUI','Magelight')][string]$UiHost = 'PrismaUI'
 )
 
 $vsBase    = "C:\Program Files\Microsoft Visual Studio\18\Community"
@@ -16,6 +19,7 @@ $toolchain = "$vcpkgRoot\scripts\buildsystems\vcpkg.cmake"
 $devCmd    = "$vsBase\Common7\Tools\VsDevCmd.bat"
 $src       = Split-Path -Parent $MyInvocation.MyCommand.Path
 $build     = "$src\out\build\x64-$Config"
+if ($UiHost -ne 'PrismaUI') { $build += "-$UiHost" }
 
 Write-Host "[Chronicle] Loading MSVC environment..."
 
@@ -38,6 +42,7 @@ Write-Host "[Chronicle] Configuring..."
     "-DCMAKE_TOOLCHAIN_FILE=$toolchain" `
     -DVCPKG_TARGET_TRIPLET=x64-windows-static `
     "-DCMAKE_BUILD_TYPE=$Config" `
+    "-DCHRONICLE_UI_HOST=$UiHost" `
     -DCHRONICLE_BUILD_TESTS=ON
 
 if ($LASTEXITCODE -ne 0) {
