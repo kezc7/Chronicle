@@ -1,4 +1,4 @@
-# Chronicle 1.2.35
+# Chronicle 1.2.36
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -120,6 +120,15 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.2.36 changes
+
+- Test switch for crash hunting: `"hud_subtitle_capture": false` at the top
+  level of `Data/SKSE/Plugins/Chronicle.json` (next to `hud_subtitle_paths`)
+  stops Chronicle reading the HUD's subtitle text field. Dialogue subtitles,
+  notifications and everything else keep working. Diagnostics then shows the
+  HUD path as "disabled (hud_subtitle_capture)". Leave the key out, or set it
+  to `true`, for normal use.
 
 ## 1.2.35 changes
 
