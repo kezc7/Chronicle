@@ -28,6 +28,41 @@ let focusPending = false;
 let settingsSaveInFlight = null;
 let settingsSaveQueued = null;
 const PENDING_SETTINGS_KEY = 'chronicle_pending_settings';
+// Magelight cannot switch a view between click-through and interactive, so it
+// runs two copies of this page: 'hud' only shows the log, 'panel' takes input
+// and is the only one that saves. Every other host runs one 'full' page.
+let hostRole = 'full';
+
+function setHostRole(role) { hostRole = role === 'hud' || role === 'panel' ? role : 'full'; }
+function ownsStorage() { return hostRole !== 'hud'; }
+
+// Magelight hands the panel's state to the hud copy when an interaction ends:
+// settings, a cleared history, the window position and the viewed tab.
+function exportViewState() {
+  return JSON.stringify({
+    config, activeChannel, search: searchText, speaker: speakerFilter,
+    messages: messages.map(({channel, speaker, message, timestamp}) => ({channel, speaker, message, timestamp})),
+  });
+}
+
+function importViewState(state) {
+  if (!state || typeof state !== 'object' || !state.config || typeof state.config !== 'object') return false;
+  config = deepMerge(deepMerge({}, DEFAULT_CONFIG), state.config);
+  messages.length = 0;
+  document.getElementById('message-list').replaceChildren();
+  unreadCount = 0;
+  userScrolledUp = false;
+  if (DEFAULT_CONFIG.channels[state.activeChannel]) activeChannel = state.activeChannel;
+  normalizeConfig();
+  applyConfig();
+  (Array.isArray(state.messages) ? state.messages : []).forEach(entry => addMessage(entry, false));
+  refreshSpeakerOptions();
+  document.getElementById('history-search').value = typeof state.search === 'string' ? state.search : '';
+  document.getElementById('speaker-filter').value = typeof state.speaker === 'string' ? state.speaker : '';
+  switchChannel(activeChannel);
+  wakeWindow();
+  return true;
+}
 
 function interactionHint() {
   return t('status.hint', {interact: config.general.interact_hotkey, settings: config.general.config_hotkey.toUpperCase()});
@@ -70,6 +105,7 @@ function closeInteraction(release = true) {
 }
 
 function focusResult(success, reason) {
+  if (hostRole === 'hud') return false;
   if (success && (!interactionOpen || !focusPending)) {
     // A grant that arrives after the interaction closed would leave Chronicle
     // holding the keyboard with nothing open; hand it straight back.
@@ -121,7 +157,7 @@ function historyKey() { return 'chronicle_history_' + runtime.profile; }
 function flushHistory() {
   if (historySaveTimer) clearTimeout(historySaveTimer);
   historySaveTimer = null;
-  if (!runtime.profile || !config.general.persist_history) return;
+  if (!ownsStorage() || !runtime.profile || !config.general.persist_history) return;
   try {
     localStorage.setItem(historyKey(), JSON.stringify(messages.slice(-config.general.max_messages)
       .map(({channel, speaker, message, timestamp}) => ({channel, speaker, message, timestamp}))));
@@ -152,6 +188,8 @@ function nativeBootstrap(data) {
 }
 
 function nativeHotkey(action) {
+  // The panel copy answers; a release from here would cancel its focus request.
+  if (hostRole === 'hud') return false;
   if (!runtime.connected || !runtime.loaded || !runtime.visible) {
     sendToGame('focusReleased', '');
     return false;
@@ -207,6 +245,7 @@ function clearPendingSettings() {
 }
 
 function retryPendingSettings() {
+  if (!ownsStorage()) return false;
   const pending = readPendingSettings();
   if (!pending) return false;
 
@@ -230,6 +269,7 @@ function dispatchSettingsSave(serialized) {
 }
 
 function persistConfig() {
+  if (!ownsStorage()) return;
   const serialized = JSON.stringify(config, null, 2);
   try {
     localStorage.setItem('chronicle_config', serialized);

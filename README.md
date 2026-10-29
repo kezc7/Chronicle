@@ -149,7 +149,15 @@ actual cursor routing, menu events, or SKSE serialization; those need an in-game
   with the handshake; Magelight's focus menu (`MagelightFocus`) no longer
   counts as a menu that closes Chronicle's input, and it hides Chronicle only
   while another mod's Magelight view holds focus, not while Chronicle's own
-  does. Not yet verified in Skyrim.
+  does.
+- The Magelight build runs the page as two views: a click-through HUD view
+  that shows the log, and an input view that appears only while you type or
+  have settings open. Before this, Chronicle's always-visible input view kept
+  Magelight's overlay menu open over normal play, so the game treated a menu
+  as open: the Dialogue Menu stopped responding, and QuickLoot and the
+  Journal would not open. Only the input view saves history and settings, and
+  it hands its state to the HUD view when you close it. Not yet verified in
+  Skyrim.
 
 ## 1.2.38 changes
 

@@ -35,6 +35,15 @@
 // "UI mode": one view per process owns it, entry is queued and confirmed by
 // an event, and the host leaves it on Escape or its own toggle key. Chronicle's
 // focus watchdog (Tick) sees every exit through HasFocus().
+//
+// Magelight keeps an engine menu open while any interactive view is visible,
+// and the game reads that as a menu over gameplay (the Dialogue Menu stops
+// taking input, QuickLoot and the Journal stay shut). A view cannot switch
+// between click-through and interactive, so the page runs twice: a
+// click-through HUD copy that shows the log, and a hidden panel copy that is
+// shown, and takes UI mode, only while the player interacts. Both receive every
+// script; only the panel saves. When an interaction ends the panel's state is
+// handed to the HUD copy before the HUD is shown again.
 namespace
 {
     using namespace MAGELIGHT_API;
@@ -134,48 +143,48 @@ namespace
             std::error_code ec;
             const auto page = std::filesystem::absolute(kViewDir / L"index.html", ec);
             const auto pageText = page.string();
-            ViewDesc view{};
-            view.size = sizeof(ViewDesc);
-            view.name = "main";
-            view.htmlPath = pageText.c_str();
-            view.anchor = Anchor::TopLeft;
-            view.fullscreen = true;
-            view.clickThrough = false;      // Hud/click-through views are refused UI mode
-            view.startVisible = false;
-            view.layer = Layer::Panel;
-            view.uiScale = 0.0F;
-            view.onDomReady = nullptr;      // ViewDomReady arrives on the game thread instead
-            ViewId created = 0;
-            if (const auto result = m_api->CreateViewEx(m_mod, &view, &created); result != Result::Ok || !created) {
-                spdlog::error("Chronicle: Magelight CreateViewEx failed for '{}': {} {}", pageText, ResultName(result), LastError());
+            // Hud/click-through views are refused UI mode; the panel never
+            // shows unless it holds or is asking for it.
+            const ViewId panel = Create(pageText, "panel", Layer::Panel, false);
+            const ViewId hud = panel ? Create(pageText, "hud", Layer::Hud, true) : 0;
+            if (!panel || !hud) {
+                if (panel) m_api->DestroyView(panel);
                 return false;
             }
-            m_view = created;
-            spdlog::info("Chronicle: Magelight view {} created from '{}'", created, pageText);
+            m_panel = panel;
+            m_hud = hud;
             return true;
         }
 
         bool Available() const override { return m_api != nullptr; }
-        bool ViewValid() const override { return m_api && m_view != 0 && !m_renderDead; }
+        bool ViewValid() const override { return m_api && m_panel != 0 && m_hud != 0 && !m_renderDead; }
 
         void RegisterListener(const char* name, Listener fn) override
         {
             if (!ViewValid()) return;
             m_listeners.push_back(fn);  // deque: stable address for the host's user pointer
-            if (const auto result = m_api->RegisterJSListenerEx(m_view, name, &OnListener, &m_listeners.back());
-                result != Result::Ok) {
-                spdlog::error("Chronicle: Magelight listener '{}' not registered: {} {}", name, ResultName(result), LastError());
+            for (const ViewId view : { m_panel.load(), m_hud.load() }) {
+                if (const auto result = m_api->RegisterJSListenerEx(view, name, &OnListener, &m_listeners.back());
+                    result != Result::Ok) {
+                    spdlog::error("Chronicle: Magelight listener '{}' not registered on view {}: {} {}",
+                        name, view, ResultName(result), LastError());
+                }
             }
         }
 
+        // Both copies run every script, so the HUD keeps the live log while
+        // the panel is up and the panel keeps saving while it is hidden.
         void Invoke(const char* script) override
         {
-            if (ViewValid()) m_api->InvokeJS(m_view, script);
+            if (!ViewValid()) return;
+            m_api->InvokeJS(m_panel, script);
+            m_api->InvokeJS(m_hud, script);
         }
 
         void Show(bool visible) override
         {
-            if (ViewValid()) m_api->ShowView(m_view, visible);
+            m_visible = visible;
+            ApplyShown();
         }
 
         bool HasFocus() override { return ViewValid() && m_api->GetUIModeOwner() == m_mod; }
@@ -184,9 +193,13 @@ namespace
         bool Focus() override
         {
             if (!ViewValid()) return false;
-            const auto result = m_api->RequestUIMode(m_view, kUIModeFlagNone);
+            ++m_handover;  // an export still in flight must not swap the HUD back over the panel
+            m_panelActive = true;
+            ApplyShown();
+            const auto result = m_api->RequestUIMode(m_panel, kUIModeFlagNone);
             if (result != Result::Ok) {
                 spdlog::info("Chronicle: Magelight UI mode request -> {} {}", ResultName(result), LastError());
+                ReturnToHud();
             }
             return result == Result::Ok;
         }
@@ -197,7 +210,8 @@ namespace
             // A request still queued is withdrawn first; a release alone would
             // let the pending entry run after it.
             if (m_api->hostVersionNumber >= kCancelHost) m_api->CancelUIModeRequest(m_mod);
-            if (m_api->GetUIModeOwner() == m_mod) m_api->ReleaseUIMode(m_mod);
+            if (m_api->GetUIModeOwner() == m_mod) m_api->ReleaseUIMode(m_mod);  // UIModeExited swaps back
+            else ReturnToHud();
         }
 
         // Magelight's Content-Security-Policy stops the page from fetching its
@@ -217,10 +231,86 @@ namespace
         const char* Name() const override { return "Magelight"; }
         const char* FocusMenu() const override { return "MagelightFocus"; }
         int ApiVersion() const override { return static_cast<int>(kApiVersion4); }
-        std::uint64_t ViewHandle() const override { return m_view; }
+        std::uint64_t ViewHandle() const override { return m_panel; }
 
     private:
         MagelightHost() = default;
+
+        // The game thread's handover generation, carried through EvalJS.
+        struct Handover
+        {
+            MagelightHost* self;
+            std::uint64_t generation;
+        };
+
+        ViewId Create(const std::string& page, const char* name, Layer layer, bool clickThrough)
+        {
+            ViewDesc view{};
+            view.size = sizeof(ViewDesc);
+            view.name = name;
+            view.htmlPath = page.c_str();
+            view.anchor = Anchor::TopLeft;
+            view.fullscreen = true;
+            view.clickThrough = clickThrough;
+            view.startVisible = false;
+            view.layer = layer;
+            view.uiScale = 0.0F;
+            view.onDomReady = nullptr;      // ViewDomReady arrives on the game thread instead
+            ViewId created = 0;
+            if (const auto result = m_api->CreateViewEx(m_mod, &view, &created); result != Result::Ok || !created) {
+                spdlog::error("Chronicle: Magelight CreateViewEx failed for {} '{}': {} {}",
+                    name, page, ResultName(result), LastError());
+                return 0;
+            }
+            spdlog::info("Chronicle: Magelight {} view {} created from '{}'", name, created, page);
+            return created;
+        }
+
+        // One copy is on screen at a time: the panel while it holds or asks
+        // for UI mode, the HUD otherwise.
+        void ApplyShown()
+        {
+            if (!ViewValid()) return;
+            const bool panel = m_panelActive;
+            m_api->ShowView(panel ? m_panel : m_hud, m_visible);
+            m_api->ShowView(panel ? m_hud : m_panel, false);
+        }
+
+        // Game thread. Closing the panel's interaction first drops a settings
+        // preview the player did not save, as Chronicle's own close does.
+        void ReturnToHud()
+        {
+            if (!m_panelActive || !ViewValid()) return;
+            auto* handover = new Handover{ this, ++m_handover };
+            const auto result = m_api->EvalJS(m_panel, "closeInteraction(false); exportViewState()", &OnExported, handover);
+            if (result != Result::Ok) {
+                spdlog::warn("Chronicle: Magelight state handover failed: {} {}", ResultName(result), LastError());
+                delete handover;
+                m_panelActive = false;
+                ApplyShown();
+            }
+        }
+
+        // Callback thread (the game thread).
+        static void OnExported(ViewId, const char* result, const char* exception, void* user)
+        {
+            std::unique_ptr<Handover> handover(static_cast<Handover*>(user));
+            auto* self = handover ? handover->self : nullptr;
+            if (!self || handover->generation != self->m_handover || !self->ViewValid()) return;
+            if (exception && *exception) {
+                spdlog::warn("Chronicle: Magelight panel state unreadable: {}", exception);
+            } else if (result) {
+                // Only well-formed JSON reaches the HUD page, re-serialised.
+                const auto state = nlohmann::json::parse(result, nullptr, false);
+                if (state.is_object()) {
+                    const auto script = "importViewState(" + state.dump(-1, ' ', false,
+                        nlohmann::json::error_handler_t::replace) + ")";
+                    self->m_api->InvokeJS(self->m_hud, script.c_str());
+                }
+            }
+            self->m_panelActive = false;
+            self->ApplyShown();
+        }
 
         std::string LastError() const
         {
@@ -253,15 +343,29 @@ namespace
             const std::string detail = ev->detail ? ev->detail : "";
             switch (ev->type) {
             case Event::ViewDomReady:
-                if (ev->view != self->m_view) return;
-                spdlog::info("Chronicle: Magelight page ready");
-                if (self->m_onDomReady) self->m_onDomReady();
+                if (ev->view == self->m_hud) {
+                    // Before any listener exists, so before the handshake.
+                    self->m_api->InvokeJS(self->m_hud, "setHostRole('hud')");
+                    self->m_hudReady = true;
+                } else if (ev->view == self->m_panel) {
+                    self->m_api->InvokeJS(self->m_panel, "setHostRole('panel')");
+                    self->m_panelReady = true;
+                } else {
+                    return;
+                }
+                spdlog::info("Chronicle: Magelight {} page ready", ev->view == self->m_hud ? "hud" : "panel");
+                // Both copies must hear the native bootstrap.
+                if (self->m_hudReady && self->m_panelReady && self->m_onDomReady) {
+                    const auto ready = self->m_onDomReady;
+                    self->m_onDomReady = nullptr;
+                    ready();
+                }
                 break;
             case Event::ViewLoadFailed:
                 spdlog::error("Chronicle: Magelight page failed to load: {}", detail);
                 break;
             case Event::ViewReloaded:
-                // Not expected: Chronicle never reloads, hibernates or rescales its view.
+                // Not expected: Chronicle never reloads, hibernates or rescales its views.
                 spdlog::warn("Chronicle: Magelight page reloaded; the native handshake is not repeated");
                 break;
             case Event::UIModeEntered:
@@ -269,9 +373,11 @@ namespace
                 break;
             case Event::UIModeExited:
                 spdlog::info("Chronicle: Magelight UI mode exited");
+                self->ReturnToHud();
                 break;
             case Event::UIModeRefused:
                 spdlog::info("Chronicle: Magelight UI mode refused: {}", detail);
+                self->ReturnToHud();
                 break;
             case Event::FocusDenied:
                 spdlog::info("Chronicle: '{}' asked for UI mode while Chronicle holds it", detail);
@@ -299,10 +405,17 @@ namespace
 
         const MagelightApi4* m_api{ nullptr };
         ModId m_mod{ 0 };
-        std::atomic<ViewId> m_view{ 0 };
+        std::atomic<ViewId> m_panel{ 0 };
+        std::atomic<ViewId> m_hud{ 0 };
         std::atomic<bool> m_renderDead{ false };
         DomReadyFn m_onDomReady{ nullptr };
         std::deque<Listener> m_listeners;
+        // Game thread only.
+        bool m_hudReady{ false };
+        bool m_panelReady{ false };
+        bool m_visible{ false };
+        bool m_panelActive{ false };
+        std::uint64_t m_handover{ 0 };
     };
 }
 
