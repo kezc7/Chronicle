@@ -86,6 +86,7 @@ namespace
         std::string FirstRunDefaults() override { return {}; }  // the page fetches config.json
 
         const char* Name() const override { return "PrismaUI"; }
+        const char* FocusMenu() const override { return "PrismaUI_FocusMenu"; }
         int ApiVersion() const override { return m_v2 ? 2 : 1; }
         std::uint64_t ViewHandle() const override { return s_view; }
 

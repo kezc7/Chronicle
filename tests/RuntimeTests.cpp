@@ -61,7 +61,11 @@ int main()
     Require(state.Visible());
     state.Menu("MagelightFocus", true); // a Magelight UI view holding UI mode
     Require(!state.Visible());
-    Require(ChronicleRuntime::InterruptsFocus("MagelightFocus"));
+    state.ownFocusMenu = "MagelightFocus"; // Magelight build: Chronicle's own view holds it
+    state.ownsFocus = true;
+    Require(state.Visible());
+    state.ownsFocus = false;               // another mod's view holds it
+    Require(!state.Visible());
     state.Menu("MagelightFocus", false);
     Require(state.Visible());
     state.Menu("Console", true); // Skyrim's own console hides Chronicle like a menu
@@ -118,7 +122,7 @@ int main()
     Require(ChronicleRuntime::InterruptsFocus("Console", 0));                     // blocking by name
     Require(!ChronicleRuntime::InterruptsFocus("PrismaUI_FocusMenu", ChronicleRuntime::kInputMenuFlags));
     Require(!ChronicleRuntime::InterruptsFocus("MagelightFocus", ChronicleRuntime::kInputMenuFlags));
-    Require(!ChronicleRuntime::HidesChronicle("MagelightFocus", ChronicleRuntime::kInputMenuFlags));
+    Require(ChronicleRuntime::HidesChronicle("MagelightFocus", ChronicleRuntime::kInputMenuFlags));
     // Focus granted but not reported yet is not a loss until the grace period ends.
     Require(!ChronicleRuntime::FocusLost(false, false, 0));
     Require(!ChronicleRuntime::FocusLost(false, false, ChronicleRuntime::kFocusGraceMs - 1));

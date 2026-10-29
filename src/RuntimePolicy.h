@@ -527,6 +527,10 @@ namespace ChronicleRuntime
         bool hideMenus = true;
         bool hidePhoto = true;
         bool userHidden = false;  // hidden with the show/hide hotkey
+        // The host's focus menu hides Chronicle only while another mod's view
+        // owns input: on the Magelight build Chronicle's own focus opens it too.
+        std::string ownFocusMenu;
+        bool ownsFocus = false;
         std::unordered_set<std::string> menus;
 
         void Menu(std::string_view name, bool opening, std::uint32_t menuFlags = kInputMenuFlags)
@@ -542,6 +546,7 @@ namespace ChronicleRuntime
         {
             if (!loaded || !ready || userHidden) return false;
             for (const auto& name : menus) {
+                if (ownsFocus && name == ownFocusMenu) continue;
                 if (IsTransition(name) || (name == "PhotoMenu" ? hidePhoto : hideMenus)) return false;
             }
             return true;
