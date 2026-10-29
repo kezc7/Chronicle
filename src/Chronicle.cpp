@@ -261,7 +261,7 @@ void Chronicle::UpdateVisibility()
             "StatsMenu", "SleepWaitMenu", "FavoritesMenu", "BarterMenu",
             "CraftingMenu", "Crafting Menu", "SmithingMenu", "Smithing Menu",
             "AlchemyMenu", "Alchemy Menu", "EnchantingMenu", "Enchanting Menu",
-            "CookingMenu", "Cooking Menu", "PhotoMenu", "MeridianUI_FocusMenu", "Console",
+            "CookingMenu", "Cooking Menu", "PhotoMenu", "MeridianUI_FocusMenu", "MagelightFocus", "Console",
             "RaceSex Menu", "Book Menu", "Lockpicking Menu", "Training Menu", "GiftMenu",
             "Tutorial Menu", "Credits Menu", "Mod Manager Menu", "CustomMenu"
         };
