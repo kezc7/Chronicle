@@ -223,7 +223,9 @@ actual cursor routing, menu events, or SKSE serialization; those need an in-game
   unchanged in behaviour) and a Magelight backend. Under Magelight the page
   cannot fetch its own `config.json`, so the DLL sends the first-run defaults
   with the handshake; Magelight's focus menu (`MagelightFocus`) no longer
-  counts as a menu that closes Chronicle's input. Not yet verified in Skyrim.
+  counts as a menu that closes Chronicle's input, and it hides Chronicle only
+  while another mod's Magelight view holds focus, not while Chronicle's own
+  does. Not yet verified in Skyrim.
 
 ## 1.2.38 changes
 

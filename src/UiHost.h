@@ -64,6 +64,8 @@ public:
     virtual std::string FirstRunDefaults() = 0;
 
     virtual const char* Name() const = 0;       // "PrismaUI" or "Magelight"
+    // The engine menu the host pushes while one of its views owns input.
+    virtual const char* FocusMenu() const = 0;  // "PrismaUI_FocusMenu" or "MagelightFocus"
     virtual int ApiVersion() const = 0;
     virtual std::uint64_t ViewHandle() const = 0;
 };
