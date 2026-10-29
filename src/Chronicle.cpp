@@ -263,6 +263,8 @@ void Chronicle::UpdateVisibility()
             m_state.Menu(name, open, flags);
         }
     }
+    m_state.ownFocusMenu = UiHost().FocusMenu();
+    m_state.ownsFocus = m_hadFocus || UiHost().HasFocus();
     const bool visible = m_state.Visible();
     if (!visible && !m_hidden) ForceCloseInput();
     if (UiHost().ViewValid() && m_viewReady) {

@@ -215,6 +215,7 @@ namespace
         }
 
         const char* Name() const override { return "Magelight"; }
+        const char* FocusMenu() const override { return "MagelightFocus"; }
         int ApiVersion() const override { return static_cast<int>(kApiVersion4); }
         std::uint64_t ViewHandle() const override { return m_view; }
 
