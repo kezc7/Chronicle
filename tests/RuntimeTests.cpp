@@ -59,6 +59,11 @@ int main()
     Require(!state.Visible());
     state.Menu("MeridianUI_FocusMenu", false);
     Require(state.Visible());
+    state.Menu("MagelightFocus", true); // a Magelight UI view holding UI mode
+    Require(!state.Visible());
+    Require(ChronicleRuntime::InterruptsFocus("MagelightFocus"));
+    state.Menu("MagelightFocus", false);
+    Require(state.Visible());
     state.Menu("Console", true); // Skyrim's own console hides Chronicle like a menu
     Require(!state.Visible());
     state.Menu("Console", false);
