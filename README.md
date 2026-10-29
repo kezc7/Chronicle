@@ -1,4 +1,4 @@
-# Chronicle 1.2.37
+# Chronicle 1.2.38
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -36,7 +36,8 @@ are preserved.
 Hotkeys can be letters, digits, Enter, or F1–F12. Settings adds Shift to its key.
 The overlay is always hidden on the main menu and during loading. Hiding it during
 other menus is configurable (this includes Meridian UI menus such as Wayframe, which
-open `MeridianUI_FocusMenu`); captured messages remain in history while hidden.
+open `MeridianUI_FocusMenu`, and Magelight UI menus, which open `MagelightFocus`);
+captured messages remain in history while hidden.
 
 ## Settings and history
 
@@ -120,6 +121,14 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.2.38 changes
+
+- Chronicle now hides while a Magelight UI menu has focus (for example
+  SeverActions' menus). Magelight opens its own `MagelightFocus` menu for its
+  focused views, and PrismaUI draws above Magelight, so Chronicle stayed on top
+  of them. It follows the hide-in-menus setting; Magelight overlays that do not
+  take focus leave Chronicle alone.
 
 ## 1.2.37 changes
 

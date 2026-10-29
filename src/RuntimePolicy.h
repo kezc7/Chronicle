@@ -456,6 +456,9 @@ namespace ChronicleRuntime
             // (e.g. Wayframe) has focus. PrismaUI draws above Meridian, so
             // without it Chronicle stays on top of those menus.
             name == "MeridianUI_FocusMenu" ||
+            // Magelight UI opens its own engine menu while one of its views
+            // (e.g. SeverActions) holds UI mode; PrismaUI draws above it too.
+            name == "MagelightFocus" ||
             // Skyrim's own console (~) is drawn under PrismaUI too.
             name == "Console" ||
             // Other full-screen vanilla menus (RaceSex Menu is character
