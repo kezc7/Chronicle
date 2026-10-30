@@ -102,7 +102,7 @@ public:
     void OnConsoleCommand(std::string_view a_command);
     void OnSettingsChanged(std::string_view a_json);
 
-    // The per-character history behind DovahHub's History tab (game thread).
+    // The per-character history behind Chronicle's DovahHub tab (game thread).
     std::string HistoryPageJson(std::optional<std::int64_t> a_before, std::size_t a_limit) const;
     void OnHistoryImport(std::string_view a_json);
     void OnHistoryCleared(std::string_view a_profile);

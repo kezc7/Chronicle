@@ -20,7 +20,7 @@ Copy-Item -LiteralPath "$projectRoot\out\build\x64-$Config\Chronicle.dll" -Desti
 foreach ($file in 'index.html','script.js','controls.js','bridge.js','i18n.js','styles.css','config.json') {
     Copy-Item -LiteralPath "$projectRoot\Data\PrismaUI\views\Chronicle\$file" -Destination "$stage\PrismaUI\views\Chronicle\$file"
 }
-# DovahHub's History tab: module pages live inside DovahHub's own view folder, on either UI host.
+# Chronicle's DovahHub tab: module pages live inside DovahHub's own view folder, on either UI host.
 $moduleDir = 'PrismaUI\views\DovahHub\modules\chronicle'
 New-Item -ItemType Directory -Path "$stage\$moduleDir" -Force | Out-Null
 foreach ($file in 'index.html','history.css','history.js') {

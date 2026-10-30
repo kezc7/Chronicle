@@ -33,7 +33,7 @@
 #include <unordered_map>
 #include <vector>
 
-// The lines Chronicle has shown, per character, for DovahHub's History tab.
+// The lines Chronicle has shown, per character, for Chronicle's DovahHub tab.
 // Plain data only: the DLL owns one list on the game thread and hands copies
 // to its writer thread.
 namespace ChronicleHistory
