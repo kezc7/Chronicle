@@ -445,6 +445,10 @@ namespace ChronicleRuntime
     // Chronicle reports its blocking windows under this name.
     inline constexpr std::string_view kMenuFrameworkMenu = "SKSE Menu Framework";
 
+    // DovahHub's page is a web view on the same UI host as Chronicle and opens
+    // no game menu of its own; Chronicle reports it under this name while open.
+    inline constexpr std::string_view kDovahHubMenu = "DovahHub";
+
     inline bool IsBlocking(std::string_view name)
     {
         return IsTransition(name) || name == "SystemMenu" || name == "TweenMenu" ||
@@ -462,7 +466,8 @@ namespace ChronicleRuntime
             // creation, also used by RaceMenu). Dialogue Menu stays visible.
             name == "RaceSex Menu" || name == "Book Menu" || name == "Lockpicking Menu" ||
             name == "Training Menu" || name == "GiftMenu" || name == "Tutorial Menu" ||
-            name == "Credits Menu" || name == "Mod Manager Menu" || name == kMenuFrameworkMenu;
+            name == "Credits Menu" || name == "Mod Manager Menu" || name == kMenuFrameworkMenu ||
+            name == kDovahHubMenu;
     }
 
     // IMenu flags of a menu that takes the player's input (CommonLib's

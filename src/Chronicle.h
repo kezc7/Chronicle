@@ -23,6 +23,7 @@
 #include "PrismaUI.h"
 #include "PCH.h"
 #include "RuntimePolicy.h"
+#include "History.h"
 
 // Documents\My Games\Skyrim Special Edition\SKSE. SKSE::log::log_directory()
 // alone resolves to My Games\Skyrim.INI\SKSE on 1.6.1170 (see MyGamesFolder).
@@ -88,6 +89,8 @@ public:
                      std::string_view a_message);
 
     void OnMenuOpenClose(std::string_view a_menuName, bool a_opening);
+    // Game thread. DovahHub's open/close messages and the tick's IsOpen check.
+    void OnDovahHubOpen(bool a_open);
 
     // Called when any game menu opens so we can release focus and close the input bar.
     void ForceCloseInput();
@@ -98,6 +101,12 @@ public:
     void OnPlayerInput(std::string_view a_text);
     void OnConsoleCommand(std::string_view a_command);
     void OnSettingsChanged(std::string_view a_json);
+
+    // The per-character history behind Chronicle's DovahHub tab (game thread).
+    std::string HistoryPageJson(std::optional<std::int64_t> a_before, std::size_t a_limit) const;
+    void OnHistoryImport(std::string_view a_json);
+    void OnHistoryCleared(std::string_view a_profile);
+    void DropHistory();  // load boundary or co-save revert: save what is pending, then forget it
 
     // PrismaUI view handle — set in CreateView DOM-ready callback
     PrismaView m_view{ 0 };
@@ -115,6 +124,10 @@ private:
     void UpdateVisibility();
     void PublishRuntime();
     void ApplyNativeSettings(const nlohmann::json& settings);
+    void LoadHistory();
+    void RecordHistory(ChronicleHistory::Line a_line);
+    void SaveHistorySoon();
+    void SaveHistoryNow();
 
     bool IsDuplicate(std::string_view a_channel, std::string_view a_speaker, std::string_view a_message);
     void InvokeUI(std::string_view a_js);
@@ -134,6 +147,7 @@ private:
     // Runtime state is only accessed on Skyrim's main thread.
     ChronicleRuntime::State m_state;
     bool m_menuFrameworkOpen{ false };
+    bool m_dovahHubOpen{ false };
     std::atomic<std::uint64_t> m_focusRevision{ 0 };
     std::atomic<bool> m_keyboardCapture{ false };
     std::atomic<bool> m_combatHits{ true };
@@ -165,4 +179,14 @@ private:
     };
     std::optional<LastMessage> m_lastMessage;
     std::mutex m_dedupMutex;
+
+    // History: game thread only.
+    ChronicleHistory::List m_history;
+    ChronicleHistory::ChannelFilter m_historyChannels;
+    std::uint64_t m_historyProfile{ 0 };     // the character m_history belongs to; 0 = none loaded
+    std::uint64_t m_historyGeneration{ 0 };  // bumped whenever m_history changes owner
+    bool m_historyAdopted{ false };          // the page's old lines were offered for this character
+    bool m_historyDirty{ false };
+    bool m_historySaveQueued{ false };
+    bool m_persistHistory{ true };
 };

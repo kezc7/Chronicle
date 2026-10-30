@@ -20,6 +20,7 @@
 
 #include "PCH.h"
 #include "Chronicle.h"
+#include "DovahHubModule.h"
 #include "Events.h"
 
 SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
@@ -66,6 +67,7 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
     if (auto* serial = SKSE::GetSerializationInterface()) {
         serial->SetUniqueID(0x4348524E); // CHRN
         serial->SetRevertCallback([](SKSE::SerializationInterface*) {
+            Chronicle::GetSingleton()->DropHistory();
             Chronicle::GetSingleton()->profileId = 0;
         });
         serial->SetSaveCallback([](SKSE::SerializationInterface* data) {
@@ -86,6 +88,12 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 
     SKSE::GetMessagingInterface()->RegisterListener([](SKSE::MessagingInterface::Message* a_msg) {
         switch (a_msg->type) {
+        case SKSE::MessagingInterface::kPostLoad:
+            DovahHubModule::Listen();
+            break;
+        case SKSE::MessagingInterface::kPostPostLoad:
+            DovahHubModule::Register();
+            break;
         case SKSE::MessagingInterface::kDataLoaded:
             Chronicle::GetSingleton()->OnDataLoaded();
             break;

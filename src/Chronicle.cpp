@@ -21,6 +21,8 @@
 #include "Chronicle.h"
 #include "Events.h"
 #include "MessageBuilder.h"
+#include "DovahHubModule.h"
+#include "HistoryWriter.h"
 #include <fstream>
 #include <filesystem>
 
@@ -114,6 +116,7 @@ void Chronicle::OnPreLoadGame()
     }
     m_lastSubtitle.clear();
     m_messageCount = 0;
+    DropHistory();
     UpdateVisibility();
 }
 
@@ -133,6 +136,7 @@ void Chronicle::OnWorldReady()
         profileId = static_cast<std::uint64_t>(std::chrono::system_clock::now().time_since_epoch().count());
     }
     spdlog::info("Chronicle: world ready; profile {}", profileId.load());
+    LoadHistory();
     PublishRuntime();
     UpdateVisibility();
     SubtitlePoller::GetSingleton().Start();
@@ -195,6 +199,12 @@ void Chronicle::OnViewReady()
     });
     m_prismaUI->RegisterJSListener(m_view, "exportHistory", [](const char* text) {
         if (text) MainTask([payload = std::string(text)] { GetSingleton()->ExportHistory(payload); });
+    });
+    m_prismaUI->RegisterJSListener(m_view, "historyImport", [](const char* text) {
+        if (text) MainTask([payload = std::string(text)] { GetSingleton()->OnHistoryImport(payload); });
+    });
+    m_prismaUI->RegisterJSListener(m_view, "historyCleared", [](const char* text) {
+        if (text) MainTask([payload = std::string(text)] { GetSingleton()->OnHistoryCleared(payload); });
     });
     m_prismaUI->RegisterJSListener(m_view, "focusAcquired", [](const char*) { GetSingleton()->RequestFocus(); });
     m_prismaUI->RegisterJSListener(m_view, "focusReleased", [](const char*) { GetSingleton()->RequestUnfocus(); });
@@ -279,7 +289,9 @@ void Chronicle::PublishRuntime()
     }
     InvokeUI("setRuntime(" + Json({
         {"loaded", m_gameLoaded.load()}, {"profile", m_gameLoaded ? std::to_string(profileId.load()) : ""},
-        {"character", ChronicleUtf8::ReplaceInvalid(name).value}
+        {"character", ChronicleUtf8::ReplaceInvalid(name).value},
+        // The page offers its old localStorage lines once when this is true.
+        {"historyEmpty", m_historyProfile != 0 && m_history.Empty()}
     }) + ")");
 }
 
@@ -287,6 +299,8 @@ void Chronicle::Tick()
 {
     if (!m_gameLoaded) return;
     PollMenuFramework();
+    // Catches a DovahHub close whose message was missed.
+    OnDovahHubOpen(DovahHubModule::IsOpen());
     // Menus can unfocus a view without delivering an Escape key to JavaScript.
     if (!m_prismaUI || !m_view || !m_hadFocus) return;
     const bool focused = m_prismaUI->HasFocus(m_view);
@@ -317,6 +331,13 @@ void Chronicle::PollMenuFramework()
     if (open == m_menuFrameworkOpen) return;
     m_menuFrameworkOpen = open;
     OnMenuOpenClose(ChronicleRuntime::kMenuFrameworkMenu, open);
+}
+
+void Chronicle::OnDovahHubOpen(bool open)
+{
+    if (open == m_dovahHubOpen) return;
+    m_dovahHubOpen = open;
+    OnMenuOpenClose(ChronicleRuntime::kDovahHubMenu, open);
 }
 
 void Chronicle::OnMenuOpenClose(std::string_view name, bool opening)
@@ -410,6 +431,7 @@ void Chronicle::SendMessage(std::string_view channel, std::string_view speaker, 
             const auto message = data.at("message").get<std::string>();
             if (message.empty() || IsDuplicate(channel, speaker, message)) return;
             ++m_messageCount;
+            RecordHistory({ channel, speaker, message, data.value("timestamp", std::int64_t{ 0 }) });
             if (channel == "dialogue") m_lastSubtitle = message;
             auto script = "addMessage(" + payload + ")";
             // A hidden view still receives messages, so menus don't erase history.
@@ -491,6 +513,14 @@ void Chronicle::ApplyNativeSettings(const nlohmann::json& settings)
     m_language = static_cast<int>(ChronicleRuntime::ResolveLanguage(
         general.value("language", std::string("auto")), m_gameLanguage));
     const auto& channels = settings.at("channels");
+    m_historyChannels.Apply(channels);
+    if (const bool persist = general.value("persist_history", true); persist != m_persistHistory) {
+        m_persistHistory = persist;
+        // Off removes the file, as the page removes its own copy; on saves the lines kept meanwhile.
+        if (!persist && m_historyProfile) HistoryWriter::Remove(HistoryWriter::PathFor(m_historyProfile));
+        m_historyDirty = persist;
+        SaveHistorySoon();
+    }
     m_notificationChannel = !channels.contains("notification") || !channels.at("notification").is_object() ||
         channels.at("notification").value("enabled", true);
     std::vector<std::string> extraHudPaths;
@@ -590,6 +620,111 @@ void Chronicle::OnSettingsChanged(std::string_view text)
         spdlog::error("Chronicle: settings save failed: {}", e.what());
         InvokeUI("settingsSaveResult(false, 'settings.notSaved', " + Json(e.what()) + ")");
     }
+}
+
+void Chronicle::LoadHistory()
+{
+    const auto profile = profileId.load();
+    if (!profile || profile == m_historyProfile) return;
+    DropHistory();
+    m_historyProfile = profile;
+    ++m_historyGeneration;
+    if (m_persistHistory) m_history.Replace(HistoryWriter::Load(HistoryWriter::PathFor(profile)));
+    else HistoryWriter::Remove(HistoryWriter::PathFor(profile));
+    m_historyAdopted = false;
+    spdlog::info("Chronicle: history for profile {}: {} line(s)", profile, m_history.Size());
+    DovahHubModule::PushReset();
+}
+
+void Chronicle::DropHistory()
+{
+    if (!m_historyProfile) return;
+    SaveHistoryNow();
+    m_history.Clear();
+    m_historyProfile = 0;
+    ++m_historyGeneration;
+    m_historyDirty = false;
+    m_historySaveQueued = false;
+    DovahHubModule::PushReset();
+}
+
+void Chronicle::RecordHistory(ChronicleHistory::Line line)
+{
+    if (!m_historyProfile || !m_historyChannels.Records(line.channel)) return;
+    DovahHubModule::PushLine(line);
+    m_history.Add(std::move(line));
+    m_historyDirty = true;
+    SaveHistorySoon();
+}
+
+void Chronicle::SaveHistorySoon()
+{
+    if (!m_persistHistory || !m_historyProfile || !m_historyDirty || m_historySaveQueued) return;
+    m_historySaveQueued = true;
+    // One copy per two seconds however fast lines arrive (combat).
+    std::thread([generation = m_historyGeneration] {
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+        MainTask([generation] {
+            auto* self = GetSingleton();
+            if (generation != self->m_historyGeneration) return;  // another character or world since
+            self->m_historySaveQueued = false;
+            self->SaveHistoryNow();
+        });
+    }).detach();
+}
+
+void Chronicle::SaveHistoryNow()
+{
+    if (!m_persistHistory || !m_historyProfile || !m_historyDirty) return;
+    m_historyDirty = false;
+    HistoryWriter::Save(HistoryWriter::PathFor(m_historyProfile), m_history.Copy());
+}
+
+std::string Chronicle::HistoryPageJson(std::optional<std::int64_t> before, std::size_t limit) const
+{
+    const auto page = m_history.Before(before, limit);
+    return Json({
+        {"profile", m_historyProfile ? std::to_string(m_historyProfile) : ""},
+        {"lines", ChronicleHistory::LinesToJson(page.lines)},
+        {"more", page.more},
+        {"colours", m_historyChannels.Colours()}
+    });
+}
+
+// The page's lines from before history was kept natively, offered once per
+// character when the native list is empty.
+void Chronicle::OnHistoryImport(std::string_view text)
+{
+    try {
+        if (text.size() > 4 * 1024 * 1024) throw std::runtime_error("over 4 MB");
+        const auto data = nlohmann::json::parse(text);
+        const auto profile = data.value("profile", std::string());
+        if (!ChronicleHistory::ShouldAdopt(m_history.Empty(), m_historyAdopted, m_historyProfile, profile)) return;
+        m_historyAdopted = true;
+        std::vector<ChronicleHistory::Line> lines;
+        for (auto& line : ChronicleHistory::LinesFromJson(data.value("lines", nlohmann::json::array()))) {
+            if (m_historyChannels.Records(line.channel)) lines.push_back(std::move(line));
+        }
+        if (lines.empty()) return;
+        m_history.Replace(std::move(lines));
+        spdlog::info("Chronicle: adopted {} history line(s) from the page for profile {}", m_history.Size(), profile);
+        m_historyDirty = true;
+        SaveHistorySoon();
+        DovahHubModule::PushReset();
+    } catch (const std::exception& e) {
+        spdlog::warn("Chronicle: page history not adopted: {}", e.what());
+    }
+}
+
+void Chronicle::OnHistoryCleared(std::string_view profile)
+{
+    if (!m_historyProfile || profile != std::to_string(m_historyProfile)) return;
+    m_history.Clear();
+    m_historyAdopted = true;
+    m_historyDirty = false;
+    HistoryWriter::Remove(HistoryWriter::PathFor(m_historyProfile));
+    spdlog::info("Chronicle: history cleared for profile {}", m_historyProfile);
+    DovahHubModule::PushReset();
 }
 
 void Chronicle::ExportHistory(std::string_view text)
