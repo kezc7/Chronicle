@@ -88,6 +88,9 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
 
     SKSE::GetMessagingInterface()->RegisterListener([](SKSE::MessagingInterface::Message* a_msg) {
         switch (a_msg->type) {
+        case SKSE::MessagingInterface::kPostLoad:
+            DovahHubModule::Listen();
+            break;
         case SKSE::MessagingInterface::kPostPostLoad:
             DovahHubModule::Register();
             break;

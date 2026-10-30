@@ -299,6 +299,8 @@ void Chronicle::Tick()
 {
     if (!m_gameLoaded) return;
     PollMenuFramework();
+    // Catches a DovahHub close whose message was missed.
+    OnDovahHubOpen(DovahHubModule::IsOpen());
     // Menus can unfocus a view without delivering an Escape key to JavaScript.
     if (!m_prismaUI || !m_view || !m_hadFocus) return;
     const bool focused = m_prismaUI->HasFocus(m_view);
@@ -329,6 +331,13 @@ void Chronicle::PollMenuFramework()
     if (open == m_menuFrameworkOpen) return;
     m_menuFrameworkOpen = open;
     OnMenuOpenClose(ChronicleRuntime::kMenuFrameworkMenu, open);
+}
+
+void Chronicle::OnDovahHubOpen(bool open)
+{
+    if (open == m_dovahHubOpen) return;
+    m_dovahHubOpen = open;
+    OnMenuOpenClose(ChronicleRuntime::kDovahHubMenu, open);
 }
 
 void Chronicle::OnMenuOpenClose(std::string_view name, bool opening)

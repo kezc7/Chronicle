@@ -89,6 +89,8 @@ public:
                      std::string_view a_message);
 
     void OnMenuOpenClose(std::string_view a_menuName, bool a_opening);
+    // Game thread. DovahHub's open/close messages and the tick's IsOpen check.
+    void OnDovahHubOpen(bool a_open);
 
     // Called when any game menu opens so we can release focus and close the input bar.
     void ForceCloseInput();
@@ -145,6 +147,7 @@ private:
     // Runtime state is only accessed on Skyrim's main thread.
     ChronicleRuntime::State m_state;
     bool m_menuFrameworkOpen{ false };
+    bool m_dovahHubOpen{ false };
     std::atomic<std::uint64_t> m_focusRevision{ 0 };
     std::atomic<bool> m_keyboardCapture{ false };
     std::atomic<bool> m_combatHits{ true };
