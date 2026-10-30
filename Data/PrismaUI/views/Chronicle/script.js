@@ -444,7 +444,7 @@ function clearHistory() {
   userScrolledUp = false;
   showUnread(0);
   refreshSpeakerOptions();
-  // The native history behind DovahHub's History tab is cleared with it.
+  // The native history behind Chronicle's DovahHub tab is cleared with it.
   if (runtime.profile) sendToGame('historyCleared', runtime.profile);
 }
 
