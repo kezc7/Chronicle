@@ -73,6 +73,20 @@ namespace
 
 namespace DovahHubModule
 {
+    void Listen()
+    {
+        SKSE::GetMessagingInterface()->RegisterListener("DovahHub", [](SKSE::MessagingInterface::Message* a_msg) {
+            if (!a_msg) return;
+            if (a_msg->type == DOVAHHUB_API::kMsgOpened) Chronicle::GetSingleton()->OnDovahHubOpen(true);
+            else if (a_msg->type == DOVAHHUB_API::kMsgClosed) Chronicle::GetSingleton()->OnDovahHubOpen(false);
+        });
+    }
+
+    bool IsOpen()
+    {
+        return g_hub && g_hub->IsOpen && g_hub->IsOpen();
+    }
+
     void Register()
     {
         g_hub = DOVAHHUB_API::RequestApi();
