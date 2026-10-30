@@ -90,6 +90,11 @@ int main()
     Require(ChronicleRuntime::InterruptsFocus(ChronicleRuntime::kMenuFrameworkMenu, 0));
     state.Menu(ChronicleRuntime::kMenuFrameworkMenu, false);
     Require(state.Visible());
+    state.Menu(ChronicleRuntime::kDovahHubMenu, true); // DovahHub's page is open
+    Require(!state.Visible());
+    Require(ChronicleRuntime::InterruptsFocus(ChronicleRuntime::kDovahHubMenu, 0));
+    state.Menu(ChronicleRuntime::kDovahHubMenu, false);
+    Require(state.Visible());
     state.Menu("RaceSex Menu", true); // character creation / RaceMenu
     Require(!state.Visible());
     state.Menu("RaceSex Menu", false);

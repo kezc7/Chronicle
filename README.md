@@ -158,6 +158,11 @@ For browser development, `node tests/preview.cjs` serves a local preview with mo
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
 
+## 1.3.1 changes
+
+- Chronicle now hides while DovahHub is open, instead of drawing on top of it,
+  and comes back when DovahHub closes.
+
 ## 1.3.0 changes
 
 - New **History** tab in DovahHub (0.92.0 or newer, Journey group): this

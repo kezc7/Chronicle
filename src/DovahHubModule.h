@@ -27,8 +27,14 @@
 // call here does nothing.
 namespace DovahHubModule
 {
+    // At kPostLoad: DovahHub's open/close messages hide and show Chronicle.
+    void Listen();
+
     // Game thread, at kPostPostLoad.
     void Register();
+
+    // True while the DovahHub page is on screen.
+    bool IsOpen();
 
     // Game thread. Sent to the page only while the tab is on screen.
     void PushLine(const ChronicleHistory::Line& line);
