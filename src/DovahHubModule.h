@@ -22,8 +22,8 @@
 
 #include "History.h"
 
-// Chronicle's "History" tab in DovahHub's Journey group, through DovahHub's
-// module host (DovahHub_API.h). A soft dependency: without DovahHub.dll every
+// Chronicle's tab in DovahHub (its history page), through DovahHub's module
+// host (DovahHub_API.h). A soft dependency: without DovahHub.dll every
 // call here does nothing.
 namespace DovahHubModule
 {

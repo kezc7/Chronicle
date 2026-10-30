@@ -91,21 +91,21 @@ namespace DovahHubModule
     {
         g_hub = DOVAHHUB_API::RequestApi();
         if (!g_hub) {
-            spdlog::info("Chronicle: DovahHub not found; no History tab");
+            spdlog::info("Chronicle: DovahHub not found; no Chronicle tab");
             return;
         }
         DOVAHHUB_API::ModuleDesc desc{};
         desc.size = sizeof(desc);
         desc.id = "chronicle";
-        desc.tab = "History";
-        desc.group = "Journey";
+        desc.tab = "Chronicle";
+        desc.group = nullptr;
         desc.pageDir = "modules/chronicle/";
         desc.version = CHRONICLE_VERSION;
         desc.onRequest = &OnRequest;
         desc.onEvent = &OnEvent;
         const auto result = g_hub->RegisterModule(&desc, &g_module);
         if (result != DOVAHHUB_API::Result::Ok) g_module = 0;
-        spdlog::info("Chronicle: DovahHub {} on {} answered; History module {} (result {})",
+        spdlog::info("Chronicle: DovahHub {} on {} answered; Chronicle tab {} (result {})",
             g_hub->hostVersion ? g_hub->hostVersion : "?", g_hub->host ? g_hub->host : "?",
             g_module ? "registered" : "NOT registered", static_cast<int>(result));
     }

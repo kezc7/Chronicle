@@ -56,10 +56,10 @@ identifier. Loading an older save that predates this identifier starts a fresh
 history profile; keep the `.skse` co-save alongside its Skyrim save. Legacy shared
 history is left intact but is not assigned to an arbitrary character.
 
-### History tab in DovahHub
+### Chronicle tab in DovahHub
 
-With DovahHub 0.92.0 or newer installed, Chronicle adds a **History** tab to
-DovahHub's Journey group. It lists the lines Chronicle has shown for the current
+With DovahHub 0.92.1 or newer installed, Chronicle adds a **Chronicle** tab under
+DovahHub's Integrations group. It lists the lines Chronicle has shown for the current
 character (up to 1000), with channel filters, search and **Load older**; new lines
 appear while the tab is open. Channels turned off in Chronicle's settings are not
 kept (your own typed lines always are, as in the chat window's All tab).
@@ -94,7 +94,7 @@ Data/PrismaUI/views/Chronicle/index.html
 Data/PrismaUI/views/DovahHub/modules/chronicle/index.html
 ```
 
-The `DovahHub/modules/chronicle` folder is the History tab's page; DovahHub loads it
+The `DovahHub/modules/chronicle` folder is the Chronicle tab's page; DovahHub loads it
 from there on either of its UI hosts. It does nothing without DovahHub.
 
 Do not extract the archive into the Skyrim game root unless your extractor is
@@ -139,6 +139,11 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.3.2 changes
+
+- The DovahHub tab is now called **Chronicle** and sits under DovahHub's
+  Integrations group (DovahHub 0.92.1 puts every mod's tab there).
 
 ## 1.3.1 changes
 

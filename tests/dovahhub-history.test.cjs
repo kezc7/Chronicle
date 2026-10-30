@@ -12,7 +12,7 @@
 // FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
 // more details. See LICENSE.
 
-// The History tab Chronicle adds to DovahHub, against a fake
+// The history page of the tab Chronicle adds to DovahHub, against a fake
 // window.dovahhubModule('chronicle') and a minimal DOM.
 
 'use strict';

@@ -7,11 +7,12 @@
 // and version rules as DovahMenu_API.h.
 //
 // DovahHub is the suite's character hub: one page with tabs grouped under People, Character,
-// Journey, Collections and Settings, drawn on Magelight UI or PrismaUI. A PrismaUI view can only be
+// Journey, Collections, Integrations and Settings, drawn on Magelight UI or PrismaUI. A PrismaUI view can only be
 // listened to by the DLL that created it, so a sibling mod cannot put a page of its own into DovahHub
 // and talk to it directly. This API is the relay: the sibling registers a MODULE (a tab, its page
 // files, and a request callback); DovahHub loads the page files into its own view, forwards the
 // page's calls to the sibling's DLL, and hands the sibling a PushJson it can call to update the page.
+// Every module tab goes under DovahHub's Integrations group, so name the tab after your mod.
 // The sibling ships its page files inside DovahHub's view folder, under modules/<id>/, and DovahHub
 // never reads the sibling's co-save: everything crosses this API as JSON.
 //
@@ -29,8 +30,7 @@
 //       DOVAHHUB_API::ModuleDesc d{};
 //       d.size      = sizeof(d);
 //       d.id        = "stable";               // also the folder: PrismaUI/views/DovahHub/modules/stable/
-//       d.tab       = "Stables";
-//       d.group     = "Character";            // an existing group, or a new one DovahHub creates
+//       d.tab       = "DovahStable";          // shown under Integrations
 //       d.pageDir   = "modules/stable/";      // index.html, *.css, *.js, relative to DovahHub's view
 //       d.version   = "0.3.0";
 //       d.onRequest = &OnStableRequest;
@@ -114,12 +114,10 @@ namespace DOVAHHUB_API
                                   // onEvent and user are read only when size covers them
         const char* id;           // slug [a-z0-9_-], 1..32 chars: "stable", "pets", "works", "chronicle", "dfc", "wheel", "damage".
                                   // Upper case is accepted and kept as lower case (so "Stable" after "stable" is Duplicate)
-        const char* tab;          // tab title as shown: "Stables". nullptr = no tab: a settings-only module
-                                  // (DovahDamage) that exists for AddSettings and the diagnostics row
-        const char* group;        // "People" | "Character" | "Journey" | "Collections" | "Settings" (any case), or a
-                                  // new group name: new groups are created, in registration order, after
-                                  // Collections and before Settings. nullptr = "Collections". Tabs in a group
-                                  // follow DovahHub's own, in registration order
+        const char* tab;          // tab title as shown under Integrations, in alphabetical order: your mod's
+                                  // name, "DovahStable". nullptr = no tab: a settings-only module (DovahDamage)
+                                  // that exists for AddSettings and the diagnostics row
+        const char* group;        // ignored: every module tab is under Integrations. Kept so the layout stays
         const char* pageDir;      // "modules/<id>/" under PrismaUI/views/DovahHub/ (index.html, *.css, *.js); the
                                   // sibling's zip ships these files; DovahHub reads them through the game's Data view.
                                   // Relative, no "..". nullptr only when tab is nullptr
