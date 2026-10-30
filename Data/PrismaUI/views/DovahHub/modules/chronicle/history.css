@@ -1,0 +1,16 @@
+/* Chronicle's History tab in DovahHub. Everything is scoped under .chronicle-history. */
+.chronicle-history { display: flex; flex-direction: column; gap: .8rem; height: 100%; min-height: 0; }
+.chronicle-history .chronicle-history__tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem; }
+.chronicle-history .chronicle-history__chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+.chronicle-history .chronicle-history__search { flex: 0 0 auto; }
+.chronicle-history .chronicle-history__older { align-self: center; }
+.chronicle-history .chronicle-history__older[hidden] { display: none; }
+.chronicle-history .chronicle-history__list { flex: 1; min-height: 12rem; max-height: 62vh; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: rgba(var(--accent-rgb), .45) transparent; }
+.chronicle-history .chronicle-history__row { display: grid; grid-template-columns: 6.6rem minmax(0, auto) minmax(0, 1fr); align-items: baseline; column-gap: .55rem; width: 100%; padding: .35rem .8rem .35rem .6rem; border-top: 0; border-left: 0; border-right: 0; background: none; font: inherit; font-size: .95rem; line-height: 1.35; text-align: left; white-space: normal; }
+.chronicle-history .chronicle-history__row[hidden] { display: none; }
+.chronicle-history .chronicle-history__time { color: var(--dim); font-size: .8rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.chronicle-history .chronicle-history__speaker { font-weight: 600; white-space: nowrap; }
+.chronicle-history .chronicle-history__speaker:empty { display: none; }
+.chronicle-history .chronicle-history__message { min-width: 0; color: var(--ink); overflow-wrap: anywhere; }
+.chronicle-history .chronicle-history__speaker:empty + .chronicle-history__message { grid-column: 2 / 4; }
+.chronicle-history .chronicle-history__empty[hidden] { display: none; }

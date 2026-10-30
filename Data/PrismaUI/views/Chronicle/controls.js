@@ -147,6 +147,11 @@ function setRuntime(data) {
     showUnread(0);
     restoreHistory();
     refreshSpeakerOptions();
+    // History kept only here so far: native takes it once, for this character.
+    if (data.historyEmpty === true && runtime.profile && messages.length) {
+      sendToGame('historyImport', {profile: runtime.profile,
+        lines: messages.map(({channel, speaker, message, timestamp}) => ({channel, speaker, message, timestamp}))});
+    }
   }
   runtime.loaded = data.loaded;
   runtime.character = data.character;

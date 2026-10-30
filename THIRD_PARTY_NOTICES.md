@@ -23,6 +23,12 @@ only by the Magelight build variant and is retained under its upstream terms;
 it is not relicensed by Chronicle's GPL notice. Chronicle's release archives do
 not redistribute the Magelight runtime.
 
+## DovahHub API header
+
+`src/DovahHub_API.h` is copied unchanged from [DovahHub](https://github.com/kezc7/DovahHub)
+(`src/api/DovahHub_API.h`), by the same author and under the same GNU GPL, version 3.
+Chronicle reaches DovahHub.dll through it at runtime only when DovahHub is installed.
+
 ## Build and link dependencies
 
 - [CommonLibSSE-NG](https://github.com/community-shaders/CommonLibSSE-NG), resolved
