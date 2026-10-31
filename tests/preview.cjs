@@ -21,7 +21,7 @@ const mock = `<script>
 window.previewCalls = [];
 window.focusAcquired = () => { previewCalls.push('focusAcquired'); setTimeout(() => focusResult(true, 'focus.active'), 0); };
 window.focusReleased = () => previewCalls.push('focusReleased');
-window.settingsChanged = value => { previewCalls.push('settingsChanged'); window.previewSettings=JSON.parse(value); setTimeout(() => saveResult(true, 'Preview: settings accepted'),0); };
+window.settingsChanged = value => { previewCalls.push('settingsChanged'); window.previewSettings=JSON.parse(value); setTimeout(() => settingsSaveResult(true, 'Preview: settings accepted'),0); };
 window.playerInput = value => previewCalls.push(['playerInput',value]);
 window.consoleCommand = value => previewCalls.push(['consoleCommand',value]);
 window.exportHistory = value => { previewCalls.push(['exportHistory',value]); saveResult(true, 'Preview: export accepted'); };
