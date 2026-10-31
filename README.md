@@ -183,6 +183,20 @@ For browser development, `node tests/preview.cjs` serves a local preview with mo
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
 
+## 1.4.0-beta
+
+First beta of 1.4.0, with both builds cut from `main`: the PrismaUI release build
+and the Magelight UI build (`Chronicle-Magelight-<version>`).
+
+- Everything in the 1.4.0 notes below, in both builds.
+- Magelight build: Chronicle no longer shows its log or asks for UI mode before a
+  game is loaded (Magelight UI 1.7.1 opens a page for a request made at the main
+  menu), and quitting to the main menu hides it. Early requests are refused with a
+  line in `Chronicle.log`.
+- Both DLLs now carry their Windows file and product version (1.4.0.0).
+- The browser preview's settings mock now finishes each save, so later Apply
+  clicks are no longer stuck behind the first one.
+
 ## 1.4.0 changes
 
 - Other mods can now read and add to Chronicle's log through a native API
