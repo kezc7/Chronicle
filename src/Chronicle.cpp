@@ -23,6 +23,8 @@
 #include "MessageBuilder.h"
 #include "DovahHubModule.h"
 #include "HistoryWriter.h"
+#include "Api.h"
+#include "api/Chronicle_API.h"
 #include <fstream>
 #include <filesystem>
 
@@ -106,6 +108,7 @@ void Chronicle::OnPreLoadGame()
     m_state.loaded = false;
     ForceCloseInput();
     SubtitlePoller::GetSingleton().Stop();
+    TopicInfoEventSink::GetSingleton().Clear();
     {
         std::lock_guard lock(m_uiMutex);
         m_pendingUI.clear();
@@ -161,6 +164,7 @@ void Chronicle::RegisterEventSinks()
     if (auto* events = RE::ScriptEventSourceHolder::GetSingleton()) {
         events->AddEventSink<RE::TESHitEvent>(&CombatEventSink::GetSingleton());
         events->AddEventSink<RE::TESDeathEvent>(&DeathEventSink::GetSingleton());
+        events->AddEventSink<RE::TESTopicInfoEvent>(&TopicInfoEventSink::GetSingleton());
     }
     if (auto* levels = RE::LevelIncrease::GetEventSource()) levels->AddEventSink(&LevelUpEventSink::GetSingleton());
 }
@@ -267,7 +271,15 @@ void Chronicle::UpdateVisibility()
         InvokeUI(visible ? "setVisibility(true)" : "setVisibility(false)");
         UiHost().Show(visible);
     }
-    m_hidden = !visible;
+    if (m_hidden.exchange(!visible) == visible) ChronicleApi::Dispatch(CHRONICLE_API::kMsgVisibility, { { "visible", visible } });
+}
+
+void Chronicle::SetApiHidden(bool hidden)
+{
+    if (m_state.apiHidden == hidden) return;
+    m_state.apiHidden = hidden;
+    spdlog::info("Chronicle: {} by another mod", hidden ? "hidden" : "shown");
+    UpdateVisibility();
 }
 
 void Chronicle::PublishRuntime()
@@ -407,14 +419,15 @@ void Chronicle::RequestUnfocus()
     });
 }
 
-void Chronicle::SendMessage(std::string_view channel, std::string_view speaker, std::string_view message)
+void Chronicle::SendMessage(std::string_view channel, std::string_view speaker, std::string_view message,
+    ChronicleHistory::Attribution attribution)
 {
     // Always copy/sanitize before the borrowed strings leave the producer.
     // Every game event and UI delivery is then serialized on the main thread.
     try {
         const auto revision = m_worldRevision.load();
         auto payload = MessageBuilder::Build(channel, speaker, message);
-        MainTask([this, revision, payload = std::move(payload)] {
+        MainTask([this, revision, payload = std::move(payload), attribution = std::move(attribution)] {
             if (!m_gameLoaded || revision != m_worldRevision) return;
             const auto data = nlohmann::json::parse(payload);
             const auto channel = data.at("channel").get<std::string>();
@@ -422,8 +435,31 @@ void Chronicle::SendMessage(std::string_view channel, std::string_view speaker, 
             const auto message = data.at("message").get<std::string>();
             if (message.empty() || IsDuplicate(channel, speaker, message)) return;
             ++m_messageCount;
-            RecordHistory({ channel, speaker, message, data.value("timestamp", std::int64_t{ 0 }) });
-            if (channel == "dialogue") m_lastSubtitle = message;
+            ChronicleHistory::Line line{ channel, speaker, message, data.value("timestamp", std::int64_t{ 0 }) };
+            line.source = attribution.source;
+            line.speakerFormId = attribution.speakerFormId;
+            line.speakerBase = attribution.speakerBase;
+            line.ownerQuest = attribution.ownerQuest;
+            line.topicKind = attribution.topicKind;
+            if (auto* calendar = RE::Calendar::GetSingleton()) {
+                line.gameDays = calendar->GetDaysPassed();
+                line.gameHour = calendar->GetHour();
+            }
+            if (auto* player = RE::PlayerCharacter::GetSingleton()) {
+                const char* place = nullptr;
+                if (auto* location = player->GetCurrentLocation()) place = location->GetFullName();
+                if ((!place || !*place) && player->GetParentCell()) place = player->GetParentCell()->GetFullName();
+                if (place) line.place = ChronicleUtf8::ReplaceInvalid(place).value;
+            }
+            RecordHistory(line);
+            if (channel == "dialogue") {
+                m_lastSubtitle = message;
+                if (line.speakerFormId && line.speakerFormId != 0x14) {
+                    m_lastSpeakerFormId = line.speakerFormId;
+                    m_lastOwnerQuest = line.ownerQuest;
+                }
+            }
+            ChronicleApi::Deliver(line, attribution.distance);
             auto script = "addMessage(" + payload + ")";
             // A hidden view still receives messages, so menus don't erase history.
             if (m_bootstrapped) InvokeUI(script);
@@ -443,6 +479,14 @@ void Chronicle::SendMessage(std::string_view channel, std::string_view speaker, 
 void Chronicle::OnPlayerInput(std::string_view text)
 {
     if (!m_gameLoaded || m_hidden || text.size() > 8192) return;
+    // "/help", "/<mod command> ..." never go to SkyrimNet.
+    if (ChronicleApi::RunCommand(text)) return;
+    SubmitChat(text);
+}
+
+void Chronicle::SubmitChat(std::string_view text)
+{
+    if (!m_gameLoaded || text.empty() || text.size() > 8192) return;
     SendMessage("player", PlayerDisplayName(), text);
     if (auto* events = SKSE::GetModCallbackEventSource()) {
         SKSE::ModCallbackEvent event{
@@ -539,6 +583,7 @@ void Chronicle::ApplyNativeSettings(const nlohmann::json& settings)
     // the current session's state is left as it is.
     m_rememberHidden = general.value("remember_hidden", true);
     if (m_rememberHidden) m_state.userHidden = general.value("user_hidden", false);
+    ChronicleApi::SetEchoCommand(settings.value("debug_commands", false));
 }
 
 void Chronicle::ToggleUserHidden()
@@ -624,15 +669,16 @@ void Chronicle::LoadHistory()
     if (m_persistHistory) m_history.Replace(HistoryWriter::Load(HistoryWriter::PathFor(profile)));
     else HistoryWriter::Remove(HistoryWriter::PathFor(profile));
     m_historyAdopted = false;
-    spdlog::info("Chronicle: history for profile {}: {} line(s)", profile, m_history.Size());
+    spdlog::info("Chronicle: history for profile {}: {} line(s), last id {}", profile, m_history.Size(), m_history.LastId());
     DovahHubModule::PushReset();
+    ChronicleApi::Dispatch(CHRONICLE_API::kMsgHistoryOpened, { { "character", std::to_string(profile) } });
 }
 
 void Chronicle::DropHistory()
 {
     if (!m_historyProfile) return;
     SaveHistoryNow();
-    m_history.Clear();
+    m_history.Reset();
     m_historyProfile = 0;
     ++m_historyGeneration;
     m_historyDirty = false;
@@ -640,11 +686,11 @@ void Chronicle::DropHistory()
     DovahHubModule::PushReset();
 }
 
-void Chronicle::RecordHistory(ChronicleHistory::Line line)
+void Chronicle::RecordHistory(ChronicleHistory::Line& line)
 {
     if (!m_historyProfile || !m_historyChannels.Records(line.channel)) return;
+    line.id = m_history.Add(line);
     DovahHubModule::PushLine(line);
-    m_history.Add(std::move(line));
     m_historyDirty = true;
     SaveHistorySoon();
 }
@@ -741,7 +787,12 @@ void Chronicle::Diagnostics()
         {"poller", SubtitlePoller::GetSingleton().IsRunning()}, {"messages", m_messageCount},
         {"lastSubtitle", m_lastSubtitle}, {"api", UiHost().ApiVersion()}, {"host", UiHost().Name()},
         {"hudPath", SubtitlePoller::GetSingleton().LastHudPath()},
-        {"settingsFile", kSettingsPath.string()}
+        {"settingsFile", kSettingsPath.string()},
+        {"historyLines", m_history.Size()}, {"historyKb", (m_history.Bytes() + 1023) / 1024},
+        {"historyFile", m_historyProfile && m_persistHistory ? HistoryWriter::PathFor(m_historyProfile).string() : std::string{}},
+        {"subscribers", ChronicleApi::SubscriberCount()}, {"commands", ChronicleApi::CommandPrefixes()},
+        {"lastSpeakerFormId", m_lastSpeakerFormId ? fmt::format("{:08X}", m_lastSpeakerFormId) : std::string{}},
+        {"lastOwnerQuest", m_lastOwnerQuest}
     }) + ")");
 }
 

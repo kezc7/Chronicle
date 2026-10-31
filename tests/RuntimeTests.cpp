@@ -90,6 +90,10 @@ int main()
     Require(ChronicleRuntime::InterruptsFocus(ChronicleRuntime::kMenuFrameworkMenu, 0));
     state.Menu(ChronicleRuntime::kMenuFrameworkMenu, false);
     Require(state.Visible());
+    state.apiHidden = true; // another mod's SetVisible(false)
+    Require(!state.Visible());
+    state.apiHidden = false;
+    Require(state.Visible());
     state.Menu(ChronicleRuntime::kDovahHubMenu, true); // DovahHub's page is open
     Require(!state.Visible());
     Require(ChronicleRuntime::InterruptsFocus(ChronicleRuntime::kDovahHubMenu, 0));
@@ -205,8 +209,12 @@ int main()
     Require(ChronicleRuntime::Phrased(Lang::Ja, Phrase::Killed, "Vampire") == "Vampire を倒した");
     Require(ChronicleRuntime::Phrased(Lang::Es, Phrase::Killed, "Vampire") == "ha matado a Vampire");
     for (auto lang : { Lang::En, Lang::Fr, Lang::De, Lang::It, Lang::Es, Lang::Pl, Lang::Tr, Lang::Zh, Lang::Ja, Lang::Ko }) {
-        for (int p = 0; p <= static_cast<int>(Phrase::MoreLines); ++p) {
+        for (int p = 0; p <= static_cast<int>(Phrase::NoCommands); ++p) {
             Require(!ChronicleRuntime::PhraseText(lang, static_cast<Phrase>(p)).empty());
+            // Every language has its own text for the command replies.
+            if (lang != Lang::En && p >= static_cast<int>(Phrase::UnknownCommand)) {
+                Require(ChronicleRuntime::PhraseText(lang, static_cast<Phrase>(p)) != ChronicleRuntime::PhraseText(Lang::En, static_cast<Phrase>(p)));
+            }
         }
     }
 

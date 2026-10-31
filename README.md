@@ -1,4 +1,4 @@
-# Chronicle 1.3.2
+# Chronicle 1.4.0
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -30,6 +30,9 @@ are preserved.
 - **Enter** opens chat input. Submitting sends a SkyrimNet player-input event;
   responding to it requires a compatible integration. Console commands are optional
   and are executed in Skyrim when the Console channel is enabled and selected.
+- A chat line starting with `/` is a command for Chronicle or another mod and is
+  not sent to SkyrimNet: `/help` lists the commands mods have registered, and an
+  unknown one says so in the Console channel.
 - **Escape** releases interaction and returns control to Skyrim.
 - **Position** in settings restores an on-screen window position.
 
@@ -78,8 +81,30 @@ when the SKSE log directory is available; otherwise it uses `Data/SKSE/Plugins/C
 The result displays the actual location. Copy provides a selectable Ctrl+C fallback.
 
 Diagnostics queries the native plugin for its build version, connection, focus,
-polling status, message count, and last captured subtitle. It does not generate
-sample messages or claim that an integration works merely because text can render.
+polling status, message count, and last captured subtitle. It also shows the
+history (lines, size, file), how many mods subscribe to Chronicle and which
+commands they registered, and the form ID and owner quest of the last NPC line.
+It does not generate sample messages or claim that an integration works merely
+because text can render.
+
+### For mod authors: Chronicle_API.h
+
+Other SKSE plugins can read Chronicle's log through `src/api/Chronicle_API.h`
+(header-only; vendor it unchanged). `CHRONICLE_API::RequestApi()` returns
+nullptr when Chronicle is not installed. The API can:
+
+- page through the current character's history (`GetMessages`, after an id);
+- subscribe to lines as they are captured;
+- put a line in the box, or send chat to SkyrimNet (`Send`);
+- register `/commands`;
+- show or hide the box.
+
+Each NPC line carries the speaker's form ID and base FormKey, the dialogue
+topic's owner quest and kind, the game day and hour, the real time and the
+player's location. Lines read from the HUD alone (no SubtitleManager entry) have
+no speaker or quest. The header documents the thread rules. Adding
+`"debug_commands": true` at the top level of `Chronicle.json` registers a
+`/chronicle.echo` test command.
 
 ## Requirements and installation
 
@@ -157,6 +182,18 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.4.0 changes
+
+- Other mods can now read and add to Chronicle's log through a native API
+  (`src/api/Chronicle_API.h`). DovahHub's "What they told you" will use it to take
+  NPC lines from Chronicle instead of reading subtitles itself.
+- NPC lines now record who said them (form ID), the dialogue topic's quest and
+  kind, the game time and the place. History files from 1.3 still load.
+- `/help` and mod commands in the chat input. Lines starting with `/` no longer
+  go to SkyrimNet.
+- Diagnostics shows the history size and file, API subscribers and commands, and
+  the last NPC line's speaker and quest.
 
 ## 1.3.2 changes
 

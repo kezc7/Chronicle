@@ -148,7 +148,7 @@ namespace ChronicleRuntime
     {
         GameSaved, ReachedLevel, Killed, Hit, Died, Combat, Enemy, Someone, Target, Player,
         QuestStarted, QuestCompleted, QuestFailed, NewObjective, ObjectiveCompleted, ObjectiveFailed,
-        MoreLines
+        MoreLines, UnknownCommand, Commands, NoCommands
     };
 
     // "{0}" marks the inserted value (a name, a level, a line count).
@@ -175,6 +175,9 @@ namespace ChronicleRuntime
             case ObjectiveCompleted: return "Objectif terminé : {0}";
             case ObjectiveFailed: return "Objectif échoué : {0}";
             case MoreLines: return "... {0} lignes de plus - ouvrez la console (~) pour tout voir";
+            case UnknownCommand: return "Commande inconnue : {0}";
+            case Commands: return "Commandes : {0}";
+            case NoCommands: return "Aucune commande de mod enregistrée";
             }
             break;
         case Lang::De:
@@ -196,6 +199,9 @@ namespace ChronicleRuntime
             case ObjectiveCompleted: return "Ziel erreicht: {0}";
             case ObjectiveFailed: return "Ziel fehlgeschlagen: {0}";
             case MoreLines: return "... {0} weitere Zeilen - Konsole (~) öffnen, um alle zu sehen";
+            case UnknownCommand: return "Unbekannter Befehl: {0}";
+            case Commands: return "Befehle: {0}";
+            case NoCommands: return "Keine Mod-Befehle registriert";
             }
             break;
         case Lang::It:
@@ -217,6 +223,9 @@ namespace ChronicleRuntime
             case ObjectiveCompleted: return "Obiettivo completato: {0}";
             case ObjectiveFailed: return "Obiettivo fallito: {0}";
             case MoreLines: return "... altre {0} righe - apri la console (~) per vederle tutte";
+            case UnknownCommand: return "Comando sconosciuto: {0}";
+            case Commands: return "Comandi: {0}";
+            case NoCommands: return "Nessun comando di mod registrato";
             }
             break;
         case Lang::Es:
@@ -238,6 +247,9 @@ namespace ChronicleRuntime
             case ObjectiveCompleted: return "Objetivo completado: {0}";
             case ObjectiveFailed: return "Objetivo fallido: {0}";
             case MoreLines: return "... {0} líneas más - abre la consola (~) para verlas todas";
+            case UnknownCommand: return "Comando desconocido: {0}";
+            case Commands: return "Comandos: {0}";
+            case NoCommands: return "No hay comandos de mods registrados";
             }
             break;
         case Lang::Pl:
@@ -260,6 +272,9 @@ namespace ChronicleRuntime
             case ObjectiveCompleted: return "Cel osiągnięty: {0}";
             case ObjectiveFailed: return "Cel nieosiągnięty: {0}";
             case MoreLines: return "... jeszcze {0} wierszy - otwórz konsolę (~), aby zobaczyć wszystkie";
+            case UnknownCommand: return "Nieznane polecenie: {0}";
+            case Commands: return "Polecenia: {0}";
+            case NoCommands: return "Brak zarejestrowanych poleceń modów";
             }
             break;
         case Lang::Tr:
@@ -282,6 +297,9 @@ namespace ChronicleRuntime
             case ObjectiveCompleted: return "Hedef tamamlandı: {0}";
             case ObjectiveFailed: return "Hedef başarısız: {0}";
             case MoreLines: return "... {0} satır daha - hepsini görmek için konsolu (~) açın";
+            case UnknownCommand: return "Bilinmeyen komut: {0}";
+            case Commands: return "Komutlar: {0}";
+            case NoCommands: return "Kayıtlı mod komutu yok";
             }
             break;
         case Lang::Zh:
@@ -303,6 +321,9 @@ namespace ChronicleRuntime
             case ObjectiveCompleted: return "目标完成：{0}";
             case ObjectiveFailed: return "目标失败：{0}";
             case MoreLines: return "……还有 {0} 行 - 打开控制台 (~) 查看全部";
+            case UnknownCommand: return "未知命令：{0}";
+            case Commands: return "命令：{0}";
+            case NoCommands: return "没有已注册的模组命令";
             }
             break;
         case Lang::Ja:
@@ -324,6 +345,9 @@ namespace ChronicleRuntime
             case ObjectiveCompleted: return "目標達成: {0}";
             case ObjectiveFailed: return "目標失敗: {0}";
             case MoreLines: return "...他 {0} 行 - すべて見るにはコンソール (~) を開いてください";
+            case UnknownCommand: return "不明なコマンド：{0}";
+            case Commands: return "コマンド：{0}";
+            case NoCommands: return "登録された MOD コマンドはありません";
             }
             break;
         case Lang::Ko:
@@ -346,6 +370,9 @@ namespace ChronicleRuntime
             case ObjectiveCompleted: return "목표 완료: {0}";
             case ObjectiveFailed: return "목표 실패: {0}";
             case MoreLines: return "... {0}줄 더 있음 - 모두 보려면 콘솔(~)을 여세요";
+            case UnknownCommand: return "알 수 없는 명령: {0}";
+            case Commands: return "명령: {0}";
+            case NoCommands: return "등록된 모드 명령이 없습니다";
             }
             break;
         case Lang::En:
@@ -369,6 +396,9 @@ namespace ChronicleRuntime
         case ObjectiveCompleted: return "Objective completed: {0}";
         case ObjectiveFailed: return "Objective failed: {0}";
         case MoreLines: return "... {0} more lines - open the console (~) to see them all";
+        case UnknownCommand: return "Unknown command: {0}";
+        case Commands: return "Commands: {0}";
+        case NoCommands: return "No mod commands are registered";
         }
         return "";
     }
@@ -536,6 +566,7 @@ namespace ChronicleRuntime
         // owns input: on the Magelight build Chronicle's own focus opens it too.
         std::string ownFocusMenu;
         bool ownsFocus = false;
+        bool apiHidden = false;   // hidden by another mod (Chronicle_API.h SetVisible)
         std::unordered_set<std::string> menus;
 
         void Menu(std::string_view name, bool opening, std::uint32_t menuFlags = kInputMenuFlags)
@@ -549,7 +580,7 @@ namespace ChronicleRuntime
 
         bool Visible() const
         {
-            if (!loaded || !ready || userHidden) return false;
+            if (!loaded || !ready || userHidden || apiHidden) return false;
             for (const auto& name : menus) {
                 if (ownsFocus && name == ownFocusMenu) continue;
                 if (IsTransition(name) || (name == "PhotoMenu" ? hidePhoto : hideMenus)) return false;

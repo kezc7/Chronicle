@@ -84,9 +84,14 @@ public:
     }
     std::atomic<std::uint64_t> profileId{ 0 };
 
+    // Any thread. a_attribution carries what capture knows about the speaker
+    // and topic, for Chronicle_API.h subscribers and the history.
     void SendMessage(std::string_view a_channel,
                      std::string_view a_speaker,
-                     std::string_view a_message);
+                     std::string_view a_message,
+                     ChronicleHistory::Attribution a_attribution = {});
+    // Game thread. The line goes to the box and on to SkyrimNet, as typing it would.
+    void SubmitChat(std::string_view a_text);
 
     void OnMenuOpenClose(std::string_view a_menuName, bool a_opening);
     // Game thread. DovahHub's open/close messages and the tick's IsOpen check.
@@ -107,6 +112,13 @@ public:
     void OnHistoryImport(std::string_view a_json);
     void OnHistoryCleared(std::string_view a_profile);
     void DropHistory();  // load boundary or co-save revert: save what is pending, then forget it
+
+    // For Chronicle_API.h (game thread unless noted).
+    const ChronicleHistory::List& History() const { return m_history; }
+    bool HistoryOpen() const { return m_historyProfile != 0; }
+    bool IsVisible() const { return !m_hidden.load(); }  // any thread
+    void SetApiHidden(bool a_hidden);
+
 private:
     Chronicle() = default;
 
@@ -121,7 +133,7 @@ private:
     void PublishRuntime();
     void ApplyNativeSettings(const nlohmann::json& settings);
     void LoadHistory();
-    void RecordHistory(ChronicleHistory::Line a_line);
+    void RecordHistory(ChronicleHistory::Line& a_line);  // sets a_line.id when kept
     void SaveHistorySoon();
     void SaveHistoryNow();
 
@@ -160,6 +172,8 @@ private:
     std::uint32_t m_toggleKey{ 0 };              // show/hide hotkey; 0 = none
     std::atomic<bool> m_rememberHidden{ true };
     std::string m_lastSubtitle;
+    std::uint32_t m_lastSpeakerFormId{ 0 };  // of the last NPC line, for Diagnostics
+    std::string m_lastOwnerQuest;
     std::uint64_t m_messageCount{ 0 };
 
     struct LastMessage

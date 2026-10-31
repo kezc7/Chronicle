@@ -319,6 +319,10 @@ function diagnosticsResult(data) {
     t('diag.hudPath', {value: data.hudPath || t('diag.noneResolved')}),
     t('diag.messages', {value: data.messages}),
     t('diag.lastSubtitle', {value: data.lastSubtitle || t('diag.noneYet')}),
+    t('diag.history', {lines: data.historyLines ?? 0, kb: data.historyKb ?? 0, file: data.historyFile || '-'}),
+    t('diag.api', {subscribers: data.subscribers ?? 0,
+      commands: Array.isArray(data.commands) && data.commands.length ? data.commands.map(c => '/' + c).join(', ') : '-'}),
+    t('diag.attribution', {form: data.lastSpeakerFormId || '-', quest: data.lastOwnerQuest || '-'}),
     t('diag.settings', {value: data.settingsFile}),
   ].join('\n');
 }

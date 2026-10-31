@@ -101,6 +101,42 @@ int main()
     Require(repaired && repaired->message.find('\xC3') == std::string::npos, "invalid UTF-8 is replaced");
     Require(LinesToJson({ Make(7) }).dump() == R"([{"channel":"dialogue","message":"line","speaker":"Lydia","timestamp":7}])", "round trip");
 
+    // Ids: each added line gets the next one; lines read back keep theirs, and
+    // missing or out-of-order ids are numbered after the line before.
+    List ids;
+    Require(ids.Add(Make(1)) == 1 && ids.Add(Make(2)) == 2 && ids.LastId() == 2, "ids increase");
+    ids.Clear();
+    Require(ids.Add(Make(3)) == 3, "Clear history keeps the ids going");
+    ids.Reset();
+    std::vector<Line> file;
+    for (const std::uint64_t id : { 0ull, 7ull, 5ull, 0ull, 20ull }) {
+        auto line = Make(static_cast<std::int64_t>(id));
+        line.id = id;
+        file.push_back(line);
+    }
+    ids.Replace(std::move(file));
+    const auto read = ids.Copy();
+    Require(read[0].id == 1 && read[1].id == 7 && read[2].id == 8 && read[3].id == 9 && read[4].id == 20, "ids repaired on load");
+    Require(ids.Add(Make(21)) == 21 && ids.Bytes() > 0, "ids carry on after a load");
+
+    // The API fields round-trip through the file; 1.3 lines have none of them.
+    Line full = Make(9, "dialogue", "Hello");
+    full.id = 42;
+    full.speakerFormId = 0xA2C94;
+    full.speakerBase = "Skyrim.esm|0x0A2C8E";
+    full.ownerQuest = "Skyrim.esm|0x000D4E";
+    full.topicKind = "quest";
+    full.gameDays = 12.5;
+    full.gameHour = 13.25F;
+    full.place = "Whiterun";
+    full.source = "dworks";
+    const auto back = FromJson(ToJson(full));
+    Require(back && back->id == 42 && back->speakerFormId == 0xA2C94 && back->speakerBase == full.speakerBase &&
+        back->ownerQuest == full.ownerQuest && back->topicKind == "quest" && back->gameDays == 12.5 &&
+        back->gameHour == 13.25F && back->place == "Whiterun" && back->source == "dworks", "API fields round trip");
+    const auto old = FromJson(nlohmann::json::parse(R"({"channel":"dialogue","speaker":"Lydia","message":"old","timestamp":1,"gameHour":99})"));
+    Require(old && old->id == 0 && old->speakerFormId == 0 && old->ownerQuest.empty() && old->gameHour == 0.0F, "1.3 lines, bad hour");
+
     // Work from another character or world is not applied.
     Require((Generation{ 1, 2 } == Generation{ 1, 2 }) && !(Generation{ 1, 2 } == Generation{ 1, 3 }), "generations");
     Require(ShouldAdopt(true, false, 42, "42"), "adopt into an empty list");
