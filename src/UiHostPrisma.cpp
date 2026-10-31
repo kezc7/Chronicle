@@ -83,6 +83,10 @@ namespace
             if (ViewValid() && m_api->HasFocus(s_view)) m_api->Unfocus(s_view);
         }
 
+        // Chronicle's own state already keeps the view hidden and unfocused
+        // before a load; PrismaUI needs nothing more.
+        void SetGameLoaded(bool) override {}
+
         std::string FirstRunDefaults() override { return {}; }  // the page fetches config.json
 
         const char* Name() const override { return "PrismaUI"; }

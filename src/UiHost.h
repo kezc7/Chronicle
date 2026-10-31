@@ -58,6 +58,13 @@ public:
     virtual bool Focus() = 0;             // request accepted (or queued)
     virtual void Unfocus() = 0;
 
+    // Chronicle's load state: true once a game is loaded (kPostLoadGame,
+    // kNewGame, or a load screen closing on a player in the world), false
+    // from kPreLoadGame or the Main Menu on. A host that would otherwise
+    // open a page for a request made at the main menu refuses Show(true)
+    // and Focus() while it is false, and false hides the view.
+    virtual void SetGameLoaded(bool loaded) = 0;
+
     // First-run defaults the page cannot fetch itself (Magelight pages are
     // blocked from reading their own files). Empty when the page fetches
     // config.json on its own.
