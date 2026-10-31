@@ -82,6 +82,9 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 
 # Single version source: bump VERSION above for every build that is handed out.
 target_compile_definitions(${PROJECT_NAME} PRIVATE CHRONICLE_VERSION="${PROJECT_VERSION}")
+# The DLL's Windows FileVersion/ProductVersion, from the same VERSION.
+configure_file(src/version.rc.in "${CMAKE_CURRENT_BINARY_DIR}/version.rc" @ONLY)
+target_sources(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/version.rc")
 # Chronicle_API.h reports which build this is.
 target_compile_definitions(${PROJECT_NAME} PRIVATE CHRONICLE_HOST_NAME="${CHRONICLE_UI_HOST}")
 if(CHRONICLE_UI_HOST STREQUAL "Magelight")
