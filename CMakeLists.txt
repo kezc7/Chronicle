@@ -11,7 +11,7 @@ set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CAC
 
 project(
     Chronicle
-    VERSION 1.3.2
+    VERSION 1.4.0
     DESCRIPTION "In-game chatbox and message log for Skyrim SE"
     LANGUAGES CXX
 )
@@ -37,6 +37,9 @@ set(headers
     src/HistoryWriter.h
     src/DovahHubModule.h
     src/DovahHub_API.h
+    src/Api.h
+    src/ApiPolicy.h
+    src/api/Chronicle_API.h
 )
 
 set(sources
@@ -46,6 +49,7 @@ set(sources
     src/PrismaUI.cpp
     src/HistoryWriter.cpp
     src/DovahHubModule.cpp
+    src/Api.cpp
 )
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${headers} ${sources})
@@ -87,6 +91,10 @@ if(CHRONICLE_BUILD_TESTS)
     target_include_directories(ChronicleHistoryTests PRIVATE src)
     target_link_libraries(ChronicleHistoryTests PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME ChronicleHistoryTests COMMAND ChronicleHistoryTests)
+    add_executable(ChronicleApiTests tests/ApiTests.cpp)
+    target_include_directories(ChronicleApiTests PRIVATE src)
+    target_link_libraries(ChronicleApiTests PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME ChronicleApiTests COMMAND ChronicleApiTests)
 endif()
 
 target_precompile_headers(${PROJECT_NAME} PRIVATE src/PCH.h)

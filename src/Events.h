@@ -79,6 +79,51 @@ private:
 
 // Native combat/death events involving the player. These keep the Combat
 // channel useful even when no external dialogue integration is installed.
+// This CommonLibSSE-NG only forward-declares the event (its source is in
+// ScriptEventSourceHolder); the layout is newer CommonLib's. Only read, never copied.
+namespace RE
+{
+    struct TESTopicInfoEvent
+    {
+        void* callback;                      // 00 BSTSmartPointer<REFREventCallbacks::IEventCallback>
+        NiPointer<TESObjectREFR> speakerRef; // 08
+        FormID topicInfoFormID;              // 10
+        std::uint32_t type;                  // 14 0 = topic begins, 1 = ends
+        std::uint16_t stage;                 // 18
+    };
+    static_assert(sizeof(TESTopicInfoEvent) == 0x20);
+}
+
+// Which topic info each actor is saying, so a subtitle can carry its topic and
+// owner quest (Chronicle_API.h). Events may arrive on any thread: only the ids
+// are copied there, and the map is used on the game thread.
+class TopicInfoEventSink final : public RE::BSTEventSink<RE::TESTopicInfoEvent>
+{
+public:
+    static TopicInfoEventSink& GetSingleton()
+    {
+        static TopicInfoEventSink instance;
+        return instance;
+    }
+
+    TopicInfoEventSink(const TopicInfoEventSink&) = delete;
+    TopicInfoEventSink& operator=(const TopicInfoEventSink&) = delete;
+
+    RE::BSEventNotifyControl ProcessEvent(
+        const RE::TESTopicInfoEvent* a_event,
+        RE::BSTEventSource<RE::TESTopicInfoEvent>* a_eventSource) override;
+
+    // Game thread. The topic info the speaker is saying now, 0 when none.
+    RE::FormID Current(RE::FormID a_speaker) const;
+    void Clear();
+
+private:
+    TopicInfoEventSink() = default;
+
+    std::unordered_map<RE::FormID, RE::FormID> m_speaking;
+    std::atomic<std::uint64_t> m_epoch{ 0 };  // Clear() drops updates queued before it
+};
+
 class CombatEventSink final : public RE::BSTEventSink<RE::TESHitEvent>
 {
 public:

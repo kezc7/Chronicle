@@ -61,27 +61,129 @@ namespace
         return std::string(a_fallback);
     }
 
-    bool IsWithinDialogueRadius(RE::TESObjectREFR* a_speaker, float a_radius)
+    // -1 when it cannot be read: no speaker, or Skyrim is between player instances.
+    float DistanceToPlayer(RE::TESObjectREFR* a_speaker)
     {
-        if (a_radius <= 0.0F || !a_speaker) {
-            return true;
-        }
-
         auto* player = RE::PlayerCharacter::GetSingleton();
-        if (!player) {
-            // If Skyrim is between player instances, keep the line rather
-            // than dropping game text because the distance cannot be read.
-            return true;
+        if (!a_speaker || !player) {
+            return -1.0F;
         }
-
         const auto speakerPosition = a_speaker->GetPosition();
         const auto playerPosition = player->GetPosition();
         const auto dx = speakerPosition.x - playerPosition.x;
         const auto dy = speakerPosition.y - playerPosition.y;
         const auto dz = speakerPosition.z - playerPosition.z;
-        const auto distance = std::sqrt(dx * dx + dy * dy + dz * dz);
-        return ChronicleRuntime::WithinDialogueRadius(distance, a_radius);
+        return std::sqrt(dx * dx + dy * dy + dz * dz);
     }
+
+    // A line whose distance cannot be read is kept rather than dropped.
+    bool IsWithinDialogueRadius(float a_distance, float a_radius)
+    {
+        return a_distance < 0.0F || ChronicleRuntime::WithinDialogueRadius(a_distance, a_radius);
+    }
+
+    // "Skyrim.esm|0x0A2C8E"; "" for forms made at runtime (no file).
+    std::string FormKey(const RE::TESForm* a_form)
+    {
+        const auto* file = a_form ? a_form->GetFile(0) : nullptr;
+        if (!file || a_form->IsDynamicForm()) {
+            return {};
+        }
+        const auto id = a_form->GetFormID();
+        const auto local = file->IsLight() ? id & 0xFFF : id & 0xFFFFFF;
+        return fmt::format("{}|0x{:06X}", file->GetFilename(), local);
+    }
+
+    // DovahHub Talk's classification of a topic, so its lines read the same.
+    std::string TopicKind(const RE::TESTopicInfo* a_info, bool a_toPlayer)
+    {
+        const auto* topic = a_info ? a_info->parentTopic : nullptr;
+        if (!topic) return {};
+        using S = RE::DIALOGUE_DATA::Subtype;
+        switch (topic->data.subtype.get()) {
+        case S::kRumors: return "rumour";
+        case S::kHello: return a_toPlayer ? "greeting" : std::string{};
+        case S::kIdle: return "chatter";
+        case S::kCustom:
+        case S::kUnk3:
+        case S::kForceGreet:
+        case S::kScene:
+        case S::kSharedInfo:
+        case S::kAgree:
+        case S::kRefuse:
+        case S::kFollow:
+        case S::kShowRelationships:
+        case S::kGift:
+        case S::kAskGift:
+        case S::kFavor:
+        case S::kAskFavor:
+            {
+                if (!a_toPlayer) return "overheard";
+                const auto* quest = topic->ownerQuest;
+                const bool questLine = quest && quest->GetType() != RE::QUEST_DATA::Type::kNone &&
+                    quest->GetFullName() && *quest->GetFullName();
+                return questLine ? "quest" : "conversation";
+            }
+        default:
+            return {};
+        }
+    }
+
+    // Speaker and topic of a subtitle the SubtitleManager is showing. Game thread.
+    ChronicleHistory::Attribution Attribute(RE::TESObjectREFR* a_speaker, float a_distance)
+    {
+        ChronicleHistory::Attribution attribution;
+        attribution.distance = a_distance;
+        if (!a_speaker) {
+            return attribution;
+        }
+        attribution.speakerFormId = a_speaker->GetFormID();
+        attribution.speakerBase = FormKey(a_speaker->GetBaseObject());
+        const auto infoId = TopicInfoEventSink::GetSingleton().Current(attribution.speakerFormId);
+        const auto* info = infoId ? RE::TESForm::LookupByID<RE::TESTopicInfo>(infoId) : nullptr;
+        if (info && info->parentTopic) {
+            const auto* topics = RE::MenuTopicManager::GetSingleton();
+            const auto handle = a_speaker->GetHandle();
+            const bool toPlayer = topics && (topics->speaker == handle || topics->lastSpeaker == handle);
+            attribution.topicKind = TopicKind(info, toPlayer);
+            attribution.ownerQuest = FormKey(info->parentTopic->ownerQuest);
+        }
+        return attribution;
+    }
+}
+
+RE::BSEventNotifyControl TopicInfoEventSink::ProcessEvent(
+    const RE::TESTopicInfoEvent* a_event,
+    RE::BSTEventSource<RE::TESTopicInfoEvent>*)
+{
+    if (a_event && a_event->speakerRef) {
+        const auto speaker = a_event->speakerRef->GetFormID();
+        const auto info = a_event->topicInfoFormID;
+        const bool begin = a_event->type == 0;
+        if (auto* tasks = SKSE::GetTaskInterface()) {
+            tasks->AddTask([this, speaker, info, begin, epoch = m_epoch.load()] {
+                if (epoch != m_epoch) return;
+                if (begin) {
+                    m_speaking[speaker] = info;
+                } else if (const auto it = m_speaking.find(speaker); it != m_speaking.end() && it->second == info) {
+                    m_speaking.erase(it);
+                }
+            });
+        }
+    }
+    return RE::BSEventNotifyControl::kContinue;
+}
+
+RE::FormID TopicInfoEventSink::Current(RE::FormID a_speaker) const
+{
+    const auto it = m_speaking.find(a_speaker);
+    return it != m_speaking.end() ? it->second : 0;
+}
+
+void TopicInfoEventSink::Clear()
+{
+    ++m_epoch;
+    m_speaking.clear();
 }
 
 void SubtitlePoller::SetExtraHudPaths(std::vector<std::string> paths)
@@ -434,7 +536,10 @@ void SubtitlePoller::PollOnce()
             if (chosen && ChronicleRuntime::AnswersChoice(info, info->parentTopic, chosen->parentTopicInfo, chosen->parentTopic)) {
                 const auto text = ChronicleRuntime::StripHtml(chosen->topicText.c_str());
                 if (!text.empty()) {
-                    Chronicle::GetSingleton()->SendMessage("dialogue", PlayerDisplayName(), text);
+                    ChronicleHistory::Attribution attribution;
+                    attribution.speakerFormId = 0x14;  // the player
+                    if (chosen->parentTopic) attribution.ownerQuest = FormKey(chosen->parentTopic->ownerQuest);
+                    Chronicle::GetSingleton()->SendMessage("dialogue", PlayerDisplayName(), text, std::move(attribution));
                 }
             }
         }
@@ -461,12 +566,13 @@ void SubtitlePoller::PollOnce()
                 }
 
                 const auto key = speakerName + '\0' + text;
-                const bool withinRadius = IsWithinDialogueRadius(speakerRef.get(), dialogueRadius);
+                const auto distance = DistanceToPlayer(speakerRef.get());
+                const bool withinRadius = IsWithinDialogueRadius(distance, dialogueRadius);
                 if (withinRadius) {
                     current.insert(key);
                 }
                 if (withinRadius && !m_activeSubtitles.contains(key)) {
-                    Chronicle::GetSingleton()->SendMessage("dialogue", speakerName, text);
+                    Chronicle::GetSingleton()->SendMessage("dialogue", speakerName, text, Attribute(speakerRef.get(), distance));
                 }
                 m_lastText = text;
             }

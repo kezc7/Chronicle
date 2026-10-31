@@ -23,6 +23,7 @@
 #include "Utf8.h"
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <deque>
@@ -47,6 +48,27 @@ namespace ChronicleHistory
         std::string speaker;
         std::string message;
         std::int64_t timestamp{ 0 };  // ms since the epoch
+        // For Chronicle_API.h: kept with the line and in the history file.
+        std::uint64_t id{ 0 };        // per character, increasing; 0 = not kept in the history
+        std::string source;           // the sending mod's slug for lines other mods Send ("" otherwise)
+        std::uint32_t speakerFormId{ 0 };
+        std::string speakerBase;      // FormKey of the speaker's base NPC
+        std::string ownerQuest;       // FormKey of the dialogue topic's owner quest
+        std::string topicKind;        // "conversation" | "quest" | "rumour" | "greeting" | "chatter" | "overheard" | ""
+        double gameDays{ 0.0 };
+        float gameHour{ 0.0F };
+        std::string place;
+    };
+
+    // What capture knows about a line beyond its text.
+    struct Attribution
+    {
+        std::uint32_t speakerFormId{ 0 };
+        std::string speakerBase;
+        std::string ownerQuest;
+        std::string topicKind;
+        std::string source;
+        float distance{ -1.0F };  // speaker to player in game units, -1 when unknown
     };
 
     inline bool KnownChannel(std::string_view channel)
@@ -115,12 +137,23 @@ namespace ChronicleHistory
 
     inline nlohmann::json ToJson(const Line& line)
     {
-        return {
+        nlohmann::json value = {
             {"channel", line.channel},
             {"speaker", line.speaker},
             {"message", line.message},
             {"timestamp", line.timestamp},
         };
+        // Empty fields are left out, so 1.3 files and pages read the same.
+        if (line.id) value["id"] = line.id;
+        if (!line.source.empty()) value["source"] = line.source;
+        if (line.speakerFormId) value["speakerFormId"] = line.speakerFormId;
+        if (!line.speakerBase.empty()) value["speakerBase"] = line.speakerBase;
+        if (!line.ownerQuest.empty()) value["ownerQuest"] = line.ownerQuest;
+        if (!line.topicKind.empty()) value["topicKind"] = line.topicKind;
+        if (line.gameDays != 0.0) value["gameDays"] = line.gameDays;
+        if (line.gameHour != 0.0F) value["gameHour"] = line.gameHour;
+        if (!line.place.empty()) value["place"] = line.place;
+        return value;
     }
 
     // A line from the history file or the page's old localStorage: anything
@@ -143,6 +176,30 @@ namespace ChronicleHistory
         }
         if (const auto timestamp = value.find("timestamp"); timestamp != value.end() && timestamp->is_number()) {
             line.timestamp = timestamp->get<std::int64_t>();
+        }
+        const auto text = [&value](const char* key, std::size_t max) {
+            const auto it = value.find(key);
+            if (it == value.end() || !it->is_string()) return std::string{};
+            auto result = ChronicleUtf8::ReplaceInvalid(it->get<std::string>()).value;
+            return result.size() <= max ? result : std::string{};
+        };
+        if (const auto id = value.find("id"); id != value.end() && id->is_number_unsigned()) line.id = id->get<std::uint64_t>();
+        if (const auto form = value.find("speakerFormId"); form != value.end() && form->is_number_unsigned() &&
+            form->get<std::uint64_t>() <= 0xFFFFFFFFu) {
+            line.speakerFormId = form->get<std::uint32_t>();
+        }
+        line.source = text("source", 32);
+        line.speakerBase = text("speakerBase", 300);
+        line.ownerQuest = text("ownerQuest", 300);
+        line.topicKind = text("topicKind", 32);
+        line.place = text("place", 300);
+        if (const auto days = value.find("gameDays"); days != value.end() && days->is_number()) {
+            const auto number = days->get<double>();
+            if (std::isfinite(number) && number >= 0.0) line.gameDays = number;
+        }
+        if (const auto hour = value.find("gameHour"); hour != value.end() && hour->is_number()) {
+            const auto number = hour->get<double>();
+            if (std::isfinite(number) && number >= 0.0 && number <= 24.0) line.gameHour = static_cast<float>(number);
         }
         return line;
     }
@@ -170,29 +227,57 @@ namespace ChronicleHistory
         bool more{ false };       // older lines remain
     };
 
-    // Oldest first, at most kMaxLines.
+    // Oldest first, at most kMaxLines. Every line gets the next id; ids never
+    // go back while the list is open, so a reader can resume after its last id.
     class List
     {
     public:
-        void Add(Line line)
+        // Returns the id given to the line.
+        std::uint64_t Add(Line line)
         {
+            line.id = ++m_lastId;
             m_lines.push_back(std::move(line));
             while (m_lines.size() > kMaxLines) m_lines.pop_front();
+            return m_lastId;
         }
 
+        // Lines from the file keep their ids; missing or out-of-order ones (the
+        // page's old history, 1.3 files) are numbered after the line before.
         void Replace(std::vector<Line> lines)
         {
             m_lines.clear();
             const auto skip = lines.size() > kMaxLines ? lines.size() - kMaxLines : 0;
             for (auto it = lines.begin() + static_cast<std::ptrdiff_t>(skip); it != lines.end(); ++it) {
+                if (it->id <= m_lastId) it->id = m_lastId + 1;
+                m_lastId = it->id;
                 m_lines.push_back(std::move(*it));
             }
         }
 
+        // Clear history: the lines go, the ids carry on.
         void Clear() { m_lines.clear(); }
+        // Another character: ids start again from its own file.
+        void Reset()
+        {
+            m_lines.clear();
+            m_lastId = 0;
+        }
         bool Empty() const { return m_lines.empty(); }
         std::size_t Size() const { return m_lines.size(); }
+        std::uint64_t LastId() const { return m_lastId; }
         std::vector<Line> Copy() const { return { m_lines.begin(), m_lines.end() }; }
+        const std::deque<Line>& Lines() const { return m_lines; }
+
+        // Approximate memory held by the lines, for Diagnostics.
+        std::size_t Bytes() const
+        {
+            std::size_t bytes = 0;
+            for (const auto& line : m_lines) {
+                bytes += sizeof(Line) + line.channel.size() + line.speaker.size() + line.message.size() +
+                    line.source.size() + line.speakerBase.size() + line.ownerQuest.size() + line.topicKind.size() + line.place.size();
+            }
+            return bytes;
+        }
 
         // The newest `limit` lines older than `before` (all lines without it).
         // Lines sharing the oldest returned timestamp come in the same page, so
@@ -215,6 +300,7 @@ namespace ChronicleHistory
 
     private:
         std::deque<Line> m_lines;
+        std::uint64_t m_lastId{ 0 };
     };
 
     // Work started for one character and world must not land in another: a
