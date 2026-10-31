@@ -214,6 +214,8 @@ actual cursor routing, menu events, or SKSE serialization; those need an in-game
   `Data/SKSE/Plugins/Chronicle/history/`, following Keep history and Clear
   history. A character's existing chat-window history is copied over the first
   time it loads.
+- The Magelight beta build, packaged separately as `Chronicle-Magelight-<version>`
+  (see the 1.2.39 notes below), ships the same History tab.
 
 ## 1.2.39 changes
 
