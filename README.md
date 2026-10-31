@@ -193,6 +193,8 @@ and the Magelight UI build (`Chronicle-Magelight-<version>`).
   game is loaded (Magelight UI 1.7.1 opens a page for a request made at the main
   menu), and quitting to the main menu hides it. Early requests are refused with a
   line in `Chronicle.log`.
+- Magelight build: compiled against the Magelight UI 1.7.1 API header. It still
+  uses API v4, and Magelight UI 0.30.1 is still the oldest host it runs on.
 - Both DLLs now carry their Windows file and product version (1.4.0.0).
 - The browser preview's settings mock now finishes each save, so later Apply
   clicks are no longer stuck behind the first one.
