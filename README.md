@@ -162,7 +162,9 @@ for development only). To build, test, and package matching DLL/UI assets:
 .\package.ps1 -Config Debug
 ```
 
-Archives use the project version, configuration, and timestamp. Every archive entry
+Archives use the project version, configuration, and timestamp; `-Label beta`
+names them `Chronicle-<version>-beta-PrismaUI` (or `-Magelight`) instead, replacing
+an earlier archive of that name. Every archive entry
 is compared by SHA-256 with the staged build. The obsolete standalone settings
 page and development preview files are excluded.
 
@@ -193,14 +195,15 @@ and the Magelight UI build (`Chronicle-Magelight-<version>`).
   game is loaded (Magelight UI 1.7.1 opens a page for a request made at the main
   menu), and quitting to the main menu hides it. Early requests are refused with a
   line in `Chronicle.log`.
-- Magelight build: compiled against the Magelight UI 1.7.1 API header. It still
-  uses API v4, and Magelight UI 0.30.1 is still the oldest host it runs on.
 - Both DLLs now carry their Windows file and product version (1.4.0.0).
 - The browser preview's settings mock now finishes each save, so later Apply
   clicks are no longer stuck behind the first one.
 
 ## 1.4.0 changes
 
+- Magelight build: compiled against the Magelight UI 1.7.1 API header (after
+  1.4.0-beta). It still uses API v4, and Magelight UI 0.30.1 is still the oldest
+  host it runs on.
 - Other mods can now read and add to Chronicle's log through a native API
   (`src/api/Chronicle_API.h`). DovahHub's "What they told you" will use it to take
   NPC lines from Chronicle instead of reading subtitles itself.
