@@ -7,7 +7,10 @@ param(
     [ValidateSet('Debug','Release','RelWithDebInfo')][string]$Config = 'Debug',
     # PrismaUI packages as Chronicle-<version>; Magelight (beta) as Chronicle-Magelight-<version>
     # with the page under Magelight/Chronicle/views instead of PrismaUI/views/Chronicle.
-    [ValidateSet('PrismaUI','Magelight')][string]$UiHost = 'PrismaUI'
+    [ValidateSet('PrismaUI','Magelight')][string]$UiHost = 'PrismaUI',
+    # A release label ('beta', 'rc1') names the zip Chronicle-<version>-<label>-<host>
+    # instead of the timestamped build name; a rerun replaces it.
+    [ValidatePattern('^[a-z0-9][a-z0-9.-]{0,31}$')][string]$Label = ''
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = $PSScriptRoot
@@ -25,7 +28,11 @@ if ($UiHost -eq 'Magelight') {
     $viewDir = 'Magelight\Chronicle\views'
     $name = "Chronicle-Magelight-$version-$Config-$stamp"
 }
+if ($Label) { $name = "Chronicle-$version-$Label-$UiHost" }
 $stage = Join-Path $projectRoot "out\staging\$name"
+# A labelled name repeats between runs: never pack an earlier run's files.
+if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force }
+if (Test-Path -LiteralPath "$projectRoot\out\$name.zip") { Remove-Item -LiteralPath "$projectRoot\out\$name.zip" -Force }
 New-Item -ItemType Directory -Path "$stage\SKSE\Plugins", "$stage\$viewDir" -Force | Out-Null
 Copy-Item -LiteralPath "$buildDir\Chronicle.dll" -Destination "$stage\SKSE\Plugins\Chronicle.dll"
 # Explicit file list excludes the obsolete standalone settings page and all preview/test assets.
