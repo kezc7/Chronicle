@@ -1,4 +1,4 @@
-# Chronicle 1.3.0
+# Chronicle 1.3.2
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -170,8 +170,8 @@ actual cursor routing, menu events, or SKSE serialization; those need an in-game
 
 ## 1.3.0 changes
 
-- New **History** tab in DovahHub (0.92.0 or newer, Journey group): this
-  character's Chronicle lines, with channel filters, search, Load older, and new
+- New tab in DovahHub (called **Chronicle**, under Integrations, since 1.3.2):
+  this character's Chronicle lines, with channel filters, search, Load older, and new
   lines arriving live. Without DovahHub installed nothing changes.
 - The DLL now keeps each character's history itself, in
   `Data/SKSE/Plugins/Chronicle/history/`, following Keep history and Clear
