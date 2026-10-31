@@ -106,6 +106,7 @@ void Chronicle::OnPreLoadGame()
     ++m_worldRevision;
     m_gameLoaded = false;
     m_state.loaded = false;
+    UiHost().SetGameLoaded(false);
     ForceCloseInput();
     SubtitlePoller::GetSingleton().Stop();
     TopicInfoEventSink::GetSingleton().Clear();
@@ -135,6 +136,7 @@ void Chronicle::OnWorldReady()
         return;
     }
     m_state.loaded = true;
+    UiHost().SetGameLoaded(true);
     if (!profileId.load()) {
         profileId = static_cast<std::uint64_t>(std::chrono::system_clock::now().time_since_epoch().count());
     }

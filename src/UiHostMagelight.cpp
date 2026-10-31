@@ -183,7 +183,7 @@ namespace
 
         void Show(bool visible) override
         {
-            m_visible = visible;
+            m_visible = visible && InGame("HUD view");
             ApplyShown();
         }
 
@@ -192,7 +192,7 @@ namespace
 
         bool Focus() override
         {
-            if (!ViewValid()) return false;
+            if (!ViewValid() || !InGame("UI mode")) return false;
             ++m_handover;  // an export still in flight must not swap the HUD back over the panel
             m_panelActive = true;
             ApplyShown();
@@ -212,6 +212,18 @@ namespace
             if (m_api->hostVersionNumber >= kCancelHost) m_api->CancelUIModeRequest(m_mod);
             if (m_api->GetUIModeOwner() == m_mod) m_api->ReleaseUIMode(m_mod);  // UIModeExited swaps back
             else ReturnToHud();
+        }
+
+        // Magelight 1.7.1 opens a page for a UI mode request made at the main
+        // menu instead of refusing it; neither copy may show before a load,
+        // and none stays over the Main Menu after quitting to it.
+        void SetGameLoaded(bool loaded) override
+        {
+            m_gameLoaded = loaded;
+            if (loaded) return;
+            m_visible = false;
+            Unfocus();
+            ApplyShown();
         }
 
         // Magelight's Content-Security-Policy stops the page from fetching its
@@ -264,6 +276,15 @@ namespace
             }
             spdlog::info("Chronicle: Magelight {} view {} created from '{}'", name, created, page);
             return created;
+        }
+
+        // Game thread. A loaded game with the player in a cell.
+        bool InGame(const char* what) const
+        {
+            const auto* player = RE::PlayerCharacter::GetSingleton();
+            if (m_gameLoaded && player && player->GetParentCell()) return true;
+            spdlog::info("Chronicle: Magelight {} request refused: no game loaded", what);
+            return false;
         }
 
         // One copy is on screen at a time: the panel while it holds or asks
@@ -414,6 +435,7 @@ namespace
         bool m_hudReady{ false };
         bool m_panelReady{ false };
         bool m_visible{ false };
+        bool m_gameLoaded{ false };
         bool m_panelActive{ false };
         std::uint64_t m_handover{ 0 };
     };
