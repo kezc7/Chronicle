@@ -578,7 +578,7 @@ void Chronicle::ApplyNativeSettings(const nlohmann::json& settings)
         return fallback;
     };
     m_interactKey = key(general.value("interact_hotkey", std::string("F8")), VK_F8);
-    m_settingsKey = key(general.value("config_hotkey", std::string("N")), 'N');
+    m_settingsKey = key(general.value("config_hotkey", std::string("0")), '0');
     m_inputKey = key(general.value("input_hotkey", std::string("Enter")), VK_RETURN);
     m_toggleKey = key(general.value("toggle_hotkey", std::string()), 0);  // 0 = no key
     // Remembered hidden state is restored from the settings file; otherwise
