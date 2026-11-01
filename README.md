@@ -1,4 +1,4 @@
-# Chronicle 1.4.1
+# Chronicle 1.4.2
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -191,6 +191,24 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.4.2-beta
+
+Third beta, PrismaUI and Magelight builds.
+
+- Typed chat now actually reaches SkyrimNet. Chronicle used to announce the line
+  with a mod event that SkyrimNet does not listen for; it now calls SkyrimNet's
+  API with the line as your character's words, to the NPC you are talking to when
+  the Dialogue Menu is open. If NPCs do not answer that way, put
+  `"skyrimnet_send": "transform"` at the top level of `Chronicle.json` to use
+  SkyrimNet's Transform Dialogue instead (it rewrites the line in character).
+- `Chronicle.log` now records each chat submit (input channel and length), the
+  SkyrimNet call made, and the code SkyrimNet returns, or why a submit was dropped.
+- Magelight build: your typed line no longer goes missing from the box after the
+  input bar closes. The view that shows the log replaced its lines with the input
+  view's copy taken a moment earlier, losing anything that arrived in between.
+- A dialogue option with no text of its own no longer appears as your line under
+  its internal name (for example "DialogueGenericHello").
 
 ## 1.4.1-beta
 

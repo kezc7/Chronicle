@@ -1,6 +1,6 @@
 {
   "name": "chronicle-skse-ui",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "license": "GPL-3.0-or-later",
   "private": true,
   "scripts": {
