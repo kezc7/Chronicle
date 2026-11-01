@@ -162,6 +162,30 @@ int main()
         Require(!AnswersChoice(nullptr, nullptr, &infoA, &topicA)); // NPC not talking
         Require(!AnswersChoice(&infoB, nullptr, &infoA, nullptr));  // unknown topics never match
     }
+    // A choice with no prompt text shows its topic's editor ID; those are not logged.
+    {
+        using ChronicleRuntime::LooksLikeEditorId;
+        Require(LooksLikeEditorId("DialogueGenericHello"));
+        Require(LooksLikeEditorId("MQ101_Hello") && LooksLikeEditorId("dunHello01Topic"));
+        Require(!LooksLikeEditorId("Goodbye.") && !LooksLikeEditorId("Goodbye") && !LooksLikeEditorId("Yes"));
+        Require(!LooksLikeEditorId("HELLO") && !LooksLikeEditorId("What happened here?"));
+        Require(!LooksLikeEditorId("SALLY, WHAT'S ON YOUR MIND?") && !LooksLikeEditorId(""));
+        Require(!LooksLikeEditorId("\xD0\x9F\xD1\x80\xD0\xB8\xD0\xB2\xD0\xB5\xD1\x82"));  // UTF-8 text is never an editor ID
+    }
+    // Which SkyrimNetApi function a typed line goes to.
+    {
+        using ChronicleRuntime::SkyrimNetSend;
+        using ChronicleRuntime::SkyrimNetFunction;
+        using ChronicleRuntime::ParseSkyrimNetSend;
+        Require(ParseSkyrimNetSend("") == SkyrimNetSend::Dialogue && ParseSkyrimNetSend("dialogue") == SkyrimNetSend::Dialogue);
+        Require(ParseSkyrimNetSend("transform") == SkyrimNetSend::Transform && ParseSkyrimNetSend("off") == SkyrimNetSend::Off);
+        Require(ParseSkyrimNetSend("Transform") == SkyrimNetSend::Dialogue);  // exact values only
+        Require(std::string_view(SkyrimNetFunction(SkyrimNetSend::Dialogue, true)) == "RegisterDialogueToListener");
+        Require(std::string_view(SkyrimNetFunction(SkyrimNetSend::Dialogue, false)) == "RegisterDialogue");
+        Require(std::string_view(SkyrimNetFunction(SkyrimNetSend::Transform, true)) == "TransformDialogue");
+        Require(SkyrimNetFunction(SkyrimNetSend::Off, true) == nullptr);
+        Require(std::string_view(ChronicleRuntime::SkyrimNetSendName(SkyrimNetSend::Transform)) == "transform");
+    }
     // Scaleform HTML in mod notifications.
     Require(ChronicleRuntime::StripHtml("<font color='#00FFFFFF'>The Curators Companion: Start up tasks complete...</font>")
         == "The Curators Companion: Start up tasks complete...");

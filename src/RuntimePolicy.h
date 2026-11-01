@@ -102,6 +102,52 @@ namespace ChronicleRuntime
         return answerInfo == choiceInfo || (choiceTopic && answerTopic == choiceTopic);
     }
 
+    // A dialogue option with no prompt text shows its topic's editor ID
+    // ("DialogueGenericHello"). That is one token of letters, digits and
+    // underscores with an underscore or a capital after lower case. Real
+    // choices ("Goodbye.", "Yes", "HELLO", "What happened?") are kept.
+    inline bool LooksLikeEditorId(std::string_view text)
+    {
+        if (text.size() < 4) return false;
+        bool underscore = false, lower = false, innerCapital = false;
+        for (const char ch : text) {
+            const auto c = static_cast<unsigned char>(ch);
+            if (c == '_') underscore = true;
+            else if (c >= 'a' && c <= 'z') lower = true;
+            else if (c >= 'A' && c <= 'Z') innerCapital = innerCapital || lower;
+            else if (c < '0' || c > '9') return false;
+        }
+        return underscore || innerCapital;
+    }
+
+    // How a typed chat line reaches SkyrimNet ("skyrimnet_send" in
+    // Chronicle.json): as the player's own words (SkyrimNetApi.RegisterDialogue,
+    // to the NPC in conversation when there is one), rewritten in character by
+    // SkyrimNet's Transform Dialogue (TransformDialogue), or not at all.
+    enum class SkyrimNetSend { Dialogue, Transform, Off };
+
+    inline SkyrimNetSend ParseSkyrimNetSend(std::string_view value)
+    {
+        if (value == "transform") return SkyrimNetSend::Transform;
+        if (value == "off") return SkyrimNetSend::Off;
+        return SkyrimNetSend::Dialogue;
+    }
+
+    inline const char* SkyrimNetSendName(SkyrimNetSend mode)
+    {
+        return mode == SkyrimNetSend::Transform ? "transform" : mode == SkyrimNetSend::Off ? "off" : "dialogue";
+    }
+
+    // The SkyrimNetApi function for a line; nullptr when nothing is sent.
+    inline const char* SkyrimNetFunction(SkyrimNetSend mode, bool hasListener)
+    {
+        switch (mode) {
+        case SkyrimNetSend::Transform: return "TransformDialogue";
+        case SkyrimNetSend::Off: return nullptr;
+        default: return hasListener ? "RegisterDialogueToListener" : "RegisterDialogue";
+        }
+    }
+
     inline std::string_view NotificationChannel(std::uint32_t type)
     {
         return type == 20 || type == 21 || type == 22 ? "system" : "notification";

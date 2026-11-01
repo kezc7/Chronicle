@@ -71,6 +71,7 @@ let activeChannel = 'all';
 // target (menu or Tab) does not change the history view.
 let inputTarget = 'all';
 const messages = [];
+let historyClearedAt = 0;  // Date.now() of the last Clear, for the Magelight handover
 let updateResizeHandlePosition = () => {};
 let userScrolledUp = false;
 let unreadCount = 0;
@@ -438,6 +439,7 @@ function clearHistory() {
   clearTimeout(historySaveTimer);
   historySaveTimer = null;
   messages.length = 0;
+  historyClearedAt = Date.now();
   document.getElementById('message-list').replaceChildren();
   try { localStorage.removeItem(historyKey()); } catch (_) {}
   unreadCount = 0;
@@ -558,7 +560,8 @@ function submitInput() {
   if (inputTarget === 'console') {
     sendToGame('consoleCommand', text);
   } else {
-    sendToGame('playerInput', text);
+    // The channel is only logged natively; every other channel is chat.
+    sendToGame('playerInput', {text, channel: inputTarget});
   }
 
   closeInput();

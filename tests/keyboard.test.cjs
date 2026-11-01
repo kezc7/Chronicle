@@ -120,6 +120,32 @@ test('Shift+0 opens settings by key code while the page holds focus', () => {
   assert.equal(vm.runInContext('settingsOpen', context), true);
 });
 
+test('a typed line goes to the native side with its input channel', () => {
+  const {context, keydown, nodes} = setup();
+  const sent = [];
+  context.window.playerInput = value => sent.push(value);
+  assert.equal(context.nativeHotkey('input'), true);
+  context.focusResult(true, 'focus.active');
+  vm.runInContext("setInputTarget('skyrimnet')", context);
+  nodes.get('chat-input').value = '  Hello, Lydia  ';
+  keydown({key: 'Enter', keyCode: 13, target: {tagName: 'INPUT'}});
+  assert.deepEqual(sent.map(value => JSON.parse(value)), [{text: 'Hello, Lydia', channel: 'skyrimnet'}]);
+});
+
+test('settings only the native side reads survive a save from the page', () => {
+  const {context} = setup();
+  const saved = [];
+  context.window.settingsChanged = value => saved.push(JSON.parse(value));
+  vm.runInContext(`nativeBootstrap({settings: {skyrimnet_send: 'transform', hud_subtitle_capture: false,
+    general: {}, window: {}, channels: {}}, warning: '', version: 'test', nativeHotkeys: true});`, context);
+  context.settingsSaveResult(true, 'settings.saved');  // the bootstrap's own save
+  saved.length = 0;
+  context.persistConfig();
+  assert.ok(saved.length > 0);
+  assert.equal(saved.at(-1).skyrimnet_send, 'transform');
+  assert.equal(saved.at(-1).hud_subtitle_capture, false);
+});
+
 test('a focus grant after the interaction closed is handed back', () => {
   const {context, calls} = setup();
   context.nativeHotkey('settings');
