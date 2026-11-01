@@ -4,7 +4,7 @@
     "enabled": true,
     "input_hotkey": "Enter",
     "interact_hotkey": "F8",
-    "config_hotkey": "N",
+    "config_hotkey": "0",
     "max_messages": 100,
     "message_fade_time": 0,
     "persist_history": true,

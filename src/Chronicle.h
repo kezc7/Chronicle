@@ -167,7 +167,7 @@ private:
     std::chrono::steady_clock::time_point m_focusGrantedAt;
     bool m_bootstrapped{ false };
     std::uint32_t m_interactKey{ VK_F8 };
-    std::uint32_t m_settingsKey{ 'N' };
+    std::uint32_t m_settingsKey{ '0' };
     std::uint32_t m_inputKey{ VK_RETURN };
     std::uint32_t m_toggleKey{ 0 };              // show/hide hotkey; 0 = none
     std::atomic<bool> m_rememberHidden{ true };

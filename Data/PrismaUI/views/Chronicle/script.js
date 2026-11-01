@@ -22,7 +22,7 @@ const DEFAULT_CONFIG = {
     enabled: true,
     input_hotkey: 'Enter',
     interact_hotkey: 'F8',
-    config_hotkey: 'N',       // Shift + this key opens the settings panel
+    config_hotkey: '0',       // Shift + this key opens the settings panel
     max_messages: 100,
     message_fade_time: 0,
     persist_history: true,
@@ -620,7 +620,7 @@ function populateSettingsForm() {
   document.getElementById('sp-enabled').checked     = g.enabled;
   document.getElementById('sp-hide-menus').checked  = g.hide_in_menus;
   document.getElementById('sp-hide-photo').checked  = g.hide_in_photo_mode;
-  document.getElementById('sp-config-hotkey').value = g.config_hotkey || 'N';
+  document.getElementById('sp-config-hotkey').value = g.config_hotkey || '0';
   document.getElementById('sp-input-hotkey').value  = g.input_hotkey  || 'Enter';
   hotkeyStatus('');
   document.getElementById('sp-max-messages').value  = g.max_messages;
@@ -787,7 +787,7 @@ function collectSettingsFromForm() {
   return {
     general: {
       enabled:            document.getElementById('sp-enabled').checked,
-      config_hotkey:      document.getElementById('sp-config-hotkey').value || 'N',
+      config_hotkey:      document.getElementById('sp-config-hotkey').value || '0',
       interact_hotkey:    document.getElementById('sp-interact-hotkey').value || 'F8',
       input_hotkey:       document.getElementById('sp-input-hotkey').value  || 'Enter',
       max_messages:       Math.min(500, Math.max(1,
@@ -1172,9 +1172,10 @@ document.addEventListener('keydown', e => {
     return;
   }
 
-  // Shift + config_hotkey → open settings
-  const cfgKey = (config.general.config_hotkey || 'N').toUpperCase();
-  if (e.shiftKey && e.key.toUpperCase() === cfgKey) {
+  // Shift + config_hotkey → open settings. Matched by key code like the
+  // native side: with Shift held, e.key for a digit is its symbol (Shift+0 = ')').
+  const cfgKey = (config.general.config_hotkey || '0').toUpperCase();
+  if (e.shiftKey && (hotkeyName(e) || '').toUpperCase() === cfgKey) {
     openSettings();
     e.preventDefault();
     return;

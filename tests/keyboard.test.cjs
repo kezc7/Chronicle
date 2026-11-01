@@ -105,9 +105,19 @@ test('keys during an interaction are not treated as stale focus', () => {
   assert.equal(vm.runInContext('settingsOpen', context), true);
   context.focusResult(true, 'focus.active');
   calls.length = 0;
-  keydown({key: 'N', keyCode: 78, shiftKey: true}); // a second Shift+N leaves settings open
+  keydown({key: ')', keyCode: 48, shiftKey: true}); // a second Shift+0 leaves settings open
   assert.equal(vm.runInContext('settingsOpen', context), true);
   assert.deepEqual(calls, []);
+});
+
+test('Shift+0 opens settings by key code while the page holds focus', () => {
+  const {context, keydown} = setup();
+  assert.equal(context.nativeHotkey('interact'), true);
+  context.focusResult(true, 'focus.active');
+  keydown({key: 'N', keyCode: 78, shiftKey: true}); // the old default no longer opens it
+  assert.equal(vm.runInContext('settingsOpen', context), false);
+  keydown({key: ')', keyCode: 48, shiftKey: true}); // e.key is the symbol with Shift held
+  assert.equal(vm.runInContext('settingsOpen', context), true);
 });
 
 test('a focus grant after the interaction closed is handed back', () => {

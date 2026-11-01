@@ -15,7 +15,8 @@ are preserved.
 
 - **F8** activates mouse interaction: click tabs, scroll, search, filter by speaker,
   copy/export history, drag the empty tab-bar area, or resize the lower-right corner.
-- **Shift+N** opens settings. **Apply** saves and keeps the panel open to show the result.
+- **Shift+0** opens settings (Shift+N up to 1.4.0-beta). **Apply** saves and keeps
+  the panel open to show the result.
 - Settings includes live **Position X/Y** sliders; the box moves as the sliders move.
 - **Channels → NPC speaker name colours** lets you assign exact display-name colours;
   changes preview immediately and are saved with **Apply**. The same section can
@@ -185,6 +186,17 @@ For browser development, `node tests/preview.cjs` serves a local preview with mo
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
 
+## Next release
+
+- The settings key's default is now **Shift+0** instead of Shift+N, so it no longer
+  shares a key with MiniPets' feed (Shift+N). Only new settings files get it: if
+  you already pressed Apply once, Chronicle keeps the key you saved. To switch,
+  press Shift+N, go to Hotkeys, click the Settings box, press 0 and Apply. Or set
+  `"config_hotkey": "0"` in `Data/SKSE/Plugins/Chronicle.json` (under MO2 it is in
+  Overwrite). Use the 0 above the letters; the number-pad 0 is a different key.
+  With the page focused (F8) the key is now matched by its key code, so a digit
+  works there too.
+
 ## 1.4.0-beta
 
 First beta of 1.4.0, with both builds cut from `main`: the PrismaUI release build
@@ -352,7 +364,7 @@ and the Magelight UI build (`Chronicle-Magelight-<version>`).
 - **Show/hide hotkey** (Hotkeys): hides or shows Chronicle instantly; no key by
   default, and Backspace clears it. It works while Chronicle is hidden by it, but is
   ignored while typing, in menus and in the console. **Remember hidden state**
-  (default on) keeps it hidden after loading. The settings hotkey (Shift+N) also
+  (default on) keeps it hidden after loading. The settings hotkey (Shift+N at the time) also
   brings a hidden Chronicle back and opens settings, so a forgotten key cannot
   leave it lost. While hidden, the game shows its own
   notifications even with "Notifications only in Chronicle" on.
