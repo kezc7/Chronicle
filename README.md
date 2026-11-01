@@ -1,4 +1,4 @@
-# Chronicle 1.4.0
+# Chronicle 1.4.1
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -186,7 +186,9 @@ For browser development, `node tests/preview.cjs` serves a local preview with mo
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
 
-## Next release
+## 1.4.1-beta
+
+Second beta, PrismaUI and Magelight builds.
 
 - The settings key's default is now **Shift+0** instead of Shift+N, so it no longer
   shares a key with MiniPets' feed (Shift+N). Only new settings files get it: if
@@ -196,6 +198,9 @@ actual cursor routing, menu events, or SKSE serialization; those need an in-game
   Overwrite). Use the 0 above the letters; the number-pad 0 is a different key.
   With the page focused (F8) the key is now matched by its key code, so a digit
   works there too.
+- Magelight build: compiled against the Magelight UI 1.7.1 API header. It still
+  uses API v4, and Magelight UI 0.30.1 is still the oldest host it runs on.
+- `package.ps1 -Label beta` names the release zips (build scripts only).
 
 ## 1.4.0-beta
 
@@ -213,9 +218,6 @@ and the Magelight UI build (`Chronicle-Magelight-<version>`).
 
 ## 1.4.0 changes
 
-- Magelight build: compiled against the Magelight UI 1.7.1 API header (after
-  1.4.0-beta). It still uses API v4, and Magelight UI 0.30.1 is still the oldest
-  host it runs on.
 - Other mods can now read and add to Chronicle's log through a native API
   (`src/api/Chronicle_API.h`). DovahHub's "What they told you" will use it to take
   NPC lines from Chronicle instead of reading subtitles itself.
