@@ -52,6 +52,7 @@ set(headers
     src/HistoryWriter.h
     src/DovahHubModule.h
     src/DovahHub_API.h
+    src/SkyrimNet.h
     src/Api.h
     src/ApiPolicy.h
     src/api/Chronicle_API.h
@@ -64,6 +65,7 @@ set(sources
     ${host_sources}
     src/HistoryWriter.cpp
     src/DovahHubModule.cpp
+    src/SkyrimNet.cpp
     src/Api.cpp
 )
 

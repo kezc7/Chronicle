@@ -171,6 +171,7 @@ private:
     std::uint32_t m_inputKey{ VK_RETURN };
     std::uint32_t m_toggleKey{ 0 };              // show/hide hotkey; 0 = none
     std::atomic<bool> m_rememberHidden{ true };
+    ChronicleRuntime::SkyrimNetSend m_skyrimNetSend{ ChronicleRuntime::SkyrimNetSend::Dialogue };  // game thread
     std::string m_lastSubtitle;
     std::uint32_t m_lastSpeakerFormId{ 0 };  // of the last NPC line, for Diagnostics
     std::string m_lastOwnerQuest;

@@ -141,3 +141,19 @@ test('an interaction ending hands the panel state to the hud copy', () => {
   assert.equal(hud.importViewState(null), false);
   assert.equal(hud.importViewState({messages: []}), false);
 });
+
+test('a line that reaches the hud after the panel snapshot is kept', () => {
+  const panel = setup().context;
+  const hud = setup().context;
+  panel.setHostRole('panel');
+  hud.setHostRole('hud');
+  for (const page of [panel, hud]) page.addMessage({channel: 'dialogue', speaker: 'Lydia', message: 'One', timestamp: 1000});
+  const snapshot = JSON.parse(panel.exportViewState());
+  // The typed line is sent to both copies; the hud gets it before the snapshot is imported.
+  for (const page of [panel, hud]) page.addMessage({channel: 'player', speaker: 'Cerberus', message: 'Hello', timestamp: 2000});
+  assert.equal(hud.importViewState(snapshot), true);
+  assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(messages.map(entry => entry.message))', hud)), ['One', 'Hello']);
+  // A second handover, now with the line in the snapshot, does not double it.
+  assert.equal(hud.importViewState(JSON.parse(panel.exportViewState())), true);
+  assert.deepEqual(JSON.parse(vm.runInContext('JSON.stringify(messages.map(entry => entry.message))', hud)), ['One', 'Hello']);
+});

@@ -535,7 +535,10 @@ void SubtitlePoller::PollOnce()
             const auto* chosen = info ? topics->lastSelectedDialogue : nullptr;
             if (chosen && ChronicleRuntime::AnswersChoice(info, info->parentTopic, chosen->parentTopicInfo, chosen->parentTopic)) {
                 const auto text = ChronicleRuntime::StripHtml(chosen->topicText.c_str());
-                if (!text.empty()) {
+                if (ChronicleRuntime::LooksLikeEditorId(text)) {
+                    // An option with no prompt text shows its editor ID; that is not dialogue.
+                    spdlog::info("Chronicle: dialogue choice '{}' looks like an editor ID; not logged", text.substr(0, 64));
+                } else if (!text.empty()) {
                     ChronicleHistory::Attribution attribution;
                     attribution.speakerFormId = 0x14;  // the player
                     if (chosen->parentTopic) attribution.ownerQuest = FormKey(chosen->parentTopic->ownerQuest);

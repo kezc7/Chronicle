@@ -28,9 +28,15 @@ are preserved.
 - **NPC speech radius** under General → Behaviour filters attributed NPC dialogue
   by distance from the player. `0` keeps the default unlimited range; the value
   uses Skyrim world units.
-- **Enter** opens chat input. Submitting sends a SkyrimNet player-input event;
-  responding to it requires a compatible integration. Console commands are optional
-  and are executed in Skyrim when the Console channel is enabled and selected.
+- **Enter** opens chat input. With SkyrimNet installed, a submitted line is handed
+  to SkyrimNet's API as your character's words (`SkyrimNetApi.RegisterDialogue`,
+  to the NPC you are talking to when the Dialogue Menu is open). How NPCs answer is
+  up to SkyrimNet. `"skyrimnet_send"` at the top level of `Chronicle.json`
+  changes this: `"transform"` uses SkyrimNet's Transform Dialogue instead (the line
+  is rewritten in character and spoken), `"off"` keeps lines in Chronicle only.
+  `Chronicle.log` records each submit and SkyrimNet's answer code. Every input
+  channel except Console sends chat. Console commands are optional and are
+  executed in Skyrim when the Console channel is enabled and selected.
 - A chat line starting with `/` is a command for Chronicle or another mod and is
   not sent to SkyrimNet: `/help` lists the commands mods have registered, and an
   unknown one says so in the Console channel.

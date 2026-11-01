@@ -38,15 +38,28 @@ function ownsStorage() { return hostRole !== 'hud'; }
 
 // Magelight hands the panel's state to the hud copy when an interaction ends:
 // settings, a cleared history, the window position and the viewed tab.
+// Lines with a later timestamp than `cutoff` reached the receiving copy after
+// this snapshot was taken (the native side sends every line to both copies).
 function exportViewState() {
+  const cutoff = messages.reduce((latest, entry) => Math.max(latest, Number(entry.timestamp) || 0), historyClearedAt);
   return JSON.stringify({
-    config, activeChannel, search: searchText, speaker: speakerFilter,
+    config, activeChannel, search: searchText, speaker: speakerFilter, cutoff,
     messages: messages.map(({channel, speaker, message, timestamp}) => ({channel, speaker, message, timestamp})),
   });
 }
 
 function importViewState(state) {
   if (!state || typeof state !== 'object' || !state.config || typeof state.config !== 'object') return false;
+  const incoming = Array.isArray(state.messages) ? state.messages : [];
+  // Keep this copy's lines that arrived after the snapshot instead of losing
+  // them until the next handover; anything older follows the snapshot, so a
+  // history cleared in the panel stays cleared.
+  const lineKey = entry => [entry.timestamp, entry.channel, entry.speaker, entry.message].join('');
+  const known = new Set(incoming.map(lineKey));
+  const cutoff = Number(state.cutoff);
+  const later = Number.isFinite(cutoff) ? messages
+    .filter(entry => (Number(entry.timestamp) || 0) > cutoff && !known.has(lineKey(entry)))
+    .map(({channel, speaker, message, timestamp}) => ({channel, speaker, message, timestamp})) : [];
   config = deepMerge(deepMerge({}, DEFAULT_CONFIG), state.config);
   messages.length = 0;
   document.getElementById('message-list').replaceChildren();
@@ -55,7 +68,7 @@ function importViewState(state) {
   if (DEFAULT_CONFIG.channels[state.activeChannel]) activeChannel = state.activeChannel;
   normalizeConfig();
   applyConfig();
-  (Array.isArray(state.messages) ? state.messages : []).forEach(entry => addMessage(entry, false));
+  incoming.concat(later).forEach(entry => addMessage(entry, false));
   refreshSpeakerOptions();
   document.getElementById('history-search').value = typeof state.search === 'string' ? state.search : '';
   document.getElementById('speaker-filter').value = typeof state.speaker === 'string' ? state.speaker : '';

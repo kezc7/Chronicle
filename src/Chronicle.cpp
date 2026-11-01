@@ -22,6 +22,7 @@
 #include "Events.h"
 #include "MessageBuilder.h"
 #include "DovahHubModule.h"
+#include "SkyrimNet.h"
 #include "HistoryWriter.h"
 #include "Api.h"
 #include "api/Chronicle_API.h"
@@ -478,11 +479,29 @@ void Chronicle::SendMessage(std::string_view channel, std::string_view speaker, 
     }
 }
 
-void Chronicle::OnPlayerInput(std::string_view text)
+void Chronicle::OnPlayerInput(std::string_view payload)
 {
-    if (!m_gameLoaded || m_hidden || text.size() > 8192) return;
+    // The page sends {"text", "channel"}; older pages sent the bare text.
+    std::string text(payload);
+    std::string channel = "all";
+    if (!payload.empty() && payload.front() == '{') {
+        const auto data = nlohmann::json::parse(payload, nullptr, false);
+        if (data.is_object() && data.contains("text") && data["text"].is_string()) {
+            text = data["text"].get<std::string>();
+            if (data.contains("channel") && data["channel"].is_string()) channel = data["channel"].get<std::string>().substr(0, 32);
+        }
+    }
+    if (!m_gameLoaded || m_hidden || text.empty() || text.size() > 8192) {
+        spdlog::info("Chronicle: chat submit dropped (channel {}, {} chars, loaded={}, hidden={})",
+            channel, text.size(), m_gameLoaded.load(), m_hidden.load());
+        return;
+    }
     // "/help", "/<mod command> ..." never go to SkyrimNet.
-    if (ChronicleApi::RunCommand(text)) return;
+    if (ChronicleApi::RunCommand(text)) {
+        spdlog::info("Chronicle: chat submit was a command ({} chars)", text.size());
+        return;
+    }
+    spdlog::info("Chronicle: chat submit (channel {}, {} chars)", channel, text.size());
     SubmitChat(text);
 }
 
@@ -490,11 +509,13 @@ void Chronicle::SubmitChat(std::string_view text)
 {
     if (!m_gameLoaded || text.empty() || text.size() > 8192) return;
     SendMessage("player", PlayerDisplayName(), text);
+    // Kept for mods that listen for it; SkyrimNet itself does not.
     if (auto* events = SKSE::GetModCallbackEventSource()) {
         SKSE::ModCallbackEvent event{
             RE::BSFixedString("SkyrimNet_PlayerInput"), RE::BSFixedString(std::string(text).c_str()), 0.0f, nullptr};
         events->SendEvent(&event);
     }
+    ChronicleSkyrimNet::Send(text, m_skyrimNetSend);
 }
 
 void Chronicle::OnConsoleCommand(std::string_view text)
@@ -586,6 +607,10 @@ void Chronicle::ApplyNativeSettings(const nlohmann::json& settings)
     m_rememberHidden = general.value("remember_hidden", true);
     if (m_rememberHidden) m_state.userHidden = general.value("user_hidden", false);
     ChronicleApi::SetEchoCommand(settings.value("debug_commands", false));
+    const auto send = settings.contains("skyrimnet_send") && settings["skyrimnet_send"].is_string() ?
+        ChronicleRuntime::ParseSkyrimNetSend(settings["skyrimnet_send"].get<std::string>()) : ChronicleRuntime::SkyrimNetSend::Dialogue;
+    if (send != m_skyrimNetSend) spdlog::info("Chronicle: SkyrimNet send mode {}", ChronicleRuntime::SkyrimNetSendName(send));
+    m_skyrimNetSend = send;
 }
 
 void Chronicle::ToggleUserHidden()
