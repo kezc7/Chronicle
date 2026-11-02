@@ -1,4 +1,4 @@
-# Chronicle 1.4.2
+# Chronicle 1.4.3
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -191,6 +191,20 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.4.3-beta
+
+Fourth beta, PrismaUI and Magelight builds.
+
+- SkyrimNet thoughts and narration no longer appear twice, the second time as
+  your character speaking. SkyrimNet's line keeps its own label ("Player
+  Thoughts"), and a copy of the same text from the player, SkyrimNet or the
+  narrator within 20 seconds is left out (`Chronicle.log` says so). Ordinary NPC
+  dialogue is not affected.
+- A SkyrimNet line written entirely in *asterisks* (third-person narration) goes
+  to the Narrator channel as "Narrator" instead of being shown as someone's
+  dialogue. The Narrator channel is off by default; turn it on under Channels to
+  see these lines.
 
 ## 1.4.2-beta
 
