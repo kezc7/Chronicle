@@ -185,6 +185,7 @@ private:
         std::chrono::steady_clock::time_point time;
     };
     std::optional<LastMessage> m_lastMessage;
+    ChronicleRuntime::EchoFilter m_echoFilter;  // game thread
     std::mutex m_dedupMutex;
 
     // History: game thread only.

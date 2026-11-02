@@ -118,6 +118,7 @@ void Chronicle::OnPreLoadGame()
     {
         std::lock_guard lock(m_dedupMutex);
         m_lastMessage.reset();
+        m_echoFilter.Clear();
     }
     m_lastSubtitle.clear();
     m_messageCount = 0;
@@ -429,6 +430,13 @@ void Chronicle::SendMessage(std::string_view channel, std::string_view speaker, 
     // Every game event and UI delivery is then serialized on the main thread.
     try {
         const auto revision = m_worldRevision.load();
+        // Narration SkyrimNet voices reaches Chronicle as dialogue, often under
+        // the player's name; it belongs to the narrator.
+        if ((channel == "skyrimnet" || channel == "dialogue") && ChronicleRuntime::IsNarration(message)) {
+            channel = "narrator";
+            speaker = "Narrator";
+            attribution = ChronicleHistory::Attribution{ {}, {}, {}, {}, attribution.source, attribution.distance };
+        }
         auto payload = MessageBuilder::Build(channel, speaker, message);
         MainTask([this, revision, payload = std::move(payload), attribution = std::move(attribution)] {
             if (!m_gameLoaded || revision != m_worldRevision) return;
@@ -437,6 +445,12 @@ void Chronicle::SendMessage(std::string_view channel, std::string_view speaker, 
             const auto speaker = data.at("speaker").is_null() ? std::string{} : data.at("speaker").get<std::string>();
             const auto message = data.at("message").get<std::string>();
             if (message.empty() || IsDuplicate(channel, speaker, message)) return;
+            const auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now().time_since_epoch()).count();
+            if (m_echoFilter.IsEcho(channel, message, nowMs)) {
+                spdlog::info("Chronicle: {} line from '{}' repeats a SkyrimNet line; not shown", channel, speaker);
+                return;
+            }
             ++m_messageCount;
             ChronicleHistory::Line line{ channel, speaker, message, data.value("timestamp", std::int64_t{ 0 }) };
             line.source = attribution.source;

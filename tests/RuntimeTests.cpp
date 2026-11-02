@@ -172,6 +172,35 @@ int main()
         Require(!LooksLikeEditorId("SALLY, WHAT'S ON YOUR MIND?") && !LooksLikeEditorId(""));
         Require(!LooksLikeEditorId("\xD0\x9F\xD1\x80\xD0\xB8\xD0\xB2\xD0\xB5\xD1\x82"));  // UTF-8 text is never an editor ID
     }
+    // SkyrimNet narration and the copies of one SkyrimNet line.
+    {
+        using ChronicleRuntime::IsNarration;
+        Require(IsNarration("*Cerberus rolls his shoulder, working the stiffness out of it.*"));
+        Require(IsNarration("  *Lydia sighs.* "));
+        Require(!IsNarration("*shrugs* Fine.") && !IsNarration("Fine. *shrugs*") && !IsNarration("*a* and *b*"));
+        Require(!IsNarration("That Dragonstone won't fetch itself.") && !IsNarration("**") && !IsNarration(""));
+        Require(ChronicleRuntime::EchoKey("  *Cerberus  rolls\this Shoulder.* ") == "cerberus rolls his shoulder.");
+
+        ChronicleRuntime::EchoFilter echo;
+        // A thought: SkyrimNet's labelled copy first, then the subtitle under the player's name.
+        Require(!echo.IsEcho("skyrimnet", "That Dragonstone won't fetch itself.", 1000));
+        Require(echo.IsEcho("dialogue", "That Dragonstone won't fetch itself.", 3000));
+        Require(echo.IsEcho("skyrimnet", "That Dragonstone won't fetch itself.", 4000));  // SpeechComplete repeat
+        // Narration moved to the narrator channel, then its subtitle copy.
+        Require(!echo.IsEcho("narrator", "*Cerberus rolls his shoulder.*", 5000));
+        Require(echo.IsEcho("narrator", "*Cerberus rolls his shoulder.*", 6000));
+        // The player's typed line, then SkyrimNet's own echo of it.
+        Require(!echo.IsEcho("player", "Lydia, wait here.", 7000));
+        Require(echo.IsEcho("skyrimnet", "Lydia, wait here.", 7500));
+        // NPC dialogue is never remembered: the same vanilla line twice is kept (the 500 ms check is separate).
+        Require(!echo.IsEcho("dialogue", "I used to be an adventurer like you.", 8000));
+        Require(!echo.IsEcho("dialogue", "I used to be an adventurer like you.", 9000));
+        // Other channels and old lines are left alone.
+        Require(!echo.IsEcho("system", "That Dragonstone won't fetch itself.", 9000));
+        Require(!echo.IsEcho("dialogue", "That Dragonstone won't fetch itself.", 1000 + ChronicleRuntime::EchoFilter::kWindowMs + 1));
+        echo.Clear();
+        Require(!echo.IsEcho("dialogue", "Lydia, wait here.", 7600));
+    }
     // Which SkyrimNetApi function a typed line goes to.
     {
         using ChronicleRuntime::SkyrimNetSend;

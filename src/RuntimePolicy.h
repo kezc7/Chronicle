@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <deque>
 #include <string>
 #include <string_view>
 #include <unordered_set>
@@ -147,6 +148,70 @@ namespace ChronicleRuntime
         default: return hasListener ? "RegisterDialogueToListener" : "RegisterDialogue";
         }
     }
+
+    // SkyrimNet narration: the whole line in *asterisks*, third person
+    // ("*Cerberus rolls his shoulder.*"). A line that only starts or ends with
+    // an action ("*shrugs* Fine.") is still dialogue.
+    inline bool IsNarration(std::string_view text)
+    {
+        while (!text.empty() && (text.front() == ' ' || text.front() == '\t')) text.remove_prefix(1);
+        while (!text.empty() && (text.back() == ' ' || text.back() == '\t')) text.remove_suffix(1);
+        return text.size() >= 3 && text.front() == '*' && text.back() == '*' &&
+            std::count(text.begin(), text.end(), '*') == 2;
+    }
+
+    // One line's text for matching its copies: outer asterisks and spaces
+    // dropped, inner runs of spaces collapsed, ASCII letters in lower case.
+    inline std::string EchoKey(std::string_view text)
+    {
+        std::string key;
+        key.reserve(text.size());
+        bool space = false;
+        for (const char ch : text) {
+            const auto c = static_cast<unsigned char>(ch);
+            if (c == ' ' || c == '\t' || c == '\r' || c == '\n') { space = !key.empty(); continue; }
+            if (space) key.push_back(' ');
+            space = false;
+            key.push_back(c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : ch);
+        }
+        while (!key.empty() && key.front() == '*') key.erase(key.begin());
+        while (!key.empty() && key.back() == '*') key.pop_back();
+        return key;
+    }
+
+    // SkyrimNet lines arrive more than once: its speech events, its dialogue
+    // event and the game's subtitle, which names the player as the speaker of
+    // a thought or narration SkyrimNet voices. A line is an echo when the same
+    // text came from the player, SkyrimNet or the narrator within the window;
+    // the first copy, which carries SkyrimNet's own label, is kept. Ordinary
+    // NPC dialogue is never remembered, so repeated NPC lines are unaffected.
+    class EchoFilter
+    {
+    public:
+        static constexpr std::int64_t kWindowMs = 20000;
+
+        bool IsEcho(std::string_view channel, std::string_view text, std::int64_t nowMs)
+        {
+            while (!m_recent.empty() && nowMs - m_recent.front().second > kWindowMs) m_recent.pop_front();
+            const bool checked = channel == "dialogue" || channel == "skyrimnet" || channel == "narrator" || channel == "player";
+            if (!checked) return false;
+            auto key = EchoKey(text);
+            if (key.empty()) return false;
+            for (const auto& [seen, at] : m_recent) {
+                if (seen == key && nowMs - at <= kWindowMs) return true;
+            }
+            if (channel != "dialogue") {
+                if (m_recent.size() >= 64) m_recent.pop_front();
+                m_recent.emplace_back(std::move(key), nowMs);
+            }
+            return false;
+        }
+
+        void Clear() { m_recent.clear(); }
+
+    private:
+        std::deque<std::pair<std::string, std::int64_t>> m_recent;
+    };
 
     inline std::string_view NotificationChannel(std::uint32_t type)
     {
