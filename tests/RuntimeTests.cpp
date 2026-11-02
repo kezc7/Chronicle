@@ -183,23 +183,53 @@ int main()
 
         ChronicleRuntime::EchoFilter echo;
         // A thought: SkyrimNet's labelled copy first, then the subtitle under the player's name.
-        Require(!echo.IsEcho("skyrimnet", "That Dragonstone won't fetch itself.", 1000));
-        Require(echo.IsEcho("dialogue", "That Dragonstone won't fetch itself.", 3000));
-        Require(echo.IsEcho("skyrimnet", "That Dragonstone won't fetch itself.", 4000));  // SpeechComplete repeat
+        Require(!echo.IsEcho("skyrimnet", "Player Thoughts", "That Dragonstone won't fetch itself.", 1000));
+        Require(echo.IsEcho("dialogue", "Cerberus", "That Dragonstone won't fetch itself.", 3000));
+        Require(echo.IsEcho("skyrimnet", "Player Thoughts", "That Dragonstone won't fetch itself.", 4000));  // SpeechComplete repeat
         // Narration moved to the narrator channel, then its subtitle copy.
-        Require(!echo.IsEcho("narrator", "*Cerberus rolls his shoulder.*", 5000));
-        Require(echo.IsEcho("narrator", "*Cerberus rolls his shoulder.*", 6000));
+        Require(!echo.IsEcho("narrator", "Narrator", "*Cerberus rolls his shoulder.*", 5000));
+        Require(echo.IsEcho("narrator", "Narrator", "*Cerberus rolls his shoulder.*", 6000));
         // The player's typed line, then SkyrimNet's own echo of it.
-        Require(!echo.IsEcho("player", "Lydia, wait here.", 7000));
-        Require(echo.IsEcho("skyrimnet", "Lydia, wait here.", 7500));
-        // NPC dialogue is never remembered: the same vanilla line twice is kept (the 500 ms check is separate).
-        Require(!echo.IsEcho("dialogue", "I used to be an adventurer like you.", 8000));
-        Require(!echo.IsEcho("dialogue", "I used to be an adventurer like you.", 9000));
+        Require(!echo.IsEcho("player", "Cerberus", "Lydia, wait here.", 7000));
+        Require(echo.IsEcho("skyrimnet", "Cerberus", "Lydia, wait here.", 7500));
+        // A whole reply, then a sentence of it from the subtitle (Kev's Herman lines).
+        Require(!echo.IsEcho("skyrimnet", "Herman", "That fancy elf is still breathing! Why are we standing around chatting?", 8000));
+        Require(echo.IsEcho("dialogue", "Herman", "That fancy elf is still breathing!", 8500));
+        Require(!echo.IsEcho("dialogue", "Herman", "Why?", 8600));  // too short to match inside a longer line
+        // Two NPCs with the same vanilla line are both kept; one NPC repeating it is not.
+        Require(!echo.IsEcho("dialogue", "Guard", "I used to be an adventurer like you.", 9000));
+        Require(!echo.IsEcho("dialogue", "Whiterun Guard", "I used to be an adventurer like you.", 9100));
+        Require(echo.IsEcho("dialogue", "Guard", "I used to be an adventurer like you.", 9200));
         // Other channels and old lines are left alone.
-        Require(!echo.IsEcho("system", "That Dragonstone won't fetch itself.", 9000));
-        Require(!echo.IsEcho("dialogue", "That Dragonstone won't fetch itself.", 1000 + ChronicleRuntime::EchoFilter::kWindowMs + 1));
+        Require(!echo.IsEcho("system", "", "That Dragonstone won't fetch itself.", 9300));
+        Require(!echo.IsEcho("dialogue", "Cerberus", "That Dragonstone won't fetch itself.", 1000 + ChronicleRuntime::EchoFilter::kWindowMs + 1));
         echo.Clear();
-        Require(!echo.IsEcho("dialogue", "Lydia, wait here.", 7600));
+        Require(!echo.IsEcho("dialogue", "Lydia", "Lydia, wait here.", 7600));
+    }
+    // SkyrimNet's voice directions and inline narration (Kev's Coralyn and Zora lines).
+    {
+        using ChronicleRuntime::StripAudioTags;
+        Require(StripAudioTags("[say with a hint of amusement] Herman is right.") == "Herman is right.");
+        Require(StripAudioTags("[growl] That fancy elf is still breathing!") == "That fancy elf is still breathing!");
+        Require(StripAudioTags("We've made a mess. [chuckle] Where to now?") == "We've made a mess. Where to now?");
+        Require(StripAudioTags("[sfx-sigh]Haah, fine [reset].") == "Haah, fine.");
+        Require(StripAudioTags("[sigh]") == "" && StripAudioTags("No tags here.") == "No tags here.");
+        Require(StripAudioTags("A [ without a close") == "A [ without a close" && StripAudioTags("[] stays") == "[] stays");
+        Require(StripAudioTags("[" + std::string(81, 'a') + "] long") == "[" + std::string(81, 'a') + "] long");
+
+        using ChronicleRuntime::SplitNarration;
+        auto parts = SplitNarration("Herman is right. *Coralyn glances toward the necromancer* We shouldn't let the target slip away.");
+        Require(parts.size() == 3 && !parts[0].narration && parts[0].text == "Herman is right.");
+        Require(parts[1].narration && parts[1].text == "*Coralyn glances toward the necromancer*");
+        Require(!parts[2].narration && parts[2].text == "We shouldn't let the target slip away.");
+        parts = SplitNarration("Whiterun, Solitude. *Lydia swallows hard.*");
+        Require(parts.size() == 2 && parts[1].narration);
+        parts = SplitNarration("*Cerberus rolls his shoulder.*");
+        Require(parts.size() == 1 && parts[0].narration);
+        parts = SplitNarration("Five * three is fifteen.");
+        Require(parts.size() == 1 && !parts[0].narration && parts[0].text == "Five * three is fifteen.");
+        parts = SplitNarration("Plain speech.");
+        Require(parts.size() == 1 && !parts[0].narration);
     }
     // Which SkyrimNetApi function a typed line goes to.
     {

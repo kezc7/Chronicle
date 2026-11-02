@@ -215,38 +215,121 @@ namespace ChronicleRuntime
         return key;
     }
 
-    // SkyrimNet lines arrive more than once: its speech events, its dialogue
-    // event and the game's subtitle, which names the player as the speaker of
-    // a thought or narration SkyrimNet voices. A line is an echo when the same
-    // text came from the player, SkyrimNet or the narrator within the window;
-    // the first copy, which carries SkyrimNet's own label, is kept. Ordinary
-    // NPC dialogue is never remembered, so repeated NPC lines are unaffected.
+    // SkyrimNet's spoken directions for its voice engines: [square bracket
+    // tags] anywhere in a line, such as "[say with a hint of amusement]",
+    // "[growl]", "[sfx-sigh]Haah," or "[reset]" (its carry_tags_*.yaml and
+    // 0650_audio_tags.prompt). They steer the voice and are not words, so the
+    // shown line drops them. A "[" without a "]" within 80 characters is text.
+    inline std::string StripAudioTags(std::string_view text)
+    {
+        std::string out;
+        out.reserve(text.size());
+        for (std::size_t i = 0; i < text.size();) {
+            if (text[i] == '[') {
+                const auto close = text.find(']', i + 1);
+                const auto inner = close == std::string_view::npos ? std::string_view{} : text.substr(i + 1, close - i - 1);
+                if (close != std::string_view::npos && !inner.empty() && inner.size() <= 80 &&
+                    inner.find_first_of("[\r\n") == std::string_view::npos) {
+                    i = close + 1;
+                    if (!out.empty() && out.back() != ' ') out.push_back(' ');
+                    continue;
+                }
+            }
+            out.push_back(text[i]);
+            ++i;
+        }
+        // Spaces the tags leave behind: runs collapsed, none before punctuation or at the ends.
+        std::string tidy;
+        tidy.reserve(out.size());
+        for (std::size_t i = 0; i < out.size(); ++i) {
+            const char c = out[i];
+            if (c == ' ') {
+                if (tidy.empty() || tidy.back() == ' ') continue;
+                const char next = i + 1 < out.size() ? out[i + 1] : '\0';
+                if (next == '\0' || next == ',' || next == '.' || next == '!' || next == '?' || next == ';' || next == ':') continue;
+            }
+            tidy.push_back(c);
+        }
+        while (!tidy.empty() && tidy.back() == ' ') tidy.pop_back();
+        return tidy;
+    }
+
+    // A SkyrimNet reply mixes speech and one short narrated action in
+    // *asterisks*: "Herman is right. *Coralyn glances away.* Come on." gives
+    // speech, narration, speech, in order. A lone "*" is text. One segment
+    // when there is nothing to split.
+    struct Segment
+    {
+        bool narration{ false };
+        std::string text;
+    };
+
+    inline std::vector<Segment> SplitNarration(std::string_view text)
+    {
+        std::vector<Segment> out;
+        const auto push = [&out](bool narration, std::string_view part) {
+            while (!part.empty() && part.front() == ' ') part.remove_prefix(1);
+            while (!part.empty() && part.back() == ' ') part.remove_suffix(1);
+            const bool words = std::any_of(part.begin(), part.end(), [](char ch) {
+                const auto c = static_cast<unsigned char>(ch);
+                return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c >= 0x80;
+            });
+            if (words) out.push_back({ narration, std::string(part) });
+        };
+        std::size_t from = 0;
+        while (from < text.size()) {
+            const auto open = text.find('*', from);
+            const auto close = open == std::string_view::npos ? std::string_view::npos : text.find('*', open + 1);
+            if (close == std::string_view::npos) break;
+            push(false, text.substr(from, open - from));
+            push(true, text.substr(open, close - open + 1));
+            from = close + 1;
+        }
+        push(false, text.substr(std::min(from, text.size())));
+        if (out.empty()) out.push_back({ false, std::string(text) });
+        return out;
+    }
+
+    // SkyrimNet lines arrive more than once: its speech events (per sentence
+    // and whole), its dialogue event and the game's subtitle, which can name
+    // the player as the speaker of a thought or narration SkyrimNet voices.
+    // A line is an echo when, within the window, the same text was already
+    // shown, or a longer line already shown contains it. Two NPC dialogue
+    // lines are only compared when the same NPC said them, so different NPCs
+    // with the same vanilla line are both kept. The first copy is kept.
     class EchoFilter
     {
     public:
         static constexpr std::int64_t kWindowMs = 20000;
+        static constexpr std::size_t kMinContained = 12;  // shorter lines must match exactly
 
-        bool IsEcho(std::string_view channel, std::string_view text, std::int64_t nowMs)
+        bool IsEcho(std::string_view channel, std::string_view speaker, std::string_view text, std::int64_t nowMs)
         {
-            while (!m_recent.empty() && nowMs - m_recent.front().second > kWindowMs) m_recent.pop_front();
+            while (!m_recent.empty() && nowMs - m_recent.front().at > kWindowMs) m_recent.pop_front();
             const bool checked = channel == "dialogue" || channel == "skyrimnet" || channel == "narrator" || channel == "player";
             if (!checked) return false;
             auto key = EchoKey(text);
             if (key.empty()) return false;
-            for (const auto& [seen, at] : m_recent) {
-                if (seen == key && nowMs - at <= kWindowMs) return true;
+            for (const auto& seen : m_recent) {
+                if (channel == "dialogue" && seen.channel == "dialogue" && seen.speaker != speaker) continue;
+                if (seen.key == key || (key.size() >= kMinContained && seen.key.find(key) != std::string::npos)) return true;
             }
-            if (channel != "dialogue") {
-                if (m_recent.size() >= 64) m_recent.pop_front();
-                m_recent.emplace_back(std::move(key), nowMs);
-            }
+            if (m_recent.size() >= 64) m_recent.pop_front();
+            m_recent.push_back({ std::move(key), std::string(channel), std::string(speaker), nowMs });
             return false;
         }
 
         void Clear() { m_recent.clear(); }
 
     private:
-        std::deque<std::pair<std::string, std::int64_t>> m_recent;
+        struct Seen
+        {
+            std::string key;
+            std::string channel;
+            std::string speaker;
+            std::int64_t at;
+        };
+        std::deque<Seen> m_recent;
     };
 
     inline std::string_view NotificationChannel(std::uint32_t type)

@@ -432,6 +432,30 @@ void Chronicle::SendMessage(std::string_view channel, std::string_view speaker, 
     // Every game event and UI delivery is then serialized on the main thread.
     try {
         const auto revision = m_worldRevision.load();
+        // SkyrimNet text, not the player's own dialogue choices ("[Persuade] ..."):
+        // voice directions are dropped and a narrated action inside a reply
+        // becomes its own narrator line, in order.
+        std::string cleaned;
+        const bool playerChoice = channel == "dialogue" && attribution.speakerFormId == 0x14;
+        if ((channel == "skyrimnet" || channel == "dialogue" || channel == "narrator") && !playerChoice) {
+            cleaned = ChronicleRuntime::StripAudioTags(message);
+            if (cleaned.empty()) return;
+            if (channel != "narrator") {
+                const auto segments = ChronicleRuntime::SplitNarration(cleaned);
+                if (segments.size() > 1) {
+                    for (const auto& segment : segments) {
+                        if (segment.narration) {
+                            SendMessage("narrator", "Narrator", segment.text,
+                                ChronicleHistory::Attribution{ {}, {}, {}, {}, attribution.source, attribution.distance });
+                        } else {
+                            SendMessage(channel, speaker, segment.text, attribution);
+                        }
+                    }
+                    return;
+                }
+            }
+            message = cleaned;
+        }
         // Narration SkyrimNet voices reaches Chronicle as dialogue, often under
         // the player's name; it belongs to the narrator.
         if ((channel == "skyrimnet" || channel == "dialogue") && ChronicleRuntime::IsNarration(message)) {
@@ -449,7 +473,7 @@ void Chronicle::SendMessage(std::string_view channel, std::string_view speaker, 
             if (message.empty() || IsDuplicate(channel, speaker, message)) return;
             const auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
                 std::chrono::steady_clock::now().time_since_epoch()).count();
-            if (m_echoFilter.IsEcho(channel, message, nowMs)) {
+            if (m_echoFilter.IsEcho(channel, speaker, message, nowMs)) {
                 spdlog::info("Chronicle: {} line from '{}' repeats a SkyrimNet line; not shown", channel, speaker);
                 return;
             }
