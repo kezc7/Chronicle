@@ -214,6 +214,16 @@ int main()
         Require(std::string_view(SkyrimNetFunction(SkyrimNetSend::Transform, true)) == "TransformDialogue");
         Require(SkyrimNetFunction(SkyrimNetSend::Off, true) == nullptr);
         Require(std::string_view(ChronicleRuntime::SkyrimNetSendName(SkyrimNetSend::Transform)) == "transform");
+        // Who a typed line is said to, by name.
+        using ChronicleRuntime::AddressedName;
+        Require(AddressedName("sally, what are your thoughts") == "sally");
+        Require(AddressedName("  Hey Lydia: wait here") == "Lydia" && AddressedName("hello Serana, ready?") == "Serana");
+        Require(AddressedName("Jarl Balgruuf the Greater, I bring news") == "Jarl Balgruuf the Greater");
+        Require(AddressedName("J'zargo, a word") == "J'zargo" && AddressedName("Ri'saad: hello") == "Ri'saad");
+        Require(AddressedName("what are your thoughts") == "" && AddressedName("Sally?") == "");
+        Require(AddressedName("well then you lot over there, listen") == "");  // more than four words
+        Require(AddressedName("a, b") == "" && AddressedName(", hello") == "" && AddressedName("123, go") == "");
+        Require(AddressedName("this line is long enough that its first comma comes after forty, characters") == "");
     }
     // Scaleform HTML in mod notifications.
     Require(ChronicleRuntime::StripHtml("<font color='#00FFFFFF'>The Curators Companion: Start up tasks complete...</font>")

@@ -32,6 +32,10 @@ namespace ChronicleSkyrimNet
 {
     bool Loaded();
 
+    // Game thread. SKSE's crosshair event, for the NPC a line is said to.
+    void RegisterSinks();
+    void Clear();  // load boundary
+
     // Game thread.
     void Send(std::string_view a_text, ChronicleRuntime::SkyrimNetSend a_mode);
 }

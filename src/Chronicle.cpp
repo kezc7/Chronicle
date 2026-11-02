@@ -111,6 +111,7 @@ void Chronicle::OnPreLoadGame()
     ForceCloseInput();
     SubtitlePoller::GetSingleton().Stop();
     TopicInfoEventSink::GetSingleton().Clear();
+    ChronicleSkyrimNet::Clear();
     {
         std::lock_guard lock(m_uiMutex);
         m_pendingUI.clear();
@@ -171,6 +172,7 @@ void Chronicle::RegisterEventSinks()
         events->AddEventSink<RE::TESTopicInfoEvent>(&TopicInfoEventSink::GetSingleton());
     }
     if (auto* levels = RE::LevelIncrease::GetEventSource()) levels->AddEventSink(&LevelUpEventSink::GetSingleton());
+    ChronicleSkyrimNet::RegisterSinks();
 }
 
 void Chronicle::InitUiHost()
