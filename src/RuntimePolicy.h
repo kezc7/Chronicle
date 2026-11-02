@@ -139,6 +139,42 @@ namespace ChronicleRuntime
         return mode == SkyrimNetSend::Transform ? "transform" : mode == SkyrimNetSend::Off ? "off" : "dialogue";
     }
 
+    // The name a chat line opens with, for picking who it is said to:
+    // "sally, what are your thoughts" -> "sally", "Hey Lydia: wait" -> "Lydia".
+    // Up to four words before a comma or colon in the first 40 characters; a
+    // leading greeting is dropped. "" when the line names no one.
+    inline std::string AddressedName(std::string_view text)
+    {
+        while (!text.empty() && text.front() == ' ') text.remove_prefix(1);
+        const auto stop = text.substr(0, 41).find_first_of(",:");
+        if (stop == std::string_view::npos) return {};
+        std::string_view name = text.substr(0, stop);
+        while (!name.empty() && name.back() == ' ') name.remove_suffix(1);
+        for (const std::string_view greeting : { "hey ", "hi ", "hello ", "oi ", "excuse me " }) {
+            if (name.size() > greeting.size()) {
+                bool match = true;
+                for (std::size_t i = 0; i < greeting.size() && match; ++i) {
+                    const auto c = static_cast<unsigned char>(name[i]);
+                    match = (c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : name[i]) == greeting[i];
+                }
+                if (match) { name.remove_prefix(greeting.size()); break; }
+            }
+        }
+        while (!name.empty() && name.front() == ' ') name.remove_prefix(1);
+        if (name.size() < 2 || name.size() > 32) return {};
+        int words = 1;
+        for (std::size_t i = 0; i < name.size(); ++i) {
+            const auto c = static_cast<unsigned char>(name[i]);
+            if (c == ' ') {
+                if (name[i - 1] == ' ') return {};
+                ++words;
+            } else if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c >= 0x80 || c == '\'' || c == '-' || c == '.')) {
+                return {};
+            }
+        }
+        return words <= 4 ? std::string(name) : std::string{};
+    }
+
     // The SkyrimNetApi function for a line; nullptr when nothing is sent.
     inline const char* SkyrimNetFunction(SkyrimNetSend mode, bool hasListener)
     {
