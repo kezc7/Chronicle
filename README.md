@@ -1,4 +1,4 @@
-# Chronicle 1.4.3
+# Chronicle 1.4.4
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -29,9 +29,11 @@ are preserved.
   by distance from the player. `0` keeps the default unlimited range; the value
   uses Skyrim world units.
 - **Enter** opens chat input. With SkyrimNet installed, a submitted line is handed
-  to SkyrimNet's API as your character's words (`SkyrimNetApi.RegisterDialogue`,
-  to the NPC you are talking to when the Dialogue Menu is open). How NPCs answer is
-  up to SkyrimNet. `"skyrimnet_send"` at the top level of `Chronicle.json`
+  to SkyrimNet's API as your character's words, said to an NPC when Chronicle can
+  tell who: the one you are talking to in the Dialogue Menu, else one the line
+  starts with by name ("Sally, ...", found by SkyrimNet among nearby NPCs), else
+  the NPC you last looked at (within 30 seconds and still nearby). With no one,
+  the line is a remark to nobody in particular. How NPCs answer is up to SkyrimNet. `"skyrimnet_send"` at the top level of `Chronicle.json`
   changes this: `"transform"` uses SkyrimNet's Transform Dialogue instead (the line
   is rewritten in character and spoken), `"off"` keeps lines in Chronicle only.
   `Chronicle.log` records each submit and SkyrimNet's answer code. Every input
@@ -191,6 +193,17 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.4.4-beta
+
+Fifth beta, PrismaUI and Magelight builds.
+
+- A typed line is now said to someone, so SkyrimNet knows who should answer. Outside
+  the Dialogue Menu, start the line with a name ("Sally, what are your thoughts?")
+  or look at the NPC before opening the chat. Without either, SkyrimNet gets a
+  remark to nobody in particular, which it may leave unanswered.
+- `Chronicle.log` names the listener and how it was chosen (dialogue menu, named in
+  the line, crosshair), or says there was none.
 
 ## 1.4.3-beta
 
