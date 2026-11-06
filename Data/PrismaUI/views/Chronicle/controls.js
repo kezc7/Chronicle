@@ -113,6 +113,7 @@ function closeInteraction(release = true) {
   document.getElementById('copy-output').hidden = true;
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   statusText(interactionHint());
+  if (typeof keepListBottom === 'function') keepListBottom(!userScrolledUp); // the bars just closed
   if (typeof wakeWindow === 'function') wakeWindow(); // auto-hide counts from now
   if (release) sendToGame('focusReleased', '');
 }
