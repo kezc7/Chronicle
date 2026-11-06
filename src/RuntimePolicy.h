@@ -415,6 +415,14 @@ namespace ChronicleRuntime
         return {};
     }
 
+    // The suite's code for a language, as i18n.js names it.
+    inline std::string_view LanguageCode(Lang lang)
+    {
+        static constexpr std::string_view codes[] = { "en", "fr", "de", "it", "es", "pl", "tr", "zh-CN", "ja", "ko" };
+        const auto index = static_cast<std::size_t>(lang);
+        return index < sizeof(codes) / sizeof(codes[0]) ? codes[index] : "en";
+    }
+
     // settings "auto"/unknown follows Skyrim's sLanguage; unsupported -> English.
     inline Lang ResolveLanguage(std::string_view stored, std::string_view gameLanguage)
     {
@@ -441,7 +449,7 @@ namespace ChronicleRuntime
     {
         GameSaved, ReachedLevel, Killed, Hit, Died, Combat, Enemy, Someone, Target, Player,
         QuestStarted, QuestCompleted, QuestFailed, NewObjective, ObjectiveCompleted, ObjectiveFailed,
-        MoreLines, UnknownCommand, Commands, NoCommands
+        MoreLines, UnknownCommand, Commands, NoCommands, Narrator, MenuDescription
     };
 
     // "{0}" marks the inserted value (a name, a level, a line count).
@@ -471,6 +479,8 @@ namespace ChronicleRuntime
             case UnknownCommand: return "Commande inconnue : {0}";
             case Commands: return "Commandes : {0}";
             case NoCommands: return "Aucune commande de mod enregistrée";
+            case Narrator: return "Narrateur";
+            case MenuDescription: return "Fenêtre de discussion et journal des messages";
             }
             break;
         case Lang::De:
@@ -495,6 +505,8 @@ namespace ChronicleRuntime
             case UnknownCommand: return "Unbekannter Befehl: {0}";
             case Commands: return "Befehle: {0}";
             case NoCommands: return "Keine Mod-Befehle registriert";
+            case Narrator: return "Erzähler";
+            case MenuDescription: return "Chatfenster und Nachrichtenprotokoll";
             }
             break;
         case Lang::It:
@@ -519,6 +531,8 @@ namespace ChronicleRuntime
             case UnknownCommand: return "Comando sconosciuto: {0}";
             case Commands: return "Comandi: {0}";
             case NoCommands: return "Nessun comando di mod registrato";
+            case Narrator: return "Narratore";
+            case MenuDescription: return "Finestra di chat e registro dei messaggi";
             }
             break;
         case Lang::Es:
@@ -543,6 +557,8 @@ namespace ChronicleRuntime
             case UnknownCommand: return "Comando desconocido: {0}";
             case Commands: return "Comandos: {0}";
             case NoCommands: return "No hay comandos de mods registrados";
+            case Narrator: return "Narrador";
+            case MenuDescription: return "Ventana de chat y registro de mensajes";
             }
             break;
         case Lang::Pl:
@@ -568,6 +584,8 @@ namespace ChronicleRuntime
             case UnknownCommand: return "Nieznane polecenie: {0}";
             case Commands: return "Polecenia: {0}";
             case NoCommands: return "Brak zarejestrowanych poleceń modów";
+            case Narrator: return "Narrator";
+            case MenuDescription: return "Okno czatu i dziennik wiadomości";
             }
             break;
         case Lang::Tr:
@@ -593,6 +611,8 @@ namespace ChronicleRuntime
             case UnknownCommand: return "Bilinmeyen komut: {0}";
             case Commands: return "Komutlar: {0}";
             case NoCommands: return "Kayıtlı mod komutu yok";
+            case Narrator: return "Anlatıcı";
+            case MenuDescription: return "Sohbet penceresi ve mesaj günlüğü";
             }
             break;
         case Lang::Zh:
@@ -617,6 +637,8 @@ namespace ChronicleRuntime
             case UnknownCommand: return "未知命令：{0}";
             case Commands: return "命令：{0}";
             case NoCommands: return "没有已注册的模组命令";
+            case Narrator: return "旁白";
+            case MenuDescription: return "聊天窗口和消息记录";
             }
             break;
         case Lang::Ja:
@@ -641,6 +663,8 @@ namespace ChronicleRuntime
             case UnknownCommand: return "不明なコマンド：{0}";
             case Commands: return "コマンド：{0}";
             case NoCommands: return "登録された MOD コマンドはありません";
+            case Narrator: return "ナレーター";
+            case MenuDescription: return "チャットウィンドウとメッセージログ";
             }
             break;
         case Lang::Ko:
@@ -666,6 +690,8 @@ namespace ChronicleRuntime
             case UnknownCommand: return "알 수 없는 명령: {0}";
             case Commands: return "명령: {0}";
             case NoCommands: return "등록된 모드 명령이 없습니다";
+            case Narrator: return "내레이터";
+            case MenuDescription: return "채팅 창과 메시지 기록";
             }
             break;
         case Lang::En:
@@ -692,6 +718,8 @@ namespace ChronicleRuntime
         case UnknownCommand: return "Unknown command: {0}";
         case Commands: return "Commands: {0}";
         case NoCommands: return "No mod commands are registered";
+        case Narrator: return "Narrator";
+        case MenuDescription: return "Chat box and message log";
         }
         return "";
     }

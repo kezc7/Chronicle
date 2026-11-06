@@ -201,7 +201,8 @@ function nativeBootstrap(data) {
   if (data.settings) config = deepMerge(deepMerge({}, DEFAULT_CONFIG), data.settings);
   normalizeConfig();
   applyConfig();
-  statusText(data.warning || t('status.version', {version: data.version, hint: interactionHint()}));
+  statusText(data.warning ? t('settings.loadFailed', {detail: data.warning})
+    : t('status.version', {version: data.version, hint: interactionHint()}));
   // Migrate existing browser preferences once if no native settings file exists.
   if (!retryPendingSettings() && !data.settings && !data.warning) persistConfig();
 }
@@ -325,11 +326,12 @@ function settingsSaveResult(ok, detail, param) {
 }
 
 function diagnosticsResult(data) {
+  const yesNo = value => (typeof value === 'boolean' ? t(value ? 'diag.yes' : 'diag.no') : value);
   document.getElementById('diagnostics-output').textContent = [
     'Chronicle ' + data.version + ' / ' + (data.host || 'PrismaUI') + ' API ' + data.api,
     t('diag.connection', {value: t(data.bridge ? 'diag.connected' : 'diag.missing')}),
-    t('diag.state', {loaded: data.gameLoaded, visible: data.visible}),
-    t('diag.focus', {focus: data.focus, poller: data.poller}),
+    t('diag.state', {loaded: yesNo(data.gameLoaded), visible: yesNo(data.visible)}),
+    t('diag.focus', {focus: yesNo(data.focus), poller: yesNo(data.poller)}),
     t('diag.hudPath', {value: data.hudPath || t('diag.noneResolved')}),
     t('diag.messages', {value: data.messages}),
     t('diag.lastSubtitle', {value: data.lastSubtitle || t('diag.noneYet')}),

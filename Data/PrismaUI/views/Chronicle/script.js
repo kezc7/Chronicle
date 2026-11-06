@@ -1347,7 +1347,7 @@ document.querySelectorAll('.sp-hotkey').forEach(box => {
       }
       // Raw details let a screenshot of this message diagnose engine quirks.
       hotkeyStatus(t('hotkey.unsupported') + ' ' +
-        '(key "' + e.key + '", code "' + e.code + '", keyCode ' + e.keyCode + ')', true);
+        t('hotkey.keyDetails', {key: e.key, code: e.code, keyCode: e.keyCode}), true);
       return;
     }
     box.value = name;
