@@ -21,6 +21,7 @@
 #include "PCH.h"
 #include "Chronicle.h"
 #include "DovahHubModule.h"
+#include "DovahMenuModule.h"
 #include "Events.h"
 
 SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
@@ -93,6 +94,7 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
             break;
         case SKSE::MessagingInterface::kPostPostLoad:
             DovahHubModule::Register();
+            DovahMenuModule::Register();
             break;
         case SKSE::MessagingInterface::kDataLoaded:
             Chronicle::GetSingleton()->OnDataLoaded();
