@@ -51,7 +51,8 @@ namespace DovahMenuModule
         desc.size = sizeof(desc);
         desc.id = "Chronicle";  // the PrismaUI view folder and the Magelight modId
         desc.name = "Chronicle";
-        desc.description = "Chat box and message log";
+        const auto description = Chronicle::GetSingleton()->Text(ChronicleRuntime::Phrase::MenuDescription);
+        desc.description = description.c_str();
         desc.version = CHRONICLE_VERSION;
         desc.hotkey = "Enter";
         desc.framework = magelight ? DOVAHMENU_API::Framework::Magelight : DOVAHMENU_API::Framework::PrismaUI;
@@ -67,6 +68,13 @@ namespace DovahMenuModule
     void SetEnabled(bool a_enabled)
     {
         if (g_menu && g_entry && g_menu->SetEnabled) g_menu->SetEnabled(g_entry, a_enabled);
+    }
+
+    void SetDescription(std::string_view a_description)
+    {
+        if (!g_menu || !g_entry || !g_menu->SetText) return;
+        const std::string text(a_description);
+        g_menu->SetText(g_entry, nullptr, text.c_str(), nullptr);
     }
 
     void SetHotkey(std::string_view a_hotkey)

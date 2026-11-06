@@ -87,7 +87,8 @@ function setup(store, options = {}) {
       const answer = () => {
         const end = payload.before === undefined ? store.length : store.filter(entry => entry.timestamp < payload.before).length;
         const start = Math.max(0, end - (payload.limit || 200));
-        return {profile: options.profile || '42', lines: store.slice(start, end), more: start > 0, colours: options.colours || {}};
+        return {profile: options.profile || '42', lines: store.slice(start, end), more: start > 0, colours: options.colours || {},
+          language: options.language};
       };
       if (options.holdNext) {
         options.holdNext = false;
@@ -210,4 +211,24 @@ test('a reset reloads the list for the new character', async () => {
   tab.push({reset: true});
   await settle();
   assert.equal(tab.calls.length, 3); // no reload while hidden; the next tabShown loads
+});
+
+test('the tab speaks the language Chronicle shows, and falls back to English', async () => {
+  const tab = setup([line(1, 'dialogue', 'Lydia', 'Je suis à votre service.')], {language: 'fr'});
+  // Before the first reply the page has no language from Chronicle yet.
+  assert.equal(tab.page.chips.notification.textContent, 'Info');
+  tab.event('tabShown');
+  await settle();
+  assert.equal(tab.page.chips.all.textContent, 'Tout');
+  assert.equal(tab.page.chips.narrator.textContent, 'Narrateur');
+  assert.equal(tab.page.query.placeholder, "Rechercher dans l'historique");
+  assert.equal(tab.page.older.textContent, 'Charger les plus anciens');
+  assert.match(tab.list.children[0].children[0].textContent, /janv\./);
+  // Game text is never translated.
+  assert.deepEqual(tab.texts(), ['Je suis à votre service.']);
+
+  const other = setup([], {language: 'xx'});
+  other.event('tabShown');
+  await settle();
+  assert.equal(other.page.chips.all.textContent, 'All');
 });

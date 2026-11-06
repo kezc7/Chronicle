@@ -321,6 +321,17 @@ int main()
     Require(ChronicleRuntime::ResolveLanguage("auto", "RUSSIAN") == Lang::En);
     Require(ChronicleRuntime::ResolveLanguage("de", "FRENCH") == Lang::De);
     Require(ChronicleRuntime::ResolveLanguage("", "") == Lang::En);
+    // Codes round-trip, so the DovahHub tab and the chat window agree on the language.
+    for (const auto code : { "en", "fr", "de", "it", "es", "pl", "tr", "zh-CN", "ja", "ko" }) {
+        Require(ChronicleRuntime::LanguageCode(ChronicleRuntime::ResolveLanguage(code, "")) == code);
+    }
+    // The narrator's name and DovahMenu's description come in every language.
+    Require(ChronicleRuntime::Phrased(Lang::En, Phrase::Narrator) == "Narrator");
+    Require(ChronicleRuntime::Phrased(Lang::De, Phrase::Narrator) == "Erzähler");
+    Require(ChronicleRuntime::Phrased(Lang::Ko, Phrase::MenuDescription) == "채팅 창과 메시지 기록");
+    for (int lang = 0; lang <= static_cast<int>(Lang::Ko); ++lang) {
+        Require(!ChronicleRuntime::Phrased(static_cast<Lang>(lang), Phrase::MenuDescription).empty());
+    }
     Require(ChronicleRuntime::Phrased(Lang::En, Phrase::Killed, "Vampire") == "killed Vampire");
     Require(ChronicleRuntime::Phrased(Lang::Fr, Phrase::Killed, "Vampire") == "a tué Vampire");
     Require(ChronicleRuntime::Phrased(Lang::De, Phrase::Killed, "Vampire") == "hat Vampire getötet");
