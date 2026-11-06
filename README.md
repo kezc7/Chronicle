@@ -60,6 +60,10 @@ file as `Chronicle.json.bak`. In MO2, newly written files may appear in Overwrit
 The bundled `PrismaUI/views/Chronicle/config.json` supplies first-run defaults.
 Old browser preferences are migrated when there is no native settings file.
 Settings edited in the panel are previews until Apply; Close/Escape discards them.
+The interface comes in English, French, German, Italian, Spanish, Polish, Turkish,
+Simplified Chinese, Japanese and Korean (Language codes en, fr, de, it, es, pl, tr,
+zh-CN, ja, ko). Translations other than English are machine translations;
+corrections welcome.
 If the native save is unavailable or fails, Chronicle marks the settings as
 pending and retries them on the next successful handshake.
 
@@ -196,6 +200,8 @@ actual cursor routing, menu events, or SKSE serialization; those need an in-game
 
 ## Next release
 
+- Settings → Language says that translations other than English are machine
+  translations, and corrections are welcome, in every language.
 - Simplified Chinese is stored as `zh-CN`, the code every Dovah Suite mod uses
   (en, fr, de, it, es, pl, tr, zh-CN, ja, ko). A `Chronicle.json` holding the older
   `zh`, `zh-Hans` or an English language name still reads and is rewritten with the
