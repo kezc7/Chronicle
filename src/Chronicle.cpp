@@ -223,6 +223,24 @@ void Chronicle::Bootstrap()
             if (std::filesystem::file_size(kSettingsPath) > 65536) throw std::runtime_error("Settings file exceeds 64 KB");
             std::ifstream input(kSettingsPath);
             input >> settings;
+            input.close();
+            // An older Language value ("zh", "zh-Hans", an English name) is
+            // written back once as the suite's code.
+            if (settings.contains("general") && settings["general"].is_object() &&
+                settings["general"].contains("language") && settings["general"]["language"].is_string()) {
+                const auto stored = settings["general"]["language"].get<std::string>();
+                const auto code = ChronicleRuntime::CanonicalLanguage(stored);
+                if (!code.empty() && code != stored) {
+                    settings["general"]["language"] = code;
+                    try {
+                        AtomicWrite(kSettingsPath, settings.dump(2));
+                        spdlog::info("Chronicle: language '{}' is stored as {} from now on", stored, code);
+                    } catch (const std::exception& e) {
+                        // The settings still load; the next Apply writes the code.
+                        spdlog::warn("Chronicle: language '{}' read as {}, but the file was not rewritten: {}", stored, code, e.what());
+                    }
+                }
+            }
             ApplyNativeSettings(settings);
         }
     } catch (const std::exception& e) {

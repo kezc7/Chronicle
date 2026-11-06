@@ -83,6 +83,19 @@ test('Auto follows the game language and unknown values fall back sensibly', () 
   assert.equal(run(context, 'normalizeLanguage(undefined)'), 'auto');
 });
 
+test('Simplified Chinese uses the suite code zh-CN, and older stored values still read', () => {
+  const context = load();
+  assert.ok(run(context, 'LANGUAGES').includes('zh-CN'));
+  assert.ok(!run(context, 'LANGUAGES').includes('zh'));
+  assert.equal(run(context, "resolveLanguage('auto', 'CHINESE')"), 'zh-CN');
+  for (const older of ['zh', 'zh-Hans', 'Simplified Chinese', 'chinese']) {
+    assert.equal(run(context, `normalizeLanguage(${JSON.stringify(older)})`), 'zh-CN', older);
+  }
+  assert.equal(run(context, "normalizeLanguage('English')"), 'en');
+  assert.equal(run(context, "resolveLanguage('zh', 'ENGLISH')"), 'zh-CN');
+  assert.ok(run(context, "STRINGS['zh-CN']['channel.all']"));
+});
+
 test('every language except Auto is offered in settings', () => {
   for (const language of run(load(), 'LANGUAGES')) {
     assert.match(html, new RegExp(`<option value="${language}"[ >]`), `no settings option for ${language}`);

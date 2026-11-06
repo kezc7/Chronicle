@@ -194,6 +194,13 @@ For browser development, `node tests/preview.cjs` serves a local preview with mo
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
 
+## Next release
+
+- Simplified Chinese is stored as `zh-CN`, the code every Dovah Suite mod uses
+  (en, fr, de, it, es, pl, tr, zh-CN, ja, ko). A `Chronicle.json` holding the older
+  `zh`, `zh-Hans` or an English language name still reads and is rewritten with the
+  code once at load (`Chronicle.log`: "language 'zh' is stored as zh-CN from now on").
+
 ## 1.4.6-beta
 
 Seventh beta, PrismaUI and Magelight builds.
