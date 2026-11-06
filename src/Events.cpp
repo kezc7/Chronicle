@@ -270,7 +270,7 @@ RE::BSEventNotifyControl SkyrimNetEventSink::ProcessEvent(
         Chronicle::GetSingleton()->SendMessage("narrator", "Narrator", strArg);
     } else if (eventName == "SkyrimNet_Notification" ||
                eventName == "Chronicle_Notification") {
-        Chronicle::GetSingleton()->SendMessage("notification", "", strArg);
+        Chronicle::GetSingleton()->SendMessage("notification", "", TranslateCapturedText(strArg));
     } else if (eventName == "SkyrimNet_Combat" ||
                eventName == "SkyrimNet_CombatEvent" ||
                eventName == "Chronicle_Combat") {
@@ -399,6 +399,59 @@ RE::BSEventNotifyControl LevelUpEventSink::ProcessEvent(
 
 namespace
 {
+    // The game's own Scaleform translator, the one the HUD movie uses, for one
+    // "$" key. Nothing when the key has no entry in the Interface translation
+    // files (or the translator hands the key back).
+    std::optional<std::string> LookupTranslation(std::string_view a_key)
+    {
+        const auto* manager = RE::BSScaleformManager::GetSingleton();
+        if (!manager || !manager->loader) return std::nullopt;
+        auto* translator = manager->loader->GetStateAddRef<RE::GFxTranslator>(RE::GFxState::StateType::kTranslator);
+        if (!translator) return std::nullopt;
+        std::string translated;
+        if (const auto key = SKSE::stl::utf8_to_utf16(a_key)) {
+            RE::GFxWStringBuffer result;
+            RE::GFxTranslator::TranslateInfo info;
+            info.key = key->c_str();
+            info.result = std::addressof(result);
+            translator->Translate(std::addressof(info));
+            if (info.flags.all(RE::GFxTranslator::TranslateInfo::kTranslated) && !result.empty()) {
+                translated = SKSE::stl::utf16_to_utf8(std::wstring_view(result)).value_or(std::string{});
+            }
+        }
+        translator->Release();
+        translated = ChronicleRuntime::StripHtml(translated);
+        if (translated.empty() || translated == a_key) return std::nullopt;
+        return translated;
+    }
+}
+
+// Captured text with its Scaleform "$" keys translated as the HUD shows them
+// (CHRON-12). The first time each key is seen, the log names it and the result.
+std::string TranslateCapturedText(std::string_view a_text)
+{
+    if (a_text.find('$') == std::string_view::npos) return std::string(a_text);
+    bool found = false;
+    auto text = ChronicleRuntime::TranslateKeys(a_text, [&found](std::string_view key) {
+        auto translated = LookupTranslation(key);
+        found = found || translated.has_value();
+        return translated;
+    });
+    if (text != a_text) {
+        static std::mutex mutex;
+        static std::unordered_set<std::string> logged;
+        std::lock_guard lock(mutex);
+        if (logged.size() < 256 && logged.emplace(a_text).second) {
+            spdlog::info("Chronicle: translated '{}' -> '{}'{}", ChronicleUtf8::ReplaceInvalid(a_text.substr(0, 160)).value,
+                ChronicleUtf8::ReplaceInvalid(std::string_view(text).substr(0, 160)).value,
+                found ? "" : " (no translation; '$' dropped)");
+        }
+    }
+    return text;
+}
+
+namespace
+{
     // HUDMenu receives each HUD message (HUDData) before it is displayed. On
     // 1.6.1170 notifications never reach HUDNotifications::ProcessMessage (the
     // menu queues them itself), so capture them here from the message data.
@@ -415,7 +468,8 @@ namespace
 
             const auto* hud = static_cast<const RE::HUDData*>(a_message.data);
             const auto type = static_cast<std::uint32_t>(hud->type.get());
-            const std::string text = ChronicleRuntime::StripHtml(hud->text.c_str());
+            // HUD menu thread: the translator is the HUD's own.
+            const std::string text = ChronicleRuntime::StripHtml(TranslateCapturedText(ChronicleRuntime::StripHtml(hud->text.c_str())));
             if (!ChronicleRuntime::IsNotificationType(type) || text.empty()) return false;
 
             auto* chronicle = Chronicle::GetSingleton();

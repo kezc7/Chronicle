@@ -19,6 +19,8 @@
  */
 
 #include "RuntimePolicy.h"
+#include <map>
+#include <optional>
 #include <stdexcept>
 #include <string>
 
@@ -230,6 +232,26 @@ int main()
         Require(parts.size() == 1 && !parts[0].narration && parts[0].text == "Five * three is fifteen.");
         parts = SplitNarration("Plain speech.");
         Require(parts.size() == 1 && !parts[0].narration);
+    }
+    // Scaleform $ keys in captured notifications (CHRON-12).
+    {
+        const std::map<std::string, std::string, std::less<>> table{
+            { "$Assault has started!", "Assault has started!" },
+            { "$SKI_Item", "Iron Sword" },
+            { "$Same", "$Same" },  // a translator that hands the key back has no translation
+        };
+        const auto lookup = [&table](std::string_view key) -> std::optional<std::string> {
+            const auto it = table.find(key);
+            return it == table.end() ? std::nullopt : std::optional<std::string>(it->second);
+        };
+        using ChronicleRuntime::TranslateKeys;
+        Require(TranslateKeys("$Assault has started!", lookup) == "Assault has started!");
+        Require(TranslateKeys("Found $SKI_Item.", lookup) == "Found Iron Sword.");
+        Require(TranslateKeys("$Unknown key here", lookup) == "Unknown key here");  // no translation: the "$" goes
+        Require(TranslateKeys("$Same", lookup) == "Same");
+        Require(TranslateKeys("Cost: 5$ or US$4", lookup) == "Cost: 5$ or US$4");  // "$" inside a word is text
+        Require(TranslateKeys("No keys at all.", lookup) == "No keys at all." && TranslateKeys("", lookup) == "");
+        Require(TranslateKeys("$", lookup) == "");
     }
     // Which SkyrimNetApi function a typed line goes to.
     {
