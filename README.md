@@ -1,4 +1,4 @@
-# Chronicle 1.4.5
+# Chronicle 1.4.6
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -193,6 +193,18 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.4.6-beta
+
+Seventh beta, PrismaUI and Magelight builds.
+
+- Opening the chat input no longer hides the last messages: the list keeps its
+  last line just above the input bar, and the "new messages" badge stays inside
+  the list instead of sitting on what you type (CHRON-11).
+- Notifications that mods send as translation keys show the translated text, as
+  the HUD does ("Assault has started!", not "$Assault has started!"), through the
+  game's own translator. A key with no translation is shown without its "$"
+  (CHRON-12).
 
 ## 1.4.5-beta
 
