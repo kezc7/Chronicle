@@ -332,6 +332,45 @@ namespace ChronicleRuntime
         std::deque<Seen> m_recent;
     };
 
+    // Scaleform translation keys in captured text ("$Assault has started!",
+    // "Found $SKI_Item"). The HUD looks a "$" string up in the Interface
+    // translation files only when it draws it, so text captured before that
+    // still holds the key. The whole string is looked up first, then each
+    // $token on its own; a whole-string key with no translation loses its
+    // "$". lookup(key) returns the translation, or nothing when there is none.
+    template <class Lookup>
+    std::string TranslateKeys(std::string_view text, Lookup&& lookup)
+    {
+        if (text.find('$') == std::string_view::npos) return std::string(text);
+        if (text.front() == '$') {
+            if (auto whole = lookup(text); whole && !whole->empty() && *whole != text) return std::string(*whole);
+        }
+        const auto word = [](char ch) {
+            const auto c = static_cast<unsigned char>(ch);
+            return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_';
+        };
+        std::string out;
+        out.reserve(text.size());
+        for (std::size_t i = 0; i < text.size();) {
+            if (text[i] == '$' && (i == 0 || !word(text[i - 1]))) {
+                std::size_t end = i + 1;
+                while (end < text.size() && word(text[end])) ++end;
+                if (end > i + 1) {
+                    const auto key = text.substr(i, end - i);
+                    if (auto part = lookup(key); part && !part->empty() && *part != key) {
+                        out += *part;
+                        i = end;
+                        continue;
+                    }
+                }
+            }
+            out.push_back(text[i]);
+            ++i;
+        }
+        if (!out.empty() && out.front() == '$') out.erase(out.begin());
+        return out;
+    }
+
     inline std::string_view NotificationChannel(std::uint32_t type)
     {
         return type == 20 || type == 21 || type == 22 ? "system" : "notification";

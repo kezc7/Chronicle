@@ -54,6 +54,10 @@ private:
     MenuEventSink() = default;
 };
 
+// Captured text with Scaleform "$" keys translated by the game's translator,
+// as the HUD shows them; a key with no translation loses its "$".
+std::string TranslateCapturedText(std::string_view a_text);
+
 // Listens for SkyrimNet's Papyrus mod events via the SKSE mod event system.
 // Event names: SkyrimNet_DialogueLine, SkyrimNet_NarratorLine, SkyrimNet_PlayerInput
 
