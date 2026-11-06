@@ -73,6 +73,13 @@ identifier. Loading an older save that predates this identifier starts a fresh
 history profile; keep the `.skse` co-save alongside its Skyrim save. Legacy shared
 history is left intact but is not assigned to an arbitrary character.
 
+### Chronicle in DovahMenu
+
+With DovahMenu installed, Chronicle registers its own entry in DovahMenu's list,
+the same on the PrismaUI and Magelight builds. It is greyed out until a game is
+loaded; opening it shows the chat box (also if the show/hide key hid it) and opens
+the input bar. The entry shows the current input hotkey.
+
 ### Chronicle tab in DovahHub
 
 With DovahHub 0.92.1 or newer installed, Chronicle adds a **Chronicle** tab under
@@ -200,6 +207,9 @@ actual cursor routing, menu events, or SKSE serialization; those need an in-game
 
 ## Next release
 
+- With DovahMenu installed, Chronicle has its own entry in DovahMenu's list on both
+  builds (the Magelight build was missing from it). Opening it shows the chat box and
+  its input bar. Without DovahMenu nothing changes (CHRON-13).
 - Settings → Language says that translations other than English are machine
   translations, and corrections are welcome, in every language.
 - Simplified Chinese is stored as `zh-CN`, the code every Dovah Suite mod uses

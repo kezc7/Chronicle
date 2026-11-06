@@ -29,6 +29,12 @@ not redistribute the Magelight runtime.
 (`src/api/DovahHub_API.h`), by the same author and under the same GNU GPL, version 3.
 Chronicle reaches DovahHub.dll through it at runtime only when DovahHub is installed.
 
+## DovahMenu API header
+
+`src/DovahMenu_API.h` is copied unchanged from [DovahMenu](https://github.com/kezc7/DovahMenu)
+(`include/DovahMenu_API.h`), by the same author and under the same GNU GPL, version 3.
+Chronicle reaches DovahMenu.dll through it at runtime only when DovahMenu is installed.
+
 ## Build and link dependencies
 
 - [CommonLibSSE-NG](https://github.com/community-shaders/CommonLibSSE-NG), resolved

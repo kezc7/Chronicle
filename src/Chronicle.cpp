@@ -23,6 +23,7 @@
 #include "MessageBuilder.h"
 #include "DovahHubModule.h"
 #include "SkyrimNet.h"
+#include "DovahMenuModule.h"
 #include "HistoryWriter.h"
 #include "Api.h"
 #include "api/Chronicle_API.h"
@@ -108,6 +109,8 @@ void Chronicle::OnPreLoadGame()
     m_gameLoaded = false;
     m_state.loaded = false;
     UiHost().SetGameLoaded(false);
+    m_launcherOpenUntil = {};
+    DovahMenuModule::SetEnabled(false);
     ForceCloseInput();
     SubtitlePoller::GetSingleton().Stop();
     TopicInfoEventSink::GetSingleton().Clear();
@@ -140,6 +143,7 @@ void Chronicle::OnWorldReady()
     }
     m_state.loaded = true;
     UiHost().SetGameLoaded(true);
+    DovahMenuModule::SetEnabled(true);
     if (!profileId.load()) {
         profileId = static_cast<std::uint64_t>(std::chrono::system_clock::now().time_since_epoch().count());
     }
@@ -296,6 +300,30 @@ void Chronicle::UpdateVisibility()
         UiHost().Show(visible);
     }
     if (m_hidden.exchange(!visible) == visible) ChronicleApi::Dispatch(CHRONICLE_API::kMsgVisibility, { { "visible", visible } });
+    if (m_launcherOpenUntil != std::chrono::steady_clock::time_point{}) {
+        if (std::chrono::steady_clock::now() > m_launcherOpenUntil) {
+            m_launcherOpenUntil = {};
+            spdlog::info("Chronicle: DovahMenu open dropped: Chronicle stayed hidden");
+        } else if (visible && UiHost().ViewValid() && m_viewReady && !UiHost().AnyFocus()) {
+            m_launcherOpenUntil = {};
+            m_keyboardCapture = true;
+            InvokeUI("nativeHotkey(\"input\")");
+        }
+    }
+}
+
+void Chronicle::OpenFromLauncher()
+{
+    if (!m_bootstrapped || !m_gameLoaded || !UiHost().Available()) {
+        spdlog::info("Chronicle: DovahMenu open ignored: no game loaded");
+        return;
+    }
+    spdlog::info("Chronicle: opened from DovahMenu");
+    if (m_state.userHidden) ToggleUserHidden();
+    // DovahMenu's own focus menu may still be closing: the input bar opens
+    // once Chronicle is visible and nothing holds focus, within two seconds.
+    m_launcherOpenUntil = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    UpdateVisibility();
 }
 
 void Chronicle::SetApiHidden(bool hidden)
@@ -659,6 +687,7 @@ void Chronicle::ApplyNativeSettings(const nlohmann::json& settings)
     m_interactKey = key(general.value("interact_hotkey", std::string("F8")), VK_F8);
     m_settingsKey = key(general.value("config_hotkey", std::string("0")), '0');
     m_inputKey = key(general.value("input_hotkey", std::string("Enter")), VK_RETURN);
+    DovahMenuModule::SetHotkey(general.value("input_hotkey", std::string("Enter")));
     m_toggleKey = key(general.value("toggle_hotkey", std::string()), 0);  // 0 = no key
     // Remembered hidden state is restored from the settings file; otherwise
     // the current session's state is left as it is.
