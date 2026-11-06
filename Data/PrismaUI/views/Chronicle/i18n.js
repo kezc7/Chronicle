@@ -20,14 +20,15 @@
 // Game-originated text (dialogue, notifications, quest names) is already in the
 // game's language and is never translated here.
 
-const LANGUAGES = ['en', 'fr', 'de', 'it', 'es', 'pl', 'tr', 'zh', 'ja', 'ko'];
+// The suite's language codes (Kev's decision of 5 Nov 2026).
+const LANGUAGES = ['en', 'fr', 'de', 'it', 'es', 'pl', 'tr', 'zh-CN', 'ja', 'ko'];
 
 // Skyrim's sLanguage:General values for the supported languages ("Auto").
 // TURKISH and KOREAN come from unofficial translations; CHINESE (officially
 // Traditional) maps to the Simplified table.
 const GAME_LANGUAGES = {
   ENGLISH: 'en', FRENCH: 'fr', GERMAN: 'de', ITALIAN: 'it', SPANISH: 'es',
-  POLISH: 'pl', TURKISH: 'tr', CHINESE: 'zh', JAPANESE: 'ja', KOREAN: 'ko',
+  POLISH: 'pl', TURKISH: 'tr', CHINESE: 'zh-CN', JAPANESE: 'ja', KOREAN: 'ko',
 };
 
 const STRINGS = {
@@ -1303,7 +1304,7 @@ const STRINGS = {
     "hotkey.unsupported": "Bu tuş kullanılamaz. Bir harf, rakam, Enter veya F1–F12 seçin.",
   },
 
-  zh: {
+  'zh-CN': {
     "channel.all": "全部",
     "channel.dialogue": "对话",
     "channel.system": "系统",
@@ -1851,12 +1852,22 @@ function t(key, vars) {
   return text;
 }
 
+// Older stored values still read: "zh" (Chronicle up to 1.4.6), "zh-Hans",
+// and English language names.
+const OLDER_LANGUAGES = {
+  'zh': 'zh-CN', 'zh-hans': 'zh-CN', 'zh-cn': 'zh-CN', 'chinese': 'zh-CN', 'simplified chinese': 'zh-CN',
+  'english': 'en', 'french': 'fr', 'german': 'de', 'italian': 'it', 'spanish': 'es',
+  'polish': 'pl', 'turkish': 'tr', 'japanese': 'ja', 'korean': 'ko',
+};
+
 function normalizeLanguage(setting) {
-  return setting === 'auto' || LANGUAGES.includes(setting) ? setting : 'auto';
+  if (setting === 'auto' || LANGUAGES.includes(setting)) return setting;
+  return OLDER_LANGUAGES[String(setting || '').trim().toLowerCase()] || 'auto';
 }
 
 // "auto" (or anything unknown) follows the game; unsupported game languages use English.
 function resolveLanguage(setting, gameLanguage) {
+  setting = normalizeLanguage(setting);
   if (LANGUAGES.includes(setting)) return setting;
   return GAME_LANGUAGES[String(gameLanguage || '').trim().toUpperCase()] || 'en';
 }
