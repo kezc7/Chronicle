@@ -96,6 +96,8 @@ public:
     void OnMenuOpenClose(std::string_view a_menuName, bool a_opening);
     // Game thread. DovahHub's open/close messages and the tick's IsOpen check.
     void OnDovahHubOpen(bool a_open);
+    // Game thread. DovahMenu's entry: show the box and open its input bar.
+    void OpenFromLauncher();
 
     // Called when any game menu opens so we can release focus and close the input bar.
     void ForceCloseInput();
@@ -152,6 +154,8 @@ private:
     ChronicleRuntime::State m_state;
     bool m_menuFrameworkOpen{ false };
     bool m_dovahHubOpen{ false };
+    // A DovahMenu open waiting for Chronicle to be visible again (game thread).
+    std::chrono::steady_clock::time_point m_launcherOpenUntil{};
     std::atomic<std::uint64_t> m_focusRevision{ 0 };
     std::atomic<bool> m_keyboardCapture{ false };
     std::atomic<bool> m_combatHits{ true };
