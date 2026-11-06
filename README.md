@@ -205,6 +205,19 @@ For browser development, `node tests/preview.cjs` serves a local preview with mo
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
 
+## Next release
+
+- Translation review in all nine languages (CHRON-14). Chronicle's History tab in
+  DovahHub now follows Chronicle's language: its channel chips, search box, Load older,
+  empty and error notes and dates were English only. The narrator's name on narrated
+  lines, the DovahMenu entry's description, the settings-load warning, the diagnostics'
+  yes/no and the raw key details under an unusable hotkey are translated too. The
+  leftover words "Auto" and "vanilla" (French, German, Italian, Spanish, Polish,
+  Turkish) are translated, and Italian, Spanish and German say PNG, PNJ and NSC
+  throughout instead of "NPC". `tests/i18n-coverage.cjs` lists any missing or untranslated text and the
+  page tests fail while it finds any. Game text (dialogue, notifications, quest names)
+  is never translated; it already arrives in the game's language.
+
 ## 1.4.7-beta
 
 Eighth beta, PrismaUI and Magelight builds.

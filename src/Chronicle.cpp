@@ -99,6 +99,7 @@ void Chronicle::OnDataLoaded()
     }
     m_language = static_cast<int>(ChronicleRuntime::ResolveLanguage("auto", m_gameLanguage));
     spdlog::info("Chronicle: game language '{}'", m_gameLanguage);
+    DovahMenuModule::SetDescription(Text(ChronicleRuntime::Phrase::MenuDescription));
     RegisterEventSinks();
     InitUiHost();
 }
@@ -249,8 +250,8 @@ void Chronicle::Bootstrap()
         }
     } catch (const std::exception& e) {
         settings = nullptr;
-        warning = std::string("Settings file could not be loaded: ") + e.what();
-        spdlog::warn("Chronicle: {}", warning);
+        warning = e.what();
+        spdlog::warn("Chronicle: Settings file could not be loaded: {}", warning);
     }
     // Hosts whose pages cannot fetch config.json hand the first-run defaults over here.
     nlohmann::json defaults = nullptr;
@@ -491,7 +492,7 @@ void Chronicle::SendMessage(std::string_view channel, std::string_view speaker, 
                 if (segments.size() > 1) {
                     for (const auto& segment : segments) {
                         if (segment.narration) {
-                            SendMessage("narrator", "Narrator", segment.text,
+                            SendMessage("narrator", Text(ChronicleRuntime::Phrase::Narrator), segment.text,
                                 ChronicleHistory::Attribution{ {}, {}, {}, {}, attribution.source, attribution.distance });
                         } else {
                             SendMessage(channel, speaker, segment.text, attribution);
@@ -504,9 +505,10 @@ void Chronicle::SendMessage(std::string_view channel, std::string_view speaker, 
         }
         // Narration SkyrimNet voices reaches Chronicle as dialogue, often under
         // the player's name; it belongs to the narrator.
+        const auto narrator = Text(ChronicleRuntime::Phrase::Narrator);
         if ((channel == "skyrimnet" || channel == "dialogue") && ChronicleRuntime::IsNarration(message)) {
             channel = "narrator";
-            speaker = "Narrator";
+            speaker = narrator;
             attribution = ChronicleHistory::Attribution{ {}, {}, {}, {}, attribution.source, attribution.distance };
         }
         auto payload = MessageBuilder::Build(channel, speaker, message);
@@ -656,6 +658,7 @@ void Chronicle::ApplyNativeSettings(const nlohmann::json& settings)
     m_chatboxEnabled = general.value("enabled", true);
     m_language = static_cast<int>(ChronicleRuntime::ResolveLanguage(
         general.value("language", std::string("auto")), m_gameLanguage));
+    DovahMenuModule::SetDescription(Text(ChronicleRuntime::Phrase::MenuDescription));
     const auto& channels = settings.at("channels");
     m_historyChannels.Apply(channels);
     if (const bool persist = general.value("persist_history", true); persist != m_persistHistory) {
@@ -839,7 +842,8 @@ std::string Chronicle::HistoryPageJson(std::optional<std::int64_t> before, std::
         {"profile", m_historyProfile ? std::to_string(m_historyProfile) : ""},
         {"lines", ChronicleHistory::LinesToJson(page.lines)},
         {"more", page.more},
-        {"colours", m_historyChannels.Colours()}
+        {"colours", m_historyChannels.Colours()},
+        {"language", std::string(ChronicleRuntime::LanguageCode(Language()))}
     });
 }
 

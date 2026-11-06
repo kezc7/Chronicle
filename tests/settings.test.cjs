@@ -195,3 +195,16 @@ test('host-supplied first-run defaults apply without a settings file and lose to
   context.nativeBootstrap({settings: null, defaults: null, warning: '', version: '1.2.37'});
   assert.equal(vm.runInContext('runtime.host', context), 'PrismaUI');
 });
+
+test('the settings-load warning and the diagnostics read in the chosen language', () => {
+  const {context} = setup();
+  vm.runInContext("uiLanguage = 'fr'", context);
+  context.nativeBootstrap({settings: null, warning: 'Settings file exceeds 64 KB', version: '1.4.7'});
+  assert.equal(context.document.getElementById('status-text').textContent,
+    'Impossible de charger le fichier de paramètres : Settings file exceeds 64 KB');
+  context.diagnosticsResult({version: '1.4.7', api: 1, bridge: true, gameLoaded: true, visible: false,
+    focus: false, poller: true, settingsFile: 'Chronicle.json'});
+  const text = context.document.getElementById('diagnostics-output').textContent;
+  assert.match(text, /Jeu chargé : oui · Fenêtre visible : non/);
+  assert.match(text, /Souris : non · Lecture des sous-titres : oui/);
+});

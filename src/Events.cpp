@@ -267,7 +267,8 @@ RE::BSEventNotifyControl SkyrimNetEventSink::ProcessEvent(
         }
     } else if (isNarratorLine) {
         // Narrator lines — never attributed to Player
-        Chronicle::GetSingleton()->SendMessage("narrator", "Narrator", strArg);
+        auto* chronicle = Chronicle::GetSingleton();
+        chronicle->SendMessage("narrator", chronicle->Text(ChronicleRuntime::Phrase::Narrator), strArg);
     } else if (eventName == "SkyrimNet_Notification" ||
                eventName == "Chronicle_Notification") {
         Chronicle::GetSingleton()->SendMessage("notification", "", TranslateCapturedText(strArg));

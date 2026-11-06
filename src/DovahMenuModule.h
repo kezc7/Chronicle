@@ -34,4 +34,6 @@ namespace DovahMenuModule
     void SetEnabled(bool a_enabled);
     // Game thread. The input hotkey's name, as the settings file spells it.
     void SetHotkey(std::string_view a_hotkey);
+    // Game thread. The entry's one-line description in Chronicle's language.
+    void SetDescription(std::string_view a_description);
 }
