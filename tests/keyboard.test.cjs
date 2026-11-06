@@ -146,6 +146,34 @@ test('settings only the native side reads survive a save from the page', () => {
   assert.equal(saved.at(-1).hud_subtitle_capture, false);
 });
 
+test('opening the input bar keeps the last line in view and the badge inside the list', () => {
+  const {context} = setup();
+  const win = context.document.getElementById('chronicle-window');
+  const list = context.document.getElementById('message-list');
+  const badge = context.document.getElementById('new-messages');
+  // At the bottom of a long list; the bar then takes 30px off the list's height.
+  Object.assign(win, {clientHeight: 240});
+  Object.assign(list, {scrollHeight: 900, scrollTop: 760, offsetTop: 30, offsetHeight: 150});
+  assert.equal(context.nativeHotkey('input'), true);
+  assert.equal(list.scrollTop, 900, 'the last line stays visible above the bar');
+  assert.equal(badge.style.bottom, '66px', 'the badge sits inside the list, above the bar');
+});
+
+test('a reader scrolled up keeps their place, and the badge avoids the input bar', () => {
+  const {context} = setup();
+  const win = context.document.getElementById('chronicle-window');
+  const list = context.document.getElementById('message-list');
+  const badge = context.document.getElementById('new-messages');
+  Object.assign(win, {clientHeight: 240});
+  Object.assign(list, {scrollHeight: 900, scrollTop: 300, offsetTop: 30, offsetHeight: 150});
+  vm.runInContext('userScrolledUp = true', context);
+  assert.equal(context.nativeHotkey('input'), true);
+  assert.equal(list.scrollTop, 300);
+  context.addMessage({channel: 'dialogue', speaker: 'Sally', message: 'Hello again.'});
+  assert.equal(badge.classList.contains('hidden'), false);
+  assert.equal(badge.style.bottom, '66px');
+});
+
 test('a focus grant after the interaction closed is handed back', () => {
   const {context, calls} = setup();
   context.nativeHotkey('settings');

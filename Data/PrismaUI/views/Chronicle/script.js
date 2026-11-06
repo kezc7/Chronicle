@@ -421,6 +421,23 @@ function showUnread(count) {
   const button = document.getElementById('new-messages');
   button.textContent = count > 0 ? t(count === 1 ? 'ui.newMessage' : 'ui.newMessagesCount', {count}) : t('ui.newMessages');
   button.classList.toggle('hidden', count === 0);
+  if (count > 0) placeNewMessagesBadge();
+}
+
+// The badge sits just inside the list's bottom edge. That edge moves up when
+// the input bar or the interaction tools open, so it is measured, not fixed.
+function placeNewMessagesBadge() {
+  const win = document.getElementById('chronicle-window');
+  const list = document.getElementById('message-list');
+  const below = (win.clientHeight || 0) - ((list.offsetTop || 0) + (list.offsetHeight || 0));
+  document.getElementById('new-messages').style.bottom = (Math.max(0, below) + 6) + 'px';
+}
+
+// After the input bar opens or closes the list is shorter or taller: a list
+// that was showing its last line keeps showing it.
+function keepListBottom(stick) {
+  if (stick) scrollToBottom();
+  placeNewMessagesBadge();
 }
 
 function persistHistory() { scheduleHistorySave(); }
@@ -519,6 +536,7 @@ let inputOpen = false;
 
 function openInput() {
   if (inputOpen || settingsOpen || !config.general.enabled) return false;
+  const stick = !userScrolledUp;
   if (!beginInteraction()) return false;
   inputOpen = true;
 
@@ -527,6 +545,7 @@ function openInput() {
   bar.classList.remove('hidden');
   input.value = '';
   input.focus();
+  keepListBottom(stick);
 
   return true;
 }
@@ -536,10 +555,10 @@ function closeInput() {
   inputOpen = false;
   closeChannelMenu();
 
+  const stick = !userScrolledUp;
   document.getElementById('input-bar').classList.add('hidden');
   document.getElementById('chat-input').blur();
-
-
+  keepListBottom(stick);
 }
 
 function submitInput() {
