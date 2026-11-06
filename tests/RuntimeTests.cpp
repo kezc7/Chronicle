@@ -308,6 +308,14 @@ int main()
     Require(ChronicleRuntime::NotificationText(Lang::De, 15, "X") == "Quest abgeschlossen: X");
 
     // Native phrases: language resolution and word order per language.
+    // The suite's language codes, with older stored values still read (zh-CN, 5 Nov decision).
+    using ChronicleRuntime::CanonicalLanguage;
+    Require(CanonicalLanguage("zh-CN") == "zh-CN" && CanonicalLanguage("zh") == "zh-CN" && CanonicalLanguage("zh-Hans") == "zh-CN");
+    Require(CanonicalLanguage("Simplified Chinese") == "zh-CN" && CanonicalLanguage(" English ") == "en" && CanonicalLanguage("KOREAN") == "ko");
+    Require(CanonicalLanguage("auto") == "auto" && CanonicalLanguage("fr") == "fr" && CanonicalLanguage("klingon").empty());
+    Require(ChronicleRuntime::ResolveLanguage("zh-CN", "") == Lang::Zh && ChronicleRuntime::ResolveLanguage("zh", "") == Lang::Zh);
+    Require(ChronicleRuntime::ResolveLanguage("German", "FRENCH") == Lang::De);
+    Require(ChronicleRuntime::ResolveLanguage("auto", "CHINESE") == Lang::Zh);
     Require(ChronicleRuntime::ResolveLanguage("auto", "FRENCH") == Lang::Fr);
     Require(ChronicleRuntime::ResolveLanguage("auto", "german") == Lang::De);
     Require(ChronicleRuntime::ResolveLanguage("auto", "RUSSIAN") == Lang::En);

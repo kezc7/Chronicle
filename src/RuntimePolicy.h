@@ -392,16 +392,40 @@ namespace ChronicleRuntime
     // Keep in step with LANGUAGES / GAME_LANGUAGES in i18n.js.
     enum class Lang { En, Fr, De, It, Es, Pl, Tr, Zh, Ja, Ko };
 
+    // The suite's language code for a stored Language value (en, fr, de, it,
+    // es, pl, tr, zh-CN, ja, ko, or "auto"). Older values read too: "zh"
+    // (Chronicle up to 1.4.6), "zh-Hans" and English language names, any
+    // case. "" when the value is none of these.
+    inline std::string CanonicalLanguage(std::string_view value)
+    {
+        while (!value.empty() && value.front() == ' ') value.remove_prefix(1);
+        while (!value.empty() && value.back() == ' ') value.remove_suffix(1);
+        std::string lower(value);
+        for (auto& c : lower) c = static_cast<char>(c >= 'A' && c <= 'Z' ? c + 32 : c);
+        static constexpr std::pair<std::string_view, std::string_view> known[] = {
+            { "auto", "auto" }, { "en", "en" }, { "fr", "fr" }, { "de", "de" }, { "it", "it" }, { "es", "es" },
+            { "pl", "pl" }, { "tr", "tr" }, { "zh-cn", "zh-CN" }, { "ja", "ja" }, { "ko", "ko" },
+            { "zh", "zh-CN" }, { "zh-hans", "zh-CN" }, { "chinese", "zh-CN" }, { "simplified chinese", "zh-CN" },
+            { "english", "en" }, { "french", "fr" }, { "german", "de" }, { "italian", "it" }, { "spanish", "es" },
+            { "polish", "pl" }, { "turkish", "tr" }, { "japanese", "ja" }, { "korean", "ko" },
+        };
+        for (const auto& [from, to] : known) {
+            if (lower == from) return std::string(to);
+        }
+        return {};
+    }
+
     // settings "auto"/unknown follows Skyrim's sLanguage; unsupported -> English.
-    inline Lang ResolveLanguage(std::string_view setting, std::string_view gameLanguage)
+    inline Lang ResolveLanguage(std::string_view stored, std::string_view gameLanguage)
     {
         struct Entry { std::string_view code, game; Lang lang; };
         static constexpr Entry entries[] = {
             { "en", "ENGLISH", Lang::En }, { "fr", "FRENCH", Lang::Fr }, { "de", "GERMAN", Lang::De },
             { "it", "ITALIAN", Lang::It }, { "es", "SPANISH", Lang::Es }, { "pl", "POLISH", Lang::Pl },
-            { "tr", "TURKISH", Lang::Tr }, { "zh", "CHINESE", Lang::Zh }, { "ja", "JAPANESE", Lang::Ja },
+            { "tr", "TURKISH", Lang::Tr }, { "zh-CN", "CHINESE", Lang::Zh }, { "ja", "JAPANESE", Lang::Ja },
             { "ko", "KOREAN", Lang::Ko },
         };
+        const auto setting = CanonicalLanguage(stored);
         for (const auto& e : entries) {
             if (setting == e.code) return e.lang;
         }
