@@ -1,4 +1,4 @@
-# Chronicle 1.2.30
+# Chronicle 1.2.31
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -120,6 +120,13 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.2.31 changes
+
+- A search or speaker filter no longer carries over to another character: both are
+  cleared when a different character is loaded. Reloading the same character keeps them.
+- A session started from the Main Menu without loading a save or starting a New Game
+  no longer writes into the history of the character played before it.
 
 ## 1.2.30 changes
 
