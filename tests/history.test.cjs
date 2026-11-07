@@ -42,6 +42,18 @@ test('character switches flush pending history and restore the correct profile',
   assert.equal(ctx.messages[0].message,'A only');
   assert.equal(JSON.parse(saved.get('chronicle_history_character-B'))[0].message,'B only');
 });
+test('a search or speaker filter does not carry over to another character',()=>{
+  const {ctx}=setup();
+  ctx.setRuntime({profile:'character-A',loaded:true,character:'Dragonborn'});
+  ctx.document.getElementById('history-search').value='dragon';
+  ctx.document.getElementById('speaker-filter').value='Lydia';
+  vm.runInContext("searchText='dragon'; speakerFilter='Lydia';",ctx);
+  ctx.setRuntime({profile:'character-B',loaded:true,character:'Dragonborn'});
+  assert.equal(vm.runInContext('searchText',ctx),'');
+  assert.equal(vm.runInContext('speakerFilter',ctx),'');
+  assert.equal(ctx.document.getElementById('history-search').value,'');
+  assert.equal(ctx.document.getElementById('speaker-filter').value,'');
+});
 test('disabled persistence does not write history',()=>{
   const {ctx,saved}=setup();
   ctx.setRuntime({profile:'A',loaded:true,character:'A'});
