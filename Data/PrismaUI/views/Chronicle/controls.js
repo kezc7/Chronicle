@@ -159,6 +159,11 @@ function setRuntime(data) {
     unreadCount = 0;
     userScrolledUp = false;
     showUnread(0);
+    // A search or speaker filter belongs to the last character's log.
+    searchText = '';
+    speakerFilter = '';
+    document.getElementById('history-search').value = '';
+    document.getElementById('speaker-filter').value = '';
     restoreHistory();
     refreshSpeakerOptions();
     // History kept only here so far: native takes it once, for this character.

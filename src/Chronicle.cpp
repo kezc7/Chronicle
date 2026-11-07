@@ -399,6 +399,9 @@ void Chronicle::OnMenuOpenClose(std::string_view name, bool opening)
 {
     if (opening && name == "Main Menu") {
         OnPreLoadGame();
+        // Only SKSE's Revert clears the character id. A session started from
+        // the Main Menu without a load or New Game gets its own id.
+        profileId = 0;
         m_state.Menu(name, true);
         PublishRuntime();
     }

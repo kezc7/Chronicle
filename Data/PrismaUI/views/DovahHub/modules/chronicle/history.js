@@ -402,7 +402,13 @@
         available = true;
         if (typeof reply.language === 'string') lang = language(reply.language);
         applyLanguage();
-        state.profile = String(reply.profile || '');
+        const profile = String(reply.profile || '');
+        if (profile !== state.profile) {
+          // Another character: the last one's search does not carry over.
+          state.search = '';
+          query.value = '';
+        }
+        state.profile = profile;
         applyColours(reply);
         state.lines.forEach(entry => entry.row.remove());
         state.lines = [];

@@ -232,3 +232,26 @@ test('the tab speaks the language Chronicle shows, and falls back to English', a
   await settle();
   assert.equal(other.page.chips.all.textContent, 'All');
 });
+
+test('a search does not carry over to another character', async () => {
+  const store = [line(1, 'dialogue', 'Lydia', 'A dragon!'), line(2, 'dialogue', 'Lydia', 'Back to Whiterun.')];
+  const options = {profile: 'A'};
+  const tab = setup(store, options);
+  tab.event('tabShown');
+  await settle();
+  tab.page.query.value = 'dragon';
+  tab.page.query.dispatch('input');
+  assert.deepEqual(tab.texts(), ['A dragon!']);
+  // The same character again keeps the search.
+  tab.push({reset: true});
+  await settle();
+  assert.equal(tab.page.state.search, 'dragon');
+  // Another character's history comes in unfiltered.
+  options.profile = 'B';
+  store.splice(0, store.length, line(3, 'dialogue', 'Hadvar', 'Stay close.'), line(4, 'dialogue', 'Hadvar', 'A dragon?'));
+  tab.push({reset: true});
+  await settle();
+  assert.equal(tab.page.state.search, '');
+  assert.equal(tab.page.query.value, '');
+  assert.deepEqual(tab.texts(), ['Stay close.', 'A dragon?']);
+});
