@@ -19,6 +19,8 @@
  */
 
 #include "RuntimePolicy.h"
+#define DOVAH_GAME_THREAD_QUEUE_ONLY
+#include "DovahGameThread.h"
 #include <map>
 #include <optional>
 #include <stdexcept>
@@ -375,4 +377,32 @@ int main()
     Require(ChronicleRuntime::MyGamesFolder(L"Skyrim Special Edition") == L"Skyrim Special Edition");
     Require(ChronicleRuntime::MyGamesFolder(L"Skyrim Special Edition GOG") == L"Skyrim Special Edition GOG");
     Require(ChronicleRuntime::MyGamesFolder(L"Skyrim VR") == L"Skyrim VR");
+
+    // The game-thread pump's queue (DovahGameThread.h): one frame runs what was
+    // queued when it started, in posting order; work posted meanwhile waits.
+    {
+        using DovahGameThread::detail::Job;
+        struct Probe { DovahGameThread::detail::Queue* queue; std::string* ran; char name; };
+        DovahGameThread::detail::Queue queue;
+        std::string ran;
+        Probe a{ &queue, &ran, 'a' }, b{ &queue, &ran, 'b' }, again{ &queue, &ran, 'c' };
+        const auto record = [](void* ctx) { auto* p = static_cast<Probe*>(ctx); p->ran->push_back(p->name); };
+        // 'b' posts 'c' while the frame runs: 'c' belongs to the next frame.
+        static Probe* s_again = nullptr;
+        s_again = &again;
+        const auto postsAgain = [](void* ctx) {
+            auto* p = static_cast<Probe*>(ctx);
+            p->ran->push_back(p->name);
+            p->queue->Push(Job{ +[](void* c) { auto* q = static_cast<Probe*>(c); q->ran->push_back(q->name); }, s_again, "again" });
+        };
+        queue.Push(Job{ record, &a, "a" });
+        queue.Push(Job{ postsAgain, &b, "b" });
+        Require(queue.Size() == 2);
+        Require(queue.Drain().ran == 2);
+        Require(ran == "ab");
+        Require(queue.Size() == 1);
+        Require(queue.Drain().ran == 1);
+        Require(ran == "abc");
+        Require(queue.Drain().ran == 0);
+    }
 }

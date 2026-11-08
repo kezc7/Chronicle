@@ -37,7 +37,7 @@ namespace
     const std::filesystem::path kSettingsPath = L"Data/SKSE/Plugins/Chronicle.json";
 
     // Own the callback payload before leaving the UI host's thread. Runs on
-    // the game thread (AddUITask); see GameThread.h.
+    // the game thread (the game-thread pump); see GameThread.h.
     template<class F> void MainTask(F task, std::source_location where = std::source_location::current())
     {
         GameThread::Post([task = std::move(task)]() {
