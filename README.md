@@ -1,4 +1,4 @@
-# Chronicle 1.4.9
+# Chronicle 1.4.10
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -204,6 +204,17 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.4.10-beta
+
+Eleventh beta, PrismaUI and Magelight builds.
+
+- Chronicle's game work runs on the game thread. Some load orders run SKSE's
+  general task queue on other threads, at the same time as the game's own update;
+  Chronicle now uses SKSE's UI task queue, which runs on the game thread, for
+  everything that touches the game. The log names the game thread at startup and
+  warns once, with the place, if any of Chronicle's game work still finds itself
+  on another thread.
 
 ## 1.4.9-beta
 
