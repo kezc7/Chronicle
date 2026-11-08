@@ -21,6 +21,7 @@
 #include "PCH.h"
 #include "SkyrimNet.h"
 #include "Chronicle.h"
+#include "GameThread.h"
 #include "Utf8.h"
 
 #include <chrono>
@@ -51,6 +52,7 @@ namespace
         RE::BSEventNotifyControl ProcessEvent(const SKSE::CrosshairRefEvent* a_event,
             RE::BSTEventSource<SKSE::CrosshairRefEvent>*) override
         {
+            GameThread::Check();
             auto* actor = a_event && a_event->crosshairRef ? a_event->crosshairRef->As<RE::Actor>() : nullptr;
             if (actor && actor != RE::PlayerCharacter::GetSingleton() && !actor->IsDead()) {
                 m_actor = actor->GetFormID();
@@ -163,7 +165,7 @@ namespace
             if (a_result.IsObject()) {
                 if (auto* actor = a_result.Unpack<RE::Actor*>()) found = actor->GetFormID();
             }
-            SKSE::GetTaskInterface()->AddTask([text = m_text, name = m_name, crosshair = m_crosshair, found] {
+            GameThread::Post([text = m_text, name = m_name, crosshair = m_crosshair, found] {
                 if (!Chronicle::GetSingleton()->IsGameLoaded()) return;
                 if (auto* actor = Listener(found, kNamedRange)) {
                     Deliver(text, actor, "named in the line");

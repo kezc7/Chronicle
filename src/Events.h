@@ -199,10 +199,11 @@ namespace NotificationHook
 
 // SubtitleManager has no event dispatch so we poll it periodically.
 //
-// IMPORTANT: SKSE's AddTask queue is drained with while(!empty), so any task
+// IMPORTANT: SKSE drains its task queues with while(!empty), so any task
 // that re-enqueues itself causes an infinite loop and freezes the game.
-// We therefore use a background thread for timing and fire one-shot AddTask
-// calls that read SubtitleManager on the main thread without re-enqueueing.
+// We therefore use a background thread for timing and post one-shot
+// game-thread tasks (AddUITask, GameThread.h) that read SubtitleManager
+// without re-enqueueing.
 //
 // The HUD movie is Scaleform and is only read from AddUITask: reading it from
 // AddTask raced the HUD's own updates and crashed inside GetVariable with
@@ -232,7 +233,7 @@ public:
 private:
     SubtitlePoller() = default;
 
-    // Called on the main thread (via AddTask) — reads SubtitleManager once.
+    // Called on the game thread (GameThread::Post) — reads SubtitleManager once.
     // Does NOT re-enqueue itself; the background thread schedules the next call.
     void PollOnce();
 
