@@ -20,10 +20,12 @@
 
 #include "Events.h"
 #include "Chronicle.h"
+#include "GameThread.h"
 
 RE::BSEventNotifyControl ChronicleInputSink::ProcessEvent(RE::InputEvent* const* events,
     RE::BSTEventSource<RE::InputEvent*>*)
 {
+    GameThread::Check();
     bool keyboardEvent = false;
     bool consume = false;
     if (events) for (auto* event = *events; event; event = event->next) {
@@ -160,16 +162,14 @@ RE::BSEventNotifyControl TopicInfoEventSink::ProcessEvent(
         const auto speaker = a_event->speakerRef->GetFormID();
         const auto info = a_event->topicInfoFormID;
         const bool begin = a_event->type == 0;
-        if (auto* tasks = SKSE::GetTaskInterface()) {
-            tasks->AddTask([this, speaker, info, begin, epoch = m_epoch.load()] {
-                if (epoch != m_epoch) return;
-                if (begin) {
-                    m_speaking[speaker] = info;
-                } else if (const auto it = m_speaking.find(speaker); it != m_speaking.end() && it->second == info) {
-                    m_speaking.erase(it);
-                }
-            });
-        }
+        GameThread::Post([this, speaker, info, begin, epoch = m_epoch.load()] {
+            if (epoch != m_epoch) return;
+            if (begin) {
+                m_speaking[speaker] = info;
+            } else if (const auto it = m_speaking.find(speaker); it != m_speaking.end() && it->second == info) {
+                m_speaking.erase(it);
+            }
+        });
     }
     return RE::BSEventNotifyControl::kContinue;
 }
@@ -212,6 +212,7 @@ RE::BSEventNotifyControl MenuEventSink::ProcessEvent(
     const RE::MenuOpenCloseEvent* a_event,
     RE::BSTEventSource<RE::MenuOpenCloseEvent>*)
 {
+    GameThread::Check();
     if (!a_event) {
         return RE::BSEventNotifyControl::kContinue;
     }
@@ -238,6 +239,7 @@ RE::BSEventNotifyControl SkyrimNetEventSink::ProcessEvent(
     const SKSE::ModCallbackEvent* a_event,
     RE::BSTEventSource<SKSE::ModCallbackEvent>*)
 {
+    GameThread::Check();
     if (!a_event) {
         return RE::BSEventNotifyControl::kContinue;
     }
@@ -312,6 +314,7 @@ RE::BSEventNotifyControl CombatEventSink::ProcessEvent(
     const RE::TESHitEvent* a_event,
     RE::BSTEventSource<RE::TESHitEvent>*)
 {
+    GameThread::Check();
     if (!a_event) {
         return RE::BSEventNotifyControl::kContinue;
     }
@@ -344,6 +347,7 @@ RE::BSEventNotifyControl DeathEventSink::ProcessEvent(
     const RE::TESDeathEvent* a_event,
     RE::BSTEventSource<RE::TESDeathEvent>*)
 {
+    GameThread::Check();
     if (!a_event || !a_event->dead) {
         return RE::BSEventNotifyControl::kContinue;
     }
@@ -391,6 +395,7 @@ RE::BSEventNotifyControl LevelUpEventSink::ProcessEvent(
     const RE::LevelIncrease::Event* a_event,
     RE::BSTEventSource<RE::LevelIncrease::Event>*)
 {
+    GameThread::Check();
     if (a_event) {
         Chronicle::GetSingleton()->SendMessage(
             "system", "", Chronicle::GetSingleton()->Text(ChronicleRuntime::Phrase::ReachedLevel, std::to_string(a_event->newLevel)));
@@ -524,18 +529,17 @@ void SubtitlePoller::Start()
     ResetHudRead();
     spdlog::info("Chronicle: subtitle polling started");
 
-    // Spawn a background thread that sleeps kPollInterval then schedules a
-    // one-shot AddTask to read SubtitleManager on the main thread.
-    // We never re-enqueue from inside the task — that would drain SKSE's
-    // while(!empty) task queue infinitely and freeze the game.
+    // Spawn a background thread that sleeps kPollInterval then posts one
+    // game-thread task (AddUITask) to read SubtitleManager. m_pending keeps at
+    // most one queued; the task never re-posts itself, which would drain
+    // SKSE's while(!empty) queue forever and freeze the game.
     m_worker = std::jthread([this, generation](std::stop_token stop) {
         while (!stop.stop_requested() && m_running && generation == m_generation) {
             std::this_thread::sleep_for(kPollInterval);
             if (stop.stop_requested() || !m_running || generation != m_generation) break;
 
-            auto* tasks = SKSE::GetTaskInterface();
-            if (tasks && !m_pending.exchange(true)) {
-                tasks->AddTask([this, generation]() {
+            if (!m_pending.exchange(true)) {
+                const bool posted = GameThread::Post([this, generation]() {
                     if (generation != m_generation) return;
                     m_pending = false;
                     if (!m_running) return;
@@ -548,6 +552,7 @@ void SubtitlePoller::Start()
                         spdlog::error("Chronicle: subtitle poll rejected");
                     }
                 });
+                if (!posted) m_pending = false;
             }
         }
         spdlog::info("Chronicle: subtitle polling thread exiting");
@@ -573,7 +578,8 @@ void SubtitlePoller::Stop()
 
 void SubtitlePoller::PollOnce()
 {
-    // This runs on the main game thread. Do NOT call AddTask here.
+    // Runs on the game thread (GameThread::Post). It never posts itself again;
+    // the HUD read it may post is one at a time (m_hudPending).
     if (!m_running) {
         return;
     }
@@ -693,14 +699,14 @@ SubtitlePoller::HudRead SubtitlePoller::ReadHudSubtitle(const std::vector<std::s
 
 void SubtitlePoller::RequestHudRead()
 {
-    auto* tasks = SKSE::GetTaskInterface();
-    if (!tasks || m_hudPending.exchange(true)) {
+    if (m_hudPending.exchange(true)) {
         return;
     }
 
     std::vector<std::string> paths(kDefaultHudSubtitlePaths.begin(), kDefaultHudSubtitlePaths.end());
     paths.insert(paths.end(), m_extraHudPaths.begin(), m_extraHudPaths.end());
-    tasks->AddUITask([this, epoch = m_hudEpoch.load(), paths = std::move(paths)]() {
+    // Posted from the poll task: one HUD read at a time (m_hudPending).
+    const bool posted = GameThread::Post([this, epoch = m_hudEpoch.load(), paths = std::move(paths)]() {
         try {
             auto result = ReadHudSubtitle(paths);
             std::scoped_lock lock(m_hudMutex);
@@ -714,6 +720,7 @@ void SubtitlePoller::RequestHudRead()
         }
         m_hudPending = false;
     });
+    if (!posted) m_hudPending = false;
 }
 
 void SubtitlePoller::ResetHudRead()

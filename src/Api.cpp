@@ -22,6 +22,7 @@
 #include "Api.h"
 #include "ApiPolicy.h"
 #include "Chronicle.h"
+#include "GameThread.h"
 #include "api/Chronicle_API.h"
 
 #include <cstring>
@@ -157,9 +158,9 @@ namespace
             {
                 if (!GetModuleHandleW(L"SkyrimNet.dll")) return Api::Result::NoTarget;
                 if (!chronicle->IsGameLoaded()) return Api::Result::NotReady;
-                auto* tasks = SKSE::GetTaskInterface();
-                if (!tasks) return Api::Result::NotReady;
-                tasks->AddTask([copy = std::string(text, length)] { Chronicle::GetSingleton()->SubmitChat(copy); });
+                if (!GameThread::Post([copy = std::string(text, length)] { Chronicle::GetSingleton()->SubmitChat(copy); })) {
+                    return Api::Result::NotReady;
+                }
                 return Api::Result::Ok;
             }
         default:

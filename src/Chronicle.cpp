@@ -27,6 +27,8 @@
 #include "HistoryWriter.h"
 #include "Api.h"
 #include "api/Chronicle_API.h"
+#include "GameThread.h"
+
 #include <fstream>
 #include <filesystem>
 
@@ -34,16 +36,15 @@ namespace
 {
     const std::filesystem::path kSettingsPath = L"Data/SKSE/Plugins/Chronicle.json";
 
-    // Own the callback payload before leaving the UI host's thread.
-    template<class F> void MainTask(F task)
+    // Own the callback payload before leaving the UI host's thread. Runs on
+    // the game thread (AddUITask); see GameThread.h.
+    template<class F> void MainTask(F task, std::source_location where = std::source_location::current())
     {
-        if (auto* tasks = SKSE::GetTaskInterface()) {
-            tasks->AddTask([task = std::move(task)]() {
-                try { task(); }
-                catch (const std::exception& e) { spdlog::error("Chronicle: task failed: {}", e.what()); }
-                catch (...) { spdlog::error("Chronicle: task failed"); }
-            });
-        }
+        GameThread::Post([task = std::move(task)]() {
+            try { task(); }
+            catch (const std::exception& e) { spdlog::error("Chronicle: task failed: {}", e.what()); }
+            catch (...) { spdlog::error("Chronicle: task failed"); }
+        }, where);
     }
 
     // RE::Script::CompileAndRun uses AE ID 21890, which is absent from the
@@ -90,6 +91,7 @@ namespace
 void Chronicle::OnDataLoaded()
 {
     spdlog::info("Chronicle " CHRONICLE_VERSION ": OnDataLoaded");
+    GameThread::LogThreads("kDataLoaded");
     // "Auto" language follows Skyrim's sLanguage (e.g. ENGLISH, FRENCH, GERMAN).
     if (auto* ini = RE::INISettingCollection::GetSingleton()) {
         if (auto* setting = ini->GetSetting("sLanguage:General");
@@ -106,6 +108,7 @@ void Chronicle::OnDataLoaded()
 
 void Chronicle::OnPreLoadGame()
 {
+    GameThread::Check();
     ++m_worldRevision;
     m_gameLoaded = false;
     m_state.loaded = false;
@@ -138,6 +141,7 @@ void Chronicle::OnPostLoadGame()
 
 void Chronicle::OnWorldReady()
 {
+    GameThread::Check();
     if (m_gameLoaded.exchange(true)) {
         UpdateVisibility();
         return;
@@ -271,6 +275,7 @@ void Chronicle::Bootstrap()
 
 void Chronicle::UpdateVisibility()
 {
+    GameThread::Check();
     // Seed from live menu state: startup open events may predate our listener.
     if (auto* ui = RE::UI::GetSingleton()) {
         static constexpr std::string_view names[] = {
@@ -940,6 +945,7 @@ bool Chronicle::IsDuplicate(std::string_view channel, std::string_view speaker, 
 
 void Chronicle::InvokeUI(std::string_view script)
 {
+    GameThread::Check();
     if (UiHost().ViewValid() && m_viewReady) {
         const std::string terminated(script);
         UiHost().Invoke(terminated.c_str());
