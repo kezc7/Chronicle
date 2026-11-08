@@ -20,20 +20,35 @@
 
 #pragma once
 
+// DovahGameThread.h is copied unchanged from DovahHub, whose CommonLibSSE-NG
+// names the address library's classes REL::IDDB and REL::Offset2ID. Chronicle's
+// names them REL::IDDatabase and REL::IDDatabase::Offset2ID, with the same
+// members (get, id2offset, iteration over id/offset pairs).
+namespace REL
+{
+    using IDDB = IDDatabase;
+    using Offset2ID = IDDatabase::Offset2ID;
+}
+
+#include "DovahGameThread.h"
+
 #include <filesystem>
 #include <source_location>
 #include <unordered_set>
 
-// The game thread is RE::Main's thread. SKSE's AddTask queue can be drained on
-// other threads in some load orders, racing the game's own update; its
-// AddUITask queue runs on the game thread. All game work therefore goes
-// through Post (AddUITask), and code that touches game objects calls Check,
-// which logs once per place when it finds itself on another thread.
+// Game work runs on the game thread: the thread the game's frame update runs
+// on. Neither of SKSE's task queues can be trusted to get there (in some load
+// orders both run on worker threads), so posts go to the suite's game-thread
+// pump (DovahGameThread.h): DovahHub's when it is installed, otherwise
+// Chronicle's own hook on the same call. Code that touches game objects calls
+// Check, which logs once per place when it finds itself on another thread.
 namespace GameThread
 {
-    // 0 until RE::Main exists.
+    // The frame's thread from the pump; 0 before its first frame. Without a
+    // hook (the pump's fallback, or before Install), RE::Main's threadID.
     inline std::uint32_t Id()
     {
+        if (DovahGameThread::Pumping()) return DovahGameThread::Id();
         const auto* main = RE::Main::GetSingleton();
         return main ? main->threadID : 0;
     }
@@ -56,22 +71,26 @@ namespace GameThread
             place, where.function_name(), GetCurrentThreadId(), Id());
     }
 
-    // Logged once at kDataLoaded: the game thread and the thread this runs on.
+    // Logged at kDataLoaded and by the first posted task: the game thread as
+    // Chronicle judges it, and the thread this runs on.
     inline void LogThreads(std::string_view where)
     {
-        spdlog::info("Chronicle: game thread {}; {} on thread {}", Id(), where, GetCurrentThreadId());
+        const auto* main = RE::Main::GetSingleton();
+        spdlog::info("Chronicle: game thread {} ({}); RE::Main's threadID {}; {} on thread {}", Id(),
+            DovahGameThread::Pumping() ? "the pump's frame thread" : "no pump: RE::Main's",
+            main ? main->threadID : 0, where, GetCurrentThreadId());
     }
 
     inline std::atomic<bool> g_firstTask{ true };
 
-    // Runs task once on the game thread (SKSE's AddUITask). A task that posts
-    // again must be bounded by a flag or a timer, never a chain of posts.
+    // Runs task once on the game thread, at the start of the next frame, in
+    // posting order (DovahGameThread::Post). Work posted while a frame runs the
+    // queue waits for the next frame, so a task that posts again can't chain
+    // within a frame; it still needs a flag or a timer to stay bounded.
     template<class F>
     bool Post(F task, std::source_location where = std::source_location::current())
     {
-        auto* tasks = SKSE::GetTaskInterface();
-        if (!tasks) return false;
-        tasks->AddUITask([task = std::move(task), where]() mutable {
+        DovahGameThread::Post(where.function_name(), [task = std::move(task), where]() mutable {
             if (g_firstTask.exchange(false)) LogThreads("first task ran");
             Check(where);
             task();

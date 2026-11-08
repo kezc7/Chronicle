@@ -530,7 +530,7 @@ void SubtitlePoller::Start()
     spdlog::info("Chronicle: subtitle polling started");
 
     // Spawn a background thread that sleeps kPollInterval then posts one
-    // game-thread task (AddUITask) to read SubtitleManager. m_pending keeps at
+    // game-thread task (GameThread::Post) to read SubtitleManager. m_pending keeps at
     // most one queued; the task never re-posts itself, which would drain
     // SKSE's while(!empty) queue forever and freeze the game.
     m_worker = std::jthread([this, generation](std::stop_token stop) {

@@ -12,9 +12,10 @@
 // FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
 // more details. See LICENSE.
 
-// The game-thread rule, checked in the source: SKSE's AddTask queue can run
-// on other threads, so game work is posted only through GameThread::Post
-// (AddUITask), and every game event sink checks the thread it runs on.
+// The game-thread rule, checked in the source: neither of SKSE's task queues
+// can be trusted to reach the game thread, so game work is posted only through
+// GameThread::Post, which hands it to the suite's game-thread pump
+// (DovahGameThread.h), and every game event sink checks the thread it runs on.
 
 'use strict';
 
@@ -24,8 +25,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const SRC = path.join(__dirname, '../src');
-// Other mods' headers, copied in unchanged.
-const VENDORED = new Set(['MagelightUI_API.h', 'PrismaUI_API.h', 'DovahHub_API.h', 'DovahMenu_API.h']);
+// Other mods' headers, copied in unchanged. DovahGameThread.h is the pump
+// itself; it falls back to SKSE's UI tasks only when no hook can be installed.
+const VENDORED = new Set(['MagelightUI_API.h', 'PrismaUI_API.h', 'DovahHub_API.h', 'DovahMenu_API.h', 'DovahGameThread.h']);
 
 function stripComments(text) {
   return text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
@@ -42,14 +44,21 @@ function sources() {
   return files.map(file => ({name: path.relative(SRC, file).replace(/\\/g, '/'), code: stripComments(fs.readFileSync(file, 'utf8'))}));
 }
 
-test('no game work is posted with AddTask', () => {
-  const found = sources().filter(file => /\bAddTask\s*\(/.test(file.code)).map(file => file.name);
-  assert.deepEqual(found, [], 'AddTask can run off the game thread; use GameThread::Post');
+test('no SKSE task queue for game work', () => {
+  const found = sources().filter(file => /\b(AddTask|AddUITask)\s*\(/.test(file.code)).map(file => file.name);
+  assert.deepEqual(found, [], 'SKSE\'s task queues can run off the game thread; use GameThread::Post');
 });
 
-test('AddUITask is called only by GameThread::Post', () => {
-  const found = sources().filter(file => /\bAddUITask\s*\(/.test(file.code)).map(file => file.name);
-  assert.deepEqual(found, ['GameThread.h']);
+test('GameThread::Post hands work to the pump, installed at kPostLoad', () => {
+  const files = sources();
+  const helper = files.find(file => file.name === 'GameThread.h').code;
+  assert.match(helper, /#include "DovahGameThread\.h"/);
+  assert.match(helper, /bool Post\(F task, [^{]*\)\s*\{\s*DovahGameThread::Post\(/);
+  assert.match(helper, /if \(DovahGameThread::Pumping\(\)\) return DovahGameThread::Id\(\);/);
+  const plugin = files.find(file => file.name === 'Plugin.cpp').code;
+  assert.match(plugin, /case SKSE::MessagingInterface::kPostLoad:\s*DovahGameThread::Install\("Chronicle"\);/);
+  assert.doesNotMatch(plugin.slice(0, plugin.indexOf('RegisterListener')), /DovahGameThread::Install/,
+    'Install waits for kPostLoad: DovahHub loads after Chronicle');
 });
 
 // Topic-info events may arrive on any thread: the sink only copies two form
