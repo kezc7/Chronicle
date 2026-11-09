@@ -72,6 +72,43 @@ int main()
     Require(!state.Visible());
     state.Menu("MagelightFocus", false);
     Require(state.Visible());
+    // DFC's panel and wheel use PrismaUI, including with Chronicle on Magelight.
+    for (const std::string_view hostMenu : { "PrismaUI_FocusMenu", "MagelightFocus" }) {
+        ChronicleRuntime::State hostState;
+        hostState.loaded = hostState.ready = true;
+        hostState.ownFocusMenu = hostMenu;
+        hostState.Menu("PrismaUI_FocusMenu", true);
+        Require(!hostState.Visible());
+        hostState.hideMenus = false;
+        Require(hostState.Visible());
+        hostState.hideMenus = true;
+        hostState.Menu("PrismaUI_FocusMenu", false);
+        Require(hostState.Visible());
+
+        hostState.Menu(hostMenu, true);
+        hostState.ownsFocus = true;
+        Require(hostState.Visible()); // Chronicle's own input must remain visible.
+        hostState.ownsFocus = false;  // Same menu stays open as another view takes focus.
+        Require(!hostState.Visible());
+        hostState.Menu(hostMenu, false);
+        Require(hostState.Visible());
+
+        hostState.ownsFocus = true;
+        hostState.Menu("PrismaUI_FocusMenu", true);
+        hostState.Menu("MagelightFocus", true);
+        Require(!hostState.Visible()); // Owning one host cannot exempt the other host.
+        hostState.userHidden = true;
+        hostState.Menu("PrismaUI_FocusMenu", false);
+        hostState.Menu("MagelightFocus", false);
+        Require(!hostState.Visible()); // Closing DFC must not undo the hide hotkey.
+        hostState.userHidden = false;
+        hostState.apiHidden = true;
+        hostState.Menu("PrismaUI_FocusMenu", true);
+        hostState.Menu("PrismaUI_FocusMenu", false);
+        Require(!hostState.Visible()); // Nor another mod's explicit hide.
+        hostState.apiHidden = false;
+        Require(hostState.Visible());
+    }
     state.Menu("Console", true); // Skyrim's own console hides Chronicle like a menu
     Require(!state.Visible());
     state.Menu("Console", false);
