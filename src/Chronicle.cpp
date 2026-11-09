@@ -284,7 +284,7 @@ void Chronicle::UpdateVisibility()
             "StatsMenu", "SleepWaitMenu", "FavoritesMenu", "BarterMenu",
             "CraftingMenu", "Crafting Menu", "SmithingMenu", "Smithing Menu",
             "AlchemyMenu", "Alchemy Menu", "EnchantingMenu", "Enchanting Menu",
-            "CookingMenu", "Cooking Menu", "PhotoMenu", "MeridianUI_FocusMenu", "MagelightFocus", "Console",
+            "CookingMenu", "Cooking Menu", "PhotoMenu", "PrismaUI_FocusMenu", "MeridianUI_FocusMenu", "MagelightFocus", "Console",
             "RaceSex Menu", "Book Menu", "Lockpicking Menu", "Training Menu", "GiftMenu",
             "Tutorial Menu", "Credits Menu", "Mod Manager Menu", "CustomMenu"
         };
@@ -362,20 +362,32 @@ void Chronicle::Tick()
     // Catches a DovahHub close whose message was missed.
     OnDovahHubOpen(DovahHubModule::IsOpen());
     // Menus can unfocus a view without delivering an Escape key to JavaScript.
-    if (!UiHost().ViewValid() || !m_hadFocus) return;
+    if (!UiHost().ViewValid()) return;
     const bool focused = UiHost().HasFocus();
-    m_focusSeen = m_focusSeen || focused;
-    const auto waited = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::steady_clock::now() - m_focusGrantedAt).count();
-    if (ChronicleRuntime::FocusLost(focused, m_focusSeen, static_cast<int>(std::min<long long>(waited, 60000)))) {
-        spdlog::info("Chronicle: focus {}", m_focusSeen ? "lost" : "never arrived");
-        m_hadFocus = false;
-        m_focusSeen = false;
-        m_keyboardCapture = false;
-        ++m_focusRevision;
-        InvokeUI("closeInteraction(false)");
-        InvokeUI("focusResult(false, 'focus.closed')");
+    if (m_hadFocus) {
+        m_focusSeen = m_focusSeen || focused;
+        const auto waited = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - m_focusGrantedAt).count();
+        if (ChronicleRuntime::FocusLost(focused, m_focusSeen, static_cast<int>(std::min<long long>(waited, 60000)))) {
+            spdlog::info("Chronicle: focus {}", m_focusSeen ? "lost" : "never arrived");
+            m_hadFocus = false;
+            m_focusSeen = false;
+            m_keyboardCapture = false;
+            ++m_focusRevision;
+            InvokeUI("closeInteraction(false)");
+            InvokeUI("focusResult(false, 'focus.closed')");
+        }
     }
+    // Host menus can stay open across focus handoffs, or close without an
+    // event reaching us. Reconcile both hosts even while Chronicle is hidden.
+    if (auto* ui = RE::UI::GetSingleton()) {
+        for (const auto name : { "PrismaUI_FocusMenu", "MagelightFocus" }) {
+            m_state.Menu(name, ui->IsMenuOpen(name));
+        }
+    }
+    m_state.ownFocusMenu = UiHost().FocusMenu();
+    m_state.ownsFocus = m_hadFocus || focused;
+    if (m_state.Visible() == m_hidden.load()) UpdateVisibility();
 }
 
 void Chronicle::PollMenuFramework()

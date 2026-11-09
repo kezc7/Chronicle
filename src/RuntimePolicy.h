@@ -807,6 +807,9 @@ namespace ChronicleRuntime
             name == "ContainerMenu" || name == "Journal Menu" || name == "LevelUpMenu" ||
             name == "StatsMenu" || name == "SleepWaitMenu" || name == "FavoritesMenu" ||
             name == "BarterMenu" || IsCrafting(name) || name == "PhotoMenu" ||
+            // PrismaUI menus such as DFC also hide the Magelight build.
+            // State::Visible exempts Chronicle's own focused view.
+            name == "PrismaUI_FocusMenu" ||
             // Meridian UI opens this modal menu while one of its web views
             // (e.g. Wayframe) has focus. PrismaUI draws above Meridian, so
             // without it Chronicle stays on top of those menus.
