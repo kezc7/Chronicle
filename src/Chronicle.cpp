@@ -313,7 +313,7 @@ void Chronicle::UpdateVisibility()
         } else if (visible && UiHost().ViewValid() && m_viewReady && !UiHost().AnyFocus()) {
             m_launcherOpenUntil = {};
             m_keyboardCapture = true;
-            InvokeUI("nativeHotkey(\"input\")");
+            InvokeUI("nativeHotkey(\"settings\")");
         }
     }
 }
@@ -324,10 +324,11 @@ void Chronicle::OpenFromLauncher()
         spdlog::info("Chronicle: DovahMenu open ignored: no game loaded");
         return;
     }
-    spdlog::info("Chronicle: opened from DovahMenu");
+    spdlog::info("Chronicle: opened from DovahMenu (settings)");
     if (m_state.userHidden) ToggleUserHidden();
-    // DovahMenu's own focus menu may still be closing: the input bar opens
-    // once Chronicle is visible and nothing holds focus, within two seconds.
+    // DovahMenu's own focus menu may still be closing: the settings window
+    // opens once Chronicle is visible and nothing holds focus, within two
+    // seconds. The chat bar stays on Chronicle's own input key.
     m_launcherOpenUntil = std::chrono::steady_clock::now() + std::chrono::seconds(2);
     UpdateVisibility();
 }
@@ -710,7 +711,7 @@ void Chronicle::ApplyNativeSettings(const nlohmann::json& settings)
     m_interactKey = key(general.value("interact_hotkey", std::string("F8")), VK_F8);
     m_settingsKey = key(general.value("config_hotkey", std::string("0")), '0');
     m_inputKey = key(general.value("input_hotkey", std::string("Enter")), VK_RETURN);
-    DovahMenuModule::SetHotkey(general.value("input_hotkey", std::string("Enter")));
+    DovahMenuModule::SetHotkey(ChronicleRuntime::LauncherHotkey(general.value("config_hotkey", std::string("0"))));
     m_toggleKey = key(general.value("toggle_hotkey", std::string()), 0);  // 0 = no key
     // Remembered hidden state is restored from the settings file; otherwise
     // the current session's state is left as it is.

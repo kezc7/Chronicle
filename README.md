@@ -79,7 +79,8 @@ history is left intact but is not assigned to an arbitrary character.
 With DovahMenu installed, Chronicle registers its own entry in DovahMenu's list,
 the same on the PrismaUI and Magelight builds. It is greyed out until a game is
 loaded; opening it shows the chat box (also if the show/hide key hid it) and opens
-the input bar. The entry shows the current input hotkey.
+Chronicle's settings. The entry shows the settings key (Shift + the settings hotkey);
+the chat bar stays on the input hotkey.
 
 ### Chronicle tab in DovahHub
 
