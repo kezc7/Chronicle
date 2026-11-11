@@ -72,7 +72,7 @@ test('the self-test learns which character the window shows',()=>{
   assert.equal(sent.length,1);
   assert.equal(sent[0][0],'selfTestReply');
   assert.deepEqual(JSON.parse(JSON.stringify(sent[0][1])),
-    {token:'5',profile:'1731254400',loaded:true,lines:1,search:'burdens',speaker:'Lydia',
+    {token:'5',profile:'1731254400',loaded:true,lines:1,search:'burdens',speaker:'Lydia',lineage:'null',folded:0,
       pad:{api:false,connected:0,id:''}});
   ctx.setRuntime({profile:'',loaded:false,character:''});
   ctx.chronicleSelfTest(6);

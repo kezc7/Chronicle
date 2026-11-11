@@ -59,6 +59,8 @@ namespace
         std::size_t lines{ 0 };
         std::string search;
         std::string speaker;
+        std::string lineage;           // the stretches the page folds by, as JSON ("null": every line)
+        std::size_t folded{ 0 };
         bool padApi{ false };          // the page has navigator.getGamepads
         std::size_t padsConnected{ 0 };
         std::string padId;
@@ -365,6 +367,43 @@ namespace
                 " line(s); search '" + run.page->search + "', speaker filter '" + run.page->speaker + "'");
         } });
 
+        // The log follows the save (CHRON-18): the save's stretches survive the co-save
+        // record, the DovahHub tab shows only lines inside them, and the chat window
+        // folds by the same stretches as the native side.
+        steps.push_back({ "saveleak.lineage", [&run, chronicle](std::int64_t) {
+            constexpr const char* step = "saveleak.lineage";
+            if (!chronicle->IsGameLoaded()) return Outcome::Done(step, Result::Skip, "no game loaded");
+            const auto& lineage = chronicle->HistoryLineage();
+            const auto forSave = chronicle->LineageForSave();
+            if (ChronicleHistory::Lineage::Unpack(ChronicleHistory::Lineage::Pack(forSave)) != forSave) {
+                return Outcome::Done(step, Result::Fail, "the next save's stretches don't read back from the co-save record");
+            }
+            const auto page = nlohmann::json::parse(chronicle->HistoryPageJson(std::nullopt, ChronicleHistory::kMaxLines), nullptr, false);
+            if (!page.is_object() || !page.contains("lines") || !page["lines"].is_array()) {
+                return Outcome::Done(step, Result::Fail, "the history page answer isn't JSON");
+            }
+            for (const auto& line : page["lines"]) {
+                if (!lineage.Contains(line.value("timestamp", std::int64_t{ 0 }))) {
+                    return Outcome::Done(step, Result::Fail, "the DovahHub tab would show a line this save never saw");
+                }
+            }
+            const auto expected = lineage.ShowsAll() ? std::string("null") : lineage.ToJson().dump();
+            if (run.page && run.page->lineage != expected) {
+                return Outcome::Done(step, Result::Fail, "the chat window folds by other stretches than the game");
+            }
+            const auto shown = page["lines"].size();
+            const auto folded = chronicle->FoldedLines();
+            const auto window = run.page ? "; the chat window agrees, " + std::to_string(run.page->folded) + " folded there"
+                                         : std::string("; the chat window wasn't asked (see saveleak.page)");
+            if (lineage.ShowsAll()) {
+                return Outcome::Done(step, Result::Pass, "a save from before 1.4.17 or a new character: all " + std::to_string(shown) +
+                    " line(s) show; the next save keeps " + std::to_string(forSave.size()) + " stretch(es)" + window);
+            }
+            return Outcome::Done(step, Result::Pass, "the log follows this save: " + std::to_string(shown) + " line(s) shown, " +
+                std::to_string(folded) + " from other play folded, " + std::to_string(lineage.Closed().size()) +
+                " stretch(es); the next save keeps " + std::to_string(forSave.size()) + window);
+        } });
+
         steps.push_back({ "saveleak.mainmenu", [](std::int64_t) {
             return Outcome::Done("saveleak.mainmenu", Result::Skip,
                 "needs a quit to the Main Menu and a load (save-leak in-game check 2)");
@@ -497,6 +536,8 @@ namespace ChronicleSelfTestRun
         reply.speaker = text("speaker");
         if (const auto it = data.find("loaded"); it != data.end() && it->is_boolean()) reply.loaded = it->get<bool>();
         if (const auto it = data.find("lines"); it != data.end() && it->is_number_unsigned()) reply.lines = it->get<std::size_t>();
+        if (const auto it = data.find("lineage"); it != data.end() && it->is_string()) reply.lineage = it->get<std::string>().substr(0, 8192);
+        if (const auto it = data.find("folded"); it != data.end() && it->is_number_unsigned()) reply.folded = it->get<std::size_t>();
         if (const auto pad = data.find("pad"); pad != data.end() && pad->is_object()) {
             if (const auto it = pad->find("api"); it != pad->end() && it->is_boolean()) reply.padApi = it->get<bool>();
             if (const auto it = pad->find("connected"); it != pad->end() && it->is_number_unsigned()) reply.padsConnected = it->get<std::size_t>();

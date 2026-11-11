@@ -68,22 +68,44 @@ SKSEPluginLoad(const SKSE::LoadInterface* a_skse)
     // remain distinct even when two characters have the same display name.
     if (auto* serial = SKSE::GetSerializationInterface()) {
         serial->SetUniqueID(0x4348524E); // CHRN
+        // PRFL: the character id. LINE (1.4.17): the stretches of play this save
+        // went through, so the log follows the save (History.h Lineage).
+        constexpr std::uint32_t kProfileRecord = 0x5052464C;  // PRFL
+        constexpr std::uint32_t kLineageRecord = 0x4C494E45;  // LINE
         serial->SetRevertCallback([](SKSE::SerializationInterface*) {
             Chronicle::GetSingleton()->DropHistory();
             Chronicle::GetSingleton()->profileId = 0;
+            Chronicle::GetSingleton()->OnLineageLoaded(std::nullopt);  // a save without LINE shows every line
         });
         serial->SetSaveCallback([](SKSE::SerializationInterface* data) {
-            const auto id = Chronicle::GetSingleton()->profileId.load();
-            if (!data->OpenRecord(0x5052464C, 1) || !data->WriteRecordData(id)) {
+            auto* chronicle = Chronicle::GetSingleton();
+            const auto id = chronicle->profileId.load();
+            if (!data->OpenRecord(kProfileRecord, 1) || !data->WriteRecordData(id)) {
                 spdlog::error("Chronicle: unable to save character profile");
+            }
+            const auto ranges = chronicle->LineageForSave();
+            const auto words = ChronicleHistory::Lineage::Pack(ranges);
+            if (!data->OpenRecord(kLineageRecord, 1) ||
+                !data->WriteRecordData(words.data(), static_cast<std::uint32_t>(words.size() * sizeof(std::int64_t)))) {
+                spdlog::error("Chronicle: unable to save the history stretches");
+            } else {
+                spdlog::info("Chronicle: save keeps {} history stretch(es)", ranges.size());
             }
         });
         serial->SetLoadCallback([](SKSE::SerializationInterface* data) {
             std::uint32_t type, version, length;
             while (data->GetNextRecordInfo(type, version, length)) {
                 std::uint64_t id = 0;
-                if (type == 0x5052464C && version == 1 && length == sizeof(id) &&
+                if (type == kProfileRecord && version == 1 && length == sizeof(id) &&
                     data->ReadRecordData(id) == sizeof(id)) Chronicle::GetSingleton()->profileId = id;
+                if (type == kLineageRecord && version == 1 && length % sizeof(std::int64_t) == 0 &&
+                    length <= (1 + 2 * ChronicleHistory::Lineage::kMaxRanges) * sizeof(std::int64_t)) {
+                    std::vector<std::int64_t> words(length / sizeof(std::int64_t));
+                    const auto read = words.empty() ? 0 : data->ReadRecordData(words.data(), length);
+                    auto ranges = read == length ? ChronicleHistory::Lineage::Unpack(words) : std::nullopt;
+                    if (!ranges) spdlog::warn("Chronicle: the save's history stretches don't read; every line shows");
+                    Chronicle::GetSingleton()->OnLineageLoaded(std::move(ranges));
+                }
             }
         });
     }

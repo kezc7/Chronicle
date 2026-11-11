@@ -114,10 +114,12 @@ namespace ChronicleApiPolicy
         std::uint32_t speakerFormId{ 0 };
         std::string ownerQuest;   // "" = any
         std::uint32_t limit{ kDefaultLimit };
+        // The loaded save's lines only (History.h Lineage); nullptr = every line.
+        const ChronicleHistory::Lineage* lineage{ nullptr };
 
         bool Matches(const ChronicleHistory::Line& line) const
         {
-            return line.id > sinceId && channels.Matches(line) &&
+            return line.id > sinceId && channels.Matches(line) && (!lineage || lineage->Contains(line.timestamp)) &&
                 (!speakerFormId || line.speakerFormId == speakerFormId) &&
                 (ownerQuest.empty() || Lower(line.ownerQuest) == Lower(ownerQuest));
         }
