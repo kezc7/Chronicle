@@ -8,11 +8,12 @@
 -->
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dv-scale">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Chronicle</title>
+  <link rel="stylesheet" href="theme/dovah-theme.css" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body class="runtime-hidden">
@@ -63,141 +64,141 @@
   <!-- Resize handle -->
   <div id="resize-handle"></div>
 
-  <!-- Settings overlay (hidden; opened with Shift+0 or the gear button) -->
+  <!-- Settings overlay (hidden; opened with Shift+0 or the gear button). The suite's look: theme/dovah-theme.css. -->
   <div id="settings-overlay" class="hidden">
-    <div id="settings-panel">
+    <div id="settings-panel" class="dv-panel dv-page">
 
       <div id="sp-header">
-        <span data-i18n="sp.title">Chronicle Settings</span>
-        <button id="sp-close" title="Close (Escape)" data-i18n-title="sp.close">&#x2715;</button>
+        <p class="dv-kicker">Chronicle</p>
+        <h2 class="dv-heading" data-i18n="sp.title">Chronicle Settings</h2>
+        <div id="sp-tabs" class="dv-tabs" role="tablist">
+          <button type="button" class="dv-tab sp-tab is-active" role="tab" aria-selected="true" data-sp="general" data-i18n="sp.tabGeneral">General</button>
+          <button type="button" class="dv-tab sp-tab" role="tab" aria-selected="false" data-sp="window" data-i18n="sp.tabWindow">Window</button>
+          <button type="button" class="dv-tab sp-tab" role="tab" aria-selected="false" data-sp="channels" data-i18n="sp.tabChannels">Channels</button>
+        </div>
       </div>
 
-      <div id="sp-tabs">
-        <button class="sp-tab active" data-sp="general" data-i18n="sp.tabGeneral">General</button>
-        <button class="sp-tab" data-sp="channels" data-i18n="sp.tabChannels">Channels</button>
-      </div>
-
-      <div id="sp-content">
+      <div id="sp-content" class="dv-list">
 
         <!-- General -->
         <div id="sp-general" class="sp-section active">
 
           <div class="sp-group">
-            <h3 data-i18n="sp.behaviour">Behaviour</h3>
-            <div class="sp-row">
-              <label><span data-i18n="sp.language">Language</span><span class="sp-hint" data-i18n="sp.languageHint">Auto follows Skyrim's language setting</span><span class="sp-hint" data-i18n="sp.languageNote">Translations other than English are machine translations; corrections welcome.</span></label>
-              <select id="sp-language">
-                <option value="auto" data-i18n="sp.languageAuto">Auto (game language)</option>
-                <option value="en">English</option>
-                <option value="fr">Français</option>
-                <option value="de">Deutsch</option>
-                <option value="it">Italiano</option>
-                <option value="es">Español</option>
-                <option value="pl">Polski</option>
-                <option value="tr">Türkçe</option>
-                <option value="zh-CN">简体中文</option>
-                <option value="ja">日本語</option>
-                <option value="ko">한국어</option>
-              </select>
-            </div>
-            <div class="sp-row">
-              <label><span data-i18n="sp.enabled">Show chatbox</span><span class="sp-hint" data-i18n="sp.enabledHint">History still records while the box is hidden</span></label>
-              <label class="sp-toggle">
-                <input type="checkbox" id="sp-enabled" checked />
-                <span class="sp-track"></span>
-              </label>
-            </div>
-            <div class="sp-row">
-              <label><span data-i18n="sp.autoHide">Auto-hide after (s)</span><span class="sp-hint" data-i18n="sp.autoHideHint">Fades the whole window when nothing new arrives. 0 = never</span></label>
-              <div class="sp-slider">
-                <input type="range" id="sp-auto-hide" min="0" max="300" step="1" value="0" />
-                <input type="number" id="sp-auto-hide-val" class="sp-position-val" min="0" max="300" step="1" value="0" />
+            <h3 class="dv-kicker" data-i18n="sp.behaviour">Behaviour</h3>
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-language"><b data-i18n="sp.language">Language</b><small data-i18n="sp.languageHint">Auto follows Skyrim's language setting</small><small data-i18n="sp.languageNote">Translations other than English are machine translations; corrections welcome.</small></label>
+              <div class="dv-setting-row__control">
+                <select id="sp-language" class="dv-select">
+                  <option value="auto" data-i18n="sp.languageAuto">Auto (game language)</option>
+                  <option value="en">English</option>
+                  <option value="fr">Français</option>
+                  <option value="de">Deutsch</option>
+                  <option value="it">Italiano</option>
+                  <option value="es">Español</option>
+                  <option value="pl">Polski</option>
+                  <option value="tr">Türkçe</option>
+                  <option value="zh-CN">简体中文</option>
+                  <option value="ja">日本語</option>
+                  <option value="ko">한국어</option>
+                </select>
               </div>
             </div>
-            <div class="sp-row">
-              <label><span data-i18n="sp.rememberHidden">Remember hidden state</span><span class="sp-hint" data-i18n="sp.rememberHiddenHint">If you hide Chronicle with the show/hide key, keep it hidden after loading</span></label>
-              <label class="sp-toggle">
-                <input type="checkbox" id="sp-remember-hidden" checked />
-                <span class="sp-track"></span>
-              </label>
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-enabled"><b data-i18n="sp.enabled">Show chatbox</b><small data-i18n="sp.enabledHint">History still records while the box is hidden</small></label>
+              <label class="dv-toggle sp-toggle"><input type="checkbox" id="sp-enabled" checked /><span class="dv-toggle__track"><i></i></span><span class="sp-toggle-state"></span></label>
             </div>
-            <div class="sp-row">
-              <label><span data-i18n="sp.hideMenus">Hide in menus</span><span class="sp-hint" data-i18n="sp.hideMenusHint">Main and loading screens are always hidden</span></label>
-              <label class="sp-toggle">
-                <input type="checkbox" id="sp-hide-menus" checked />
-                <span class="sp-track"></span>
-              </label>
-            </div>
-            <div class="sp-row">
-              <label><span data-i18n="sp.hidePhoto">Hide in Photo Mode</span><span class="sp-hint" data-i18n="sp.hidePhotoHint">Auto-hide during Photo Mode</span></label>
-              <label class="sp-toggle">
-                <input type="checkbox" id="sp-hide-photo" checked />
-                <span class="sp-track"></span>
-              </label>
-            </div>
-            <div class="sp-row">
-              <label><span data-i18n="sp.dialogueRadius">NPC speech radius</span><span class="sp-hint" data-i18n="sp.dialogueRadiusHint">Only log NPC speech within this distance. 0 = unlimited.</span></label>
-              <div class="sp-slider">
-                <input type="range" id="sp-dialogue-radius" min="0" max="5000" step="25" value="0" />
-                <input type="number" id="sp-dialogue-radius-val" class="sp-position-val" min="0" max="5000" step="25" value="0" />
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-auto-hide"><b data-i18n="sp.autoHide">Auto-hide after (s)</b><small data-i18n="sp.autoHideHint">Fades the whole window when nothing new arrives. 0 = never</small></label>
+              <div class="dv-setting-row__control sp-slider">
+                <input type="range" id="sp-auto-hide" class="dv-slider" min="0" max="300" step="1" value="0" />
+                <input type="number" id="sp-auto-hide-val" class="sp-field sp-position-val" min="0" max="300" step="1" value="0" />
               </div>
             </div>
-            <div class="sp-row">
-              <label><span data-i18n="sp.hideGameNotifications">Notifications only in Chronicle</span><span class="sp-hint" data-i18n="sp.hideGameNotificationsHint">Hides the game's corner notifications while Chronicle is visible. Quest and skill banners still show.</span></label>
-              <label class="sp-toggle">
-                <input type="checkbox" id="sp-hide-game-notifications" />
-                <span class="sp-track"></span>
-              </label>
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-remember-hidden"><b data-i18n="sp.rememberHidden">Remember hidden state</b><small data-i18n="sp.rememberHiddenHint">If you hide Chronicle with the show/hide key, keep it hidden after loading</small></label>
+              <label class="dv-toggle sp-toggle"><input type="checkbox" id="sp-remember-hidden" checked /><span class="dv-toggle__track"><i></i></span><span class="sp-toggle-state"></span></label>
+            </div>
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-hide-menus"><b data-i18n="sp.hideMenus">Hide in menus</b><small data-i18n="sp.hideMenusHint">Main and loading screens are always hidden</small></label>
+              <label class="dv-toggle sp-toggle"><input type="checkbox" id="sp-hide-menus" checked /><span class="dv-toggle__track"><i></i></span><span class="sp-toggle-state"></span></label>
+            </div>
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-hide-photo"><b data-i18n="sp.hidePhoto">Hide in Photo Mode</b><small data-i18n="sp.hidePhotoHint">Auto-hide during Photo Mode</small></label>
+              <label class="dv-toggle sp-toggle"><input type="checkbox" id="sp-hide-photo" checked /><span class="dv-toggle__track"><i></i></span><span class="sp-toggle-state"></span></label>
+            </div>
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-dialogue-radius"><b data-i18n="sp.dialogueRadius">NPC speech radius</b><small data-i18n="sp.dialogueRadiusHint">Only log NPC speech within this distance. 0 = unlimited.</small></label>
+              <div class="dv-setting-row__control sp-slider">
+                <input type="range" id="sp-dialogue-radius" class="dv-slider" min="0" max="5000" step="25" value="0" />
+                <input type="number" id="sp-dialogue-radius-val" class="sp-field sp-position-val" min="0" max="5000" step="25" value="0" />
+              </div>
+            </div>
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-hide-game-notifications"><b data-i18n="sp.hideGameNotifications">Notifications only in Chronicle</b><small data-i18n="sp.hideGameNotificationsHint">Hides the game's corner notifications while Chronicle is visible. Quest and skill banners still show.</small></label>
+              <label class="dv-toggle sp-toggle"><input type="checkbox" id="sp-hide-game-notifications" /><span class="dv-toggle__track"><i></i></span><span class="sp-toggle-state"></span></label>
             </div>
           </div>
 
           <div class="sp-group">
-            <h3 data-i18n="sp.hotkeys">Hotkeys</h3>
-            <div class="sp-hint sp-section-hint" data-i18n="sp.hotkeysHint">Click a box, then press the key you want. Letters, numbers, Enter and F1–F12 can be used. Click Apply to save.</div>
-            <div class="sp-row"><label><span data-i18n="sp.interactHotkey">Interact hotkey</span><span class="sp-hint" data-i18n="sp.interactHotkeyHint">Shows the cursor for tabs, scrolling and dragging</span></label><input id="sp-interact-hotkey" class="sp-hotkey" type="text" value="F8" readonly /></div>
-            <div class="sp-row">
-              <label><span data-i18n="sp.settingsHotkey">Settings hotkey</span><span class="sp-hint" data-i18n="sp.settingsHotkeyHint">Shift + this key opens settings</span></label>
-              <input type="text" id="sp-config-hotkey" class="sp-hotkey" value="0" readonly />
+            <h3 class="dv-kicker" data-i18n="sp.hotkeys">Hotkeys</h3>
+            <p class="sp-section-hint" data-i18n="sp.hotkeysHint">Click a box, then press the key you want. Letters, numbers, Enter and F1–F12 can be used. Click Apply to save.</p>
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-interact-hotkey"><b data-i18n="sp.interactHotkey">Interact hotkey</b><small data-i18n="sp.interactHotkeyHint">Shows the cursor for tabs, scrolling and dragging</small></label>
+              <input id="sp-interact-hotkey" class="dv-keycap sp-hotkey" type="text" value="F8" readonly />
             </div>
-            <div class="sp-row">
-              <label><span data-i18n="sp.inputHotkey">Input hotkey</span><span class="sp-hint" data-i18n="sp.inputHotkeyHint">Key to open the chat input bar</span></label>
-              <input type="text" id="sp-input-hotkey" class="sp-hotkey" value="Enter" readonly />
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-config-hotkey"><b data-i18n="sp.settingsHotkey">Settings hotkey</b><small data-i18n="sp.settingsHotkeyHint">Shift + this key opens settings</small></label>
+              <input type="text" id="sp-config-hotkey" class="dv-keycap sp-hotkey" value="0" readonly />
             </div>
-            <div class="sp-row">
-              <label><span data-i18n="sp.toggleHotkey">Show/hide hotkey</span><span class="sp-hint" data-i18n="sp.toggleHotkeyHint">Hides or shows Chronicle; the settings hotkey also brings it back. Backspace removes the key</span></label>
-              <input type="text" id="sp-toggle-hotkey" class="sp-hotkey" value="" readonly data-optional="true"
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-input-hotkey"><b data-i18n="sp.inputHotkey">Input hotkey</b><small data-i18n="sp.inputHotkeyHint">Key to open the chat input bar</small></label>
+              <input type="text" id="sp-input-hotkey" class="dv-keycap sp-hotkey" value="Enter" readonly />
+            </div>
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-toggle-hotkey"><b data-i18n="sp.toggleHotkey">Show/hide hotkey</b><small data-i18n="sp.toggleHotkeyHint">Hides or shows Chronicle; the settings hotkey also brings it back. Backspace removes the key</small></label>
+              <input type="text" id="sp-toggle-hotkey" class="dv-keycap sp-hotkey" value="" readonly data-optional="true"
                      placeholder="None" data-i18n-placeholder="hotkey.none" />
             </div>
-            <div id="sp-hotkey-status" class="sp-hint" role="status"></div>
+            <div id="sp-hotkey-status" class="sp-section-hint" role="status"></div>
           </div>
 
           <div class="sp-group">
-            <h3 data-i18n="sp.history">History</h3>
-            <div class="sp-row">
-              <label><span data-i18n="sp.maxMessages">Max messages</span><span class="sp-hint" data-i18n="sp.maxMessagesHint">Lines kept in scroll-back (1–500)</span></label>
-              <input type="number" id="sp-max-messages" value="100" min="1" max="500" />
+            <h3 class="dv-kicker" data-i18n="sp.history">History</h3>
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-max-messages"><b data-i18n="sp.maxMessages">Max messages</b><small data-i18n="sp.maxMessagesHint">Lines kept in scroll-back (1–500)</small></label>
+              <input type="number" id="sp-max-messages" class="sp-field" value="100" min="1" max="500" />
             </div>
-            <div class="sp-row">
-              <label><span data-i18n="sp.keepHistory">Keep history</span><span class="sp-hint" data-i18n="sp.keepHistoryHint">Restore chat messages after restarting Skyrim</span></label>
-              <label class="sp-toggle">
-                <input type="checkbox" id="sp-persist-history" checked />
-                <span class="sp-track"></span>
-              </label>
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-persist-history"><b data-i18n="sp.keepHistory">Keep history</b><small data-i18n="sp.keepHistoryHint">Restore chat messages after restarting Skyrim</small></label>
+              <label class="dv-toggle sp-toggle"><input type="checkbox" id="sp-persist-history" checked /><span class="dv-toggle__track"><i></i></span><span class="sp-toggle-state"></span></label>
             </div>
-            <div class="sp-row">
-              <label><span data-i18n="sp.fadeTime">Fade time (s)</span><span class="sp-hint" data-i18n="sp.fadeTimeHint">0 = never fade</span></label>
-              <div class="sp-slider">
-                <input type="range" id="sp-fade-time" min="0" max="60" step="1" value="0" />
-                <span class="sp-slider-val" id="sp-fade-time-val">0</span>
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-fade-time"><b data-i18n="sp.fadeTime">Fade time (s)</b><small data-i18n="sp.fadeTimeHint">0 = never fade</small></label>
+              <div class="dv-setting-row__control sp-slider">
+                <input type="range" id="sp-fade-time" class="dv-slider" min="0" max="60" step="1" value="0" />
+                <span class="dv-setting-row__value" id="sp-fade-time-val">0</span>
               </div>
             </div>
           </div>
 
           <div class="sp-group">
-            <h3 data-i18n="sp.appearance">Appearance</h3>
-            <div class="sp-row">
-              <label data-i18n="sp.theme">Theme</label>
-              <select id="sp-theme">
+            <h3 class="dv-kicker" data-i18n="sp.hudCompat">HUD subtitle compatibility</h3>
+            <div class="dv-setting-row sp-row-stacked">
+              <label class="dv-setting-row__label" for="sp-hud-subtitle-paths"><b data-i18n="sp.gfxPaths">Additional GFx paths</b><small data-i18n="sp.gfxPathsHint">Optional: one Scaleform path per line. Vanilla paths stay enabled.</small></label>
+              <textarea id="sp-hud-subtitle-paths" class="sp-field" rows="3"
+                placeholder="_root.SomeHud.Subtitle.text"></textarea>
+            </div>
+          </div>
+
+        </div><!-- /sp-general -->
+
+        <!-- Window -->
+        <div id="sp-window" class="sp-section">
+          <div class="sp-group">
+            <h3 class="dv-kicker" data-i18n="sp.appearance">Appearance</h3>
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-theme"><b data-i18n="sp.theme">Theme</b></label>
+              <select id="sp-theme" class="dv-select">
                 <option value="skyrim" data-i18n="theme.skyrim">Skyrim</option>
                 <option value="daedric" data-i18n="theme.daedric">Daedric</option>
                 <option value="dwemer" data-i18n="theme.dwemer">Dwemer</option>
@@ -208,9 +209,9 @@
                 <option value="high-contrast" data-i18n="theme.high-contrast">High contrast</option>
               </select>
             </div>
-            <div class="sp-row">
-              <label data-i18n="sp.anchor">Anchor</label>
-              <select id="sp-anchor">
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-anchor"><b data-i18n="sp.anchor">Anchor</b></label>
+              <select id="sp-anchor" class="dv-select">
                 <option value="custom" data-i18n="anchor.custom">Custom position</option>
                 <option value="bottom-left" data-i18n="anchor.bottom-left">Bottom left</option>
                 <option value="bottom-right" data-i18n="anchor.bottom-right">Bottom right</option>
@@ -218,95 +219,82 @@
                 <option value="top-right" data-i18n="anchor.top-right">Top right</option>
               </select>
             </div>
-            <div class="sp-row">
-              <label><span data-i18n="sp.positionX">Position X (px)</span><span class="sp-hint" data-i18n="sp.positionXHint">Move the box left and right in real time</span></label>
-              <div class="sp-slider position-slider">
-                <button type="button" class="sp-nudge" data-axis="position_x" data-step="-1" title="Left 1 px (Shift: 10 px)" data-i18n-title="sp.nudgeLeft">&minus;</button>
-                <input type="range" id="sp-position-x" min="0" max="1920" step="1" value="20" />
-                <button type="button" class="sp-nudge" data-axis="position_x" data-step="1" title="Right 1 px (Shift: 10 px)" data-i18n-title="sp.nudgeRight">+</button>
-                <input type="number" id="sp-position-x-val" class="sp-position-val" min="0" step="1" value="20" title="Exact X position in px" data-i18n-title="sp.exactX" />
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-position-x"><b data-i18n="sp.positionX">Position X (px)</b><small data-i18n="sp.positionXHint">Move the box left and right in real time</small></label>
+              <div class="dv-setting-row__control sp-slider position-slider">
+                <button type="button" class="dv-button sp-nudge" data-axis="position_x" data-step="-1" title="Left 1 px (Shift: 10 px)" data-i18n-title="sp.nudgeLeft">&minus;</button>
+                <input type="range" id="sp-position-x" class="dv-slider" min="0" max="1920" step="1" value="20" />
+                <button type="button" class="dv-button sp-nudge" data-axis="position_x" data-step="1" title="Right 1 px (Shift: 10 px)" data-i18n-title="sp.nudgeRight">+</button>
+                <input type="number" id="sp-position-x-val" class="sp-field sp-position-val" min="0" step="1" value="20" title="Exact X position in px" data-i18n-title="sp.exactX" />
               </div>
             </div>
-            <div class="sp-row">
-              <label><span data-i18n="sp.positionY">Position Y (px)</span><span class="sp-hint" data-i18n="sp.positionYHint">Move the box up and down in real time</span></label>
-              <div class="sp-slider position-slider">
-                <button type="button" class="sp-nudge" data-axis="position_y" data-step="-1" title="Up 1 px (Shift: 10 px)" data-i18n-title="sp.nudgeUp">&minus;</button>
-                <input type="range" id="sp-position-y" min="0" max="1080" step="1" value="400" />
-                <button type="button" class="sp-nudge" data-axis="position_y" data-step="1" title="Down 1 px (Shift: 10 px)" data-i18n-title="sp.nudgeDown">+</button>
-                <input type="number" id="sp-position-y-val" class="sp-position-val" min="0" step="1" value="400" title="Exact Y position in px" data-i18n-title="sp.exactY" />
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-position-y"><b data-i18n="sp.positionY">Position Y (px)</b><small data-i18n="sp.positionYHint">Move the box up and down in real time</small></label>
+              <div class="dv-setting-row__control sp-slider position-slider">
+                <button type="button" class="dv-button sp-nudge" data-axis="position_y" data-step="-1" title="Up 1 px (Shift: 10 px)" data-i18n-title="sp.nudgeUp">&minus;</button>
+                <input type="range" id="sp-position-y" class="dv-slider" min="0" max="1080" step="1" value="400" />
+                <button type="button" class="dv-button sp-nudge" data-axis="position_y" data-step="1" title="Down 1 px (Shift: 10 px)" data-i18n-title="sp.nudgeDown">+</button>
+                <input type="number" id="sp-position-y-val" class="sp-field sp-position-val" min="0" step="1" value="400" title="Exact Y position in px" data-i18n-title="sp.exactY" />
               </div>
             </div>
-            <div class="sp-row">
-              <label data-i18n="sp.opacity">Opacity</label>
-              <div class="sp-slider">
-                <input type="range" id="sp-opacity" min="0" max="1" step="0.05" value="0.65" />
-                <span class="sp-slider-val" id="sp-opacity-val">0.65</span>
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-opacity"><b data-i18n="sp.opacity">Opacity</b></label>
+              <div class="dv-setting-row__control sp-slider">
+                <input type="range" id="sp-opacity" class="dv-slider" min="0" max="1" step="0.05" value="0.65" />
+                <span class="dv-setting-row__value" id="sp-opacity-val">0.65</span>
               </div>
             </div>
-            <div class="sp-row">
-              <label data-i18n="sp.fontSize">Font size (px)</label>
-              <div class="sp-slider">
-                <input type="range" id="sp-font-size" min="10" max="24" step="1" value="13" />
-                <span class="sp-slider-val" id="sp-font-size-val">13</span>
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-font-size"><b data-i18n="sp.fontSize">Font size (px)</b></label>
+              <div class="dv-setting-row__control sp-slider">
+                <input type="range" id="sp-font-size" class="dv-slider" min="10" max="24" step="1" value="13" />
+                <span class="dv-setting-row__value" id="sp-font-size-val">13</span>
               </div>
             </div>
-            <div class="sp-row">
-              <label data-i18n="sp.width">Width (px)</label>
-              <input type="number" id="sp-width" value="520" min="280" max="1920" />
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-width"><b data-i18n="sp.width">Width (px)</b></label>
+              <input type="number" id="sp-width" class="sp-field" value="520" min="280" max="1920" />
             </div>
-            <div class="sp-row">
-              <label data-i18n="sp.height">Height (px)</label>
-              <input type="number" id="sp-height" value="240" min="120" max="1080" />
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-height"><b data-i18n="sp.height">Height (px)</b></label>
+              <input type="number" id="sp-height" class="sp-field" value="240" min="120" max="1080" />
             </div>
           </div>
-
-          <div class="sp-group">
-            <h3 data-i18n="sp.hudCompat">HUD subtitle compatibility</h3>
-            <div class="sp-row sp-row-stacked">
-              <label><span data-i18n="sp.gfxPaths">Additional GFx paths</span><span class="sp-hint" data-i18n="sp.gfxPathsHint">Optional: one Scaleform path per line. Vanilla paths stay enabled.</span></label>
-              <textarea id="sp-hud-subtitle-paths" rows="3"
-                placeholder="_root.SomeHud.Subtitle.text"></textarea>
-            </div>
-          </div>
-
-        </div><!-- /sp-general -->
+        </div><!-- /sp-window -->
 
         <!-- Channels -->
         <div id="sp-channels" class="sp-section">
           <div class="sp-group">
-            <h3 data-i18n="sp.channelConfig">Channel configuration</h3>
+            <h3 class="dv-kicker" data-i18n="sp.channelConfig">Channel configuration</h3>
             <div id="sp-channel-list"><!-- populated by JS --></div>
           </div>
           <div class="sp-group">
-            <h3 data-i18n="sp.combat">Combat</h3>
-            <div class="sp-row">
-              <label><span data-i18n="sp.showHits">Show hits</span><span class="sp-hint" data-i18n="sp.showHitsHint">Kills and deaths are always shown. Spells like Flames hit every second.</span></label>
-              <label class="sp-toggle">
-                <input type="checkbox" id="sp-combat-hits" checked />
-                <span class="sp-track"></span>
-              </label>
+            <h3 class="dv-kicker" data-i18n="sp.combat">Combat</h3>
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-combat-hits"><b data-i18n="sp.showHits">Show hits</b><small data-i18n="sp.showHitsHint">Kills and deaths are always shown. Spells like Flames hit every second.</small></label>
+              <label class="dv-toggle sp-toggle"><input type="checkbox" id="sp-combat-hits" checked /><span class="dv-toggle__track"><i></i></span><span class="sp-toggle-state"></span></label>
             </div>
           </div>
           <div class="sp-group">
-            <h3 data-i18n="sp.speakerColours">NPC speaker name colours</h3>
-            <div class="sp-hint sp-section-hint" data-i18n="sp.speakerColoursHint">
+            <h3 class="dv-kicker" data-i18n="sp.speakerColours">NPC speaker name colours</h3>
+            <p class="sp-section-hint" data-i18n="sp.speakerColoursHint">
               Add an exact NPC display name. Matching speaker labels use this colour.
               Names seen in your current history are suggested as you type.
-            </div>
-            <div class="sp-row">
-              <label><span data-i18n="sp.speakerColourMode">Colour mode</span><span class="sp-hint" data-i18n="sp.speakerColourModeHint">White keeps the current appearance; manual colours always override automatic colours.</span></label>
-              <select id="sp-speaker-colour-mode">
+            </p>
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-speaker-colour-mode"><b data-i18n="sp.speakerColourMode">Colour mode</b><small data-i18n="sp.speakerColourModeHint">White keeps the current appearance; manual colours always override automatic colours.</small></label>
+              <select id="sp-speaker-colour-mode" class="dv-select">
                 <option value="white" data-i18n="sp.speakerColourWhite">White</option>
                 <option value="automatic" data-i18n="sp.speakerColourAutomatic">Automatic palette</option>
               </select>
             </div>
             <div class="sp-speaker-add">
-              <input id="sp-speaker-name" type="text" list="sp-speaker-options"
+              <input id="sp-speaker-name" class="sp-field" type="text" list="sp-speaker-options"
                      placeholder="NPC display name" data-i18n-placeholder="sp.npcName" maxlength="80" />
               <datalist id="sp-speaker-options"></datalist>
-              <input id="sp-speaker-new-colour" type="color" value="#c084fc"
+              <input id="sp-speaker-new-colour" class="sp-colour" type="color" value="#c084fc"
                      title="New speaker colour" data-i18n-title="sp.newColour" />
-              <button type="button" class="sp-btn" id="sp-speaker-add" data-i18n="sp.addUpdate">Add / Update</button>
+              <button type="button" class="dv-button" id="sp-speaker-add" data-i18n="sp.addUpdate">Add / Update</button>
             </div>
             <div id="sp-speaker-colour-list"><!-- populated by JS --></div>
           </div>
@@ -315,10 +303,15 @@
       </div><!-- /sp-content -->
 
       <div id="sp-footer">
-        <button class="sp-btn" id="sp-position" data-i18n="sp.position">Position</button>
-        <button class="sp-btn" id="sp-reset" data-i18n="sp.reset">Reset</button>
-        <button class="sp-btn" id="sp-test" data-i18n="sp.diagnostics">Diagnostics</button>
-        <button class="sp-btn sp-primary" id="sp-apply" data-i18n="sp.apply">Apply</button>
+        <div class="dv-prompts">
+          <button type="button" class="dv-prompt" id="sp-close" title="Close (Escape)" data-i18n-title="sp.close"><span class="dv-keycap">Esc</span><span data-i18n="sp.closeLabel">Close</span></button>
+        </div>
+        <div class="sp-actions">
+          <button type="button" class="dv-button" id="sp-position" data-i18n="sp.position">Position</button>
+          <button type="button" class="dv-button" id="sp-reset" data-i18n="sp.reset">Reset</button>
+          <button type="button" class="dv-button" id="sp-test" data-i18n="sp.diagnostics">Diagnostics</button>
+          <button type="button" class="dv-button dv-button--primary" id="sp-apply" data-i18n="sp.apply">Apply</button>
+        </div>
       </div>
       <div id="sp-status" role="status"></div>
       <pre id="diagnostics-output"></pre>

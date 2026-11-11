@@ -14,7 +14,7 @@
 body {
   background: transparent;
   overflow: hidden;
-  font-family: 'Segoe UI', Arial, sans-serif;
+  font-family: var(--dv-font);
   user-select: none;
 }
 
@@ -116,13 +116,7 @@ body.interacting #interaction-tools { display: flex; }
 }
 #copy-output { width: 100%; min-height: 70px; color: var(--theme-control-text); background: var(--theme-control-bg); user-select: text; }
 #status-text { color: var(--theme-status); font-size: 10px; padding: 3px 7px; flex-shrink: 0; }
-body.mouse-active #status-text { color: #b9edc9; }
-#sp-status { padding: 5px 12px; color: #b9edc9; font-size: 11px; overflow-wrap: anywhere; }
-#sp-status.error { color: #ffb4a9; }
-#diagnostics-output { white-space: pre-wrap; overflow: auto; max-height: 150px; padding: 5px 12px; color: #ddd; font-size: 11px; user-select: text; }
-#diagnostics-output:empty { display: none; }
-#settings-panel { max-width: 95vw; }
-#sp-footer { flex-wrap: wrap; }
+body.mouse-active #status-text { color: var(--dv-good); }
 body.interacting .message.fading { opacity: 1; }
 
 /* ---- Message list ----------------------------------------------- */
@@ -284,6 +278,7 @@ body.interacting .message.fading { opacity: 1; }
 /* ---- Settings button in tabs bar ------------------------------- */
 
 #settings-btn {
+  font-family: inherit;
   background: transparent;
   border: none;
   color: var(--theme-icon);
@@ -297,6 +292,7 @@ body.interacting .message.fading { opacity: 1; }
 #settings-btn:hover { color: var(--theme-icon-hover); }
 
 #clear-history {
+  font-family: inherit;
   background: transparent;
   border: none;
   color: var(--theme-icon);
@@ -305,7 +301,7 @@ body.interacting .message.fading { opacity: 1; }
   padding: 4px 6px;
   flex-shrink: 0;
 }
-#clear-history:hover { color: #f87171; }
+#clear-history:hover { color: var(--dv-bad); }
 
 #new-messages {
   position: absolute;
@@ -314,261 +310,15 @@ body.interacting .message.fading { opacity: 1; }
   transform: translateX(-50%);
   z-index: 5;
   border: 1px solid var(--theme-badge-border);
-  border-radius: 10px;
+  border-radius: var(--theme-radius);
   padding: 3px 10px;
   background: var(--theme-badge-bg);
-  color: #fff;
+  color: var(--theme-text);
   font-size: 11px;
   font-family: var(--theme-font), var(--font-cjk);
   cursor: pointer;
 }
 #new-messages.hidden { display: none; }
-
-/* ---- Settings overlay ------------------------------------------ */
-
-#settings-overlay {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.55);
-  font-family: 'Segoe UI', Arial, var(--font-cjk), sans-serif; /* settings keep one look across themes */
-  z-index: 1000;
-}
-
-#settings-overlay.hidden {
-  display: none;
-}
-
-#settings-panel {
-  width: 420px;
-  max-height: 80vh;
-  background: rgba(12, 12, 18, 0.97);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-}
-
-#sp-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 14px;
-  background: rgba(0,0,0,0.4);
-  border-bottom: 1px solid rgba(255,255,255,0.07);
-  flex-shrink: 0;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-}
-
-#sp-close {
-  background: transparent;
-  border: none;
-  color: rgba(255,255,255,0.45);
-  cursor: pointer;
-  font-size: 16px;
-  padding: 2px 6px;
-  border-radius: 3px;
-  line-height: 1;
-}
-#sp-close:hover { color: #fff; background: rgba(255,255,255,0.08); }
-
-#sp-tabs {
-  display: flex;
-  background: rgba(0,0,0,0.25);
-  border-bottom: 1px solid rgba(255,255,255,0.07);
-  flex-shrink: 0;
-}
-
-.sp-tab {
-  background: transparent;
-  border: none;
-  color: rgba(255,255,255,0.4);
-  padding: 7px 16px;
-  font-size: 12px;
-  font-family: inherit;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-}
-.sp-tab:hover { color: rgba(255,255,255,0.7); }
-.sp-tab.active { color: #fff; border-bottom-color: #4a9eff; }
-
-#sp-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px 14px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,0.1) transparent;
-}
-
-.sp-section { display: none; }
-.sp-section.active { display: block; }
-
-.sp-group {
-  margin-bottom: 14px;
-}
-
-.sp-group h3 {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: rgba(255,255,255,0.3);
-  margin-bottom: 7px;
-  padding-bottom: 4px;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-}
-
-.sp-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 0;
-  gap: 10px;
-}
-
-.sp-row label {
-  color: rgba(255,255,255,0.72);
-  font-size: 12px;
-  flex: 1;
-}
-
-.sp-hint {
-  display: block;
-  font-size: 10px;
-  color: rgba(255,255,255,0.28);
-}
-
-/* Toggle */
-.sp-toggle {
-  position: relative;
-  width: 34px;
-  height: 18px;
-  flex-shrink: 0;
-  cursor: pointer;
-}
-.sp-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
-.sp-track {
-  position: absolute;
-  inset: 0;
-  background: rgba(255,255,255,0.1);
-  border-radius: 9px;
-  transition: background 0.2s;
-}
-.sp-track::after {
-  content: '';
-  position: absolute;
-  left: 2px; top: 2px;
-  width: 14px; height: 14px;
-  background: rgba(255,255,255,0.45);
-  border-radius: 50%;
-  transition: transform 0.2s, background 0.2s;
-}
-.sp-toggle input:checked + .sp-track { background: #3b82f6; }
-.sp-toggle input:checked + .sp-track::after {
-  transform: translateX(16px);
-  background: #fff;
-}
-
-/* Slider */
-.sp-slider {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  flex-shrink: 0;
-}
-.sp-slider input[type=range] {
-  width: 90px;
-  accent-color: #4a9eff;
-}
-.position-slider { gap: 4px; }
-.position-slider input[type=range] { width: 100px; }
-/* Sliders span the whole screen (~30 px per mouse pixel on wide displays);
-   nudge buttons and the exact-value box give pixel precision. */
-.sp-nudge {
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 3px;
-  color: #e2e8f0;
-  font-size: 13px;
-  line-height: 1;
-  cursor: pointer;
-}
-.sp-nudge:hover { background: rgba(255,255,255,0.14); }
-.sp-row input.sp-position-val { width: 54px; }
-.sp-slider-val {
-  font-size: 11px;
-  color: rgba(255,255,255,0.45);
-  min-width: 28px;
-  text-align: right;
-}
-
-/* Text / number inputs */
-.sp-row input[type=text],
-.sp-row input[type=number] {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 3px;
-  color: #fff;
-  font-size: 11px;
-  font-family: inherit;
-  padding: 3px 6px;
-  width: 72px;
-  outline: none;
-  flex-shrink: 0;
-}
-.sp-row input.sp-hotkey { cursor: pointer; text-align: center; }
-.sp-row input.sp-hotkey:focus { border-color: #4a9eff; background: rgba(74,158,255,0.12); }
-#sp-hotkey-status { min-height: 14px; margin-top: 4px; }
-#sp-hotkey-status.error { color: #f87171; }
-.sp-row input[type=text]:focus,
-.sp-row input[type=number]:focus {
-  border-color: rgba(74,158,255,0.5);
-}
-
-.sp-row .sp-toggle { flex: 0 0 34px; }
-
-.sp-row select {
-  width: 150px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 3px;
-  color: #fff;
-  font-size: 11px;
-  font-family: inherit;
-  padding: 3px 6px;
-  outline: none;
-}
-.sp-row select option { background: #15151d; color: #fff; }
-.sp-row-stacked {
-  align-items: stretch;
-  flex-direction: column;
-  gap: 5px;
-}
-.sp-row textarea {
-  width: 100%;
-  box-sizing: border-box;
-  resize: vertical;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 3px;
-  color: #fff;
-  font: 11px/1.35 monospace;
-  padding: 5px 6px;
-  outline: none;
-}
-.sp-row textarea:focus {
-  border-color: rgba(74,158,255,0.5);
-}
 
 /* ---- Themes ---------------------------------------------------- */
 /* Each theme is a list of the colours/shapes the chat window uses. The
@@ -582,42 +332,43 @@ body.interacting .message.fading { opacity: 1; }
 body { --font-cjk: 'Microsoft YaHei', 'Yu Gothic UI', 'Meiryo', 'Malgun Gothic', 'Microsoft JhengHei'; }
 html:lang(ja) body { --font-cjk: 'Yu Gothic UI', 'Meiryo', 'Microsoft YaHei', 'Malgun Gothic'; }
 html:lang(ko) body { --font-cjk: 'Malgun Gothic', 'Microsoft YaHei', 'Yu Gothic UI', 'Meiryo'; }
+/* The default (Skyrim) theme: the suite's type and colours (theme/dovah-theme.css). */
 body {
-  --theme-font: 'Segoe UI', Arial, sans-serif;
+  --theme-font: var(--dv-font);
   --theme-window-bg: rgba(0, 0, 0, var(--opacity, 0.65));
-  --theme-border: rgba(255, 255, 255, 0.08);
-  --theme-radius: 6px;
+  --theme-border: rgba(var(--dv-line-rgb), 0.3);
+  --theme-radius: 0;
   --theme-shadow: none;
-  --theme-tabs-bg: rgba(0, 0, 0, 0.4);
-  --theme-divider: rgba(255, 255, 255, 0.07);
-  --theme-tab: rgba(255, 255, 255, 0.45);
-  --theme-tab-hover: rgba(255, 255, 255, 0.75);
-  --theme-tab-active: #fff;
-  --theme-tab-active-bg: transparent;
-  --theme-accent: #4a9eff;
-  --theme-focus: rgba(74, 158, 255, 0.5);
-  --theme-text: rgba(255, 255, 255, 0.88);
-  --theme-muted: rgba(255, 255, 255, 0.4);
-  --theme-faint: rgba(255, 255, 255, 0.3);
-  --theme-input-bar-bg: rgba(0, 0, 0, 0.5);
-  --theme-input-bg: rgba(255, 255, 255, 0.06);
-  --theme-input-bg-focus: rgba(255, 255, 255, 0.09);
-  --theme-input-border: rgba(255, 255, 255, 0.12);
-  --theme-input-text: #fff;
-  --theme-input-radius: 3px;
-  --theme-placeholder: rgba(255, 255, 255, 0.2);
-  --theme-menu-bg: rgba(12, 12, 18, 0.97);
-  --theme-menu-border: rgba(255, 255, 255, 0.15);
-  --theme-hover-bg: rgba(255, 255, 255, 0.1);
-  --theme-control-bg: #202630;
-  --theme-control-border: #56606b;
-  --theme-control-text: #eee;
-  --theme-status: #a3b1bd;
-  --theme-scrollbar: rgba(255, 255, 255, 0.15);
-  --theme-icon: rgba(255, 255, 255, 0.35);
-  --theme-icon-hover: rgba(255, 255, 255, 0.8);
-  --theme-badge-bg: rgba(20, 70, 130, 0.92);
-  --theme-badge-border: rgba(74, 158, 255, 0.6);
+  --theme-tabs-bg: rgba(0, 0, 0, 0.35);
+  --theme-divider: var(--dv-line-soft);
+  --theme-tab: var(--dv-muted);
+  --theme-tab-hover: var(--dv-ink-bright);
+  --theme-tab-active: var(--dv-accent-bright);
+  --theme-tab-active-bg: var(--dv-select);
+  --theme-accent: var(--dv-accent);
+  --theme-focus: var(--dv-line-strong);
+  --theme-text: var(--dv-ink);
+  --theme-muted: var(--dv-muted);
+  --theme-faint: var(--dv-dim);
+  --theme-input-bar-bg: rgba(0, 0, 0, 0.45);
+  --theme-input-bg: var(--dv-control-fill);
+  --theme-input-bg-focus: rgba(0, 0, 0, 0.5);
+  --theme-input-border: var(--dv-line);
+  --theme-input-text: var(--dv-ink);
+  --theme-input-radius: 0;
+  --theme-placeholder: var(--dv-dim);
+  --theme-menu-bg: var(--dv-panel-fill);
+  --theme-menu-border: var(--dv-line);
+  --theme-hover-bg: rgba(var(--dv-accent-rgb), 0.12);
+  --theme-control-bg: var(--dv-control-fill);
+  --theme-control-border: var(--dv-line);
+  --theme-control-text: var(--dv-ink);
+  --theme-status: var(--dv-muted);
+  --theme-scrollbar: rgba(var(--dv-accent-rgb), 0.35);
+  --theme-icon: var(--dv-muted);
+  --theme-icon-hover: var(--dv-accent-bright);
+  --theme-badge-bg: var(--dv-panel-fill);
+  --theme-badge-border: var(--dv-line-strong);
 }
 
 /* Daedric: near-black with deep crimson. */
@@ -810,143 +561,179 @@ body[data-anchor="top-right"] #chronicle-window {
   bottom: auto;
 }
 
-/* Channel rows */
+/* ---- Settings window --------------------------------------------- */
+/* The suite's look (theme/dovah-theme.css, copied unchanged from DovahHub):
+   its classes are on the markup; these rules only lay the window out and
+   style the controls the kit has no class for (text boxes, colour pickers,
+   hotkey boxes, the channel table), from the kit's tokens. */
+
+#settings-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1000;
+}
+#settings-overlay.hidden { display: none; }
+
+#settings-panel {
+  display: flex;
+  flex-direction: column;
+  width: 60rem;
+  max-width: 94vw;
+  max-height: 88vh;
+  padding: 2.1rem 0 0;
+}
+
+#sp-header {
+  flex-shrink: 0;
+  padding: 0 2.2rem;
+  border-bottom: 1px solid var(--dv-line-soft);
+}
+#sp-header .dv-heading { margin: .45rem 0 1.25rem; }
+#sp-tabs { margin-bottom: 1rem; }
+
+#sp-content {
+  flex: 1;
+  min-height: 0;
+  padding: .2rem 2.2rem 1.4rem;
+}
+.sp-section { display: none; }
+.sp-section.active { display: block; }
+.sp-group { margin-top: 1.5rem; }
+.sp-group > .dv-kicker { margin-bottom: .1rem; }
+.sp-section-hint { margin: .55rem 0 .2rem; color: var(--dv-muted); font-size: .98rem; line-height: 1.45; }
+#sp-hotkey-status:empty { display: none; }
+#sp-hotkey-status.error { color: var(--dv-bad); }
+.dv-setting-row.sp-row-stacked { flex-direction: column; align-items: stretch; gap: .8rem; }
+
+/* Keyboard focus, as the kit's controller ring. */
+.dv-tab:focus, .dv-prompt:focus { outline: 2px solid var(--dv-accent-bright); outline-offset: -2px; box-shadow: var(--dv-ring); }
+.dv-tab:active, .dv-prompt:active { outline: none; box-shadow: none; }
+
+/* Toggles: the settings' checkbox inside the kit's switch (label.dv-toggle). */
+.sp-toggle { position: relative; cursor: pointer; }
+.sp-toggle input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
+.sp-toggle input:focus + .dv-toggle__track { outline: 2px solid var(--dv-accent-bright); outline-offset: 2px; box-shadow: var(--dv-ring); }
+.sp-toggle-state { min-width: 3rem; }
+
+/* Text and number boxes, after the kit's select. */
+.sp-field {
+  height: 2.5rem;
+  padding: 0 .75rem;
+  border: 1px solid var(--dv-line);
+  border-radius: 0;
+  background: var(--dv-control-fill);
+  color: var(--dv-ink);
+  font: 400 .95rem var(--dv-font);
+  letter-spacing: .04em;
+  outline: none;
+  user-select: text;
+}
+.sp-field:hover, .sp-field:focus { border-color: var(--dv-accent-bright); }
+.sp-field::placeholder { color: var(--dv-dim); }
+input.sp-field[type=number] { width: 6rem; }
+textarea.sp-field { width: 100%; height: auto; padding: .55rem .75rem; resize: vertical; font: 400 .9rem/1.4 Consolas, monospace; letter-spacing: 0; }
+
+/* Hotkeys: a keycap to click, then press the new key. */
+.sp-hotkey.dv-keycap { width: 6.5rem; height: 2.3rem; font-size: .95rem; text-align: center; cursor: pointer; outline: none; }
+.sp-hotkey.dv-keycap:hover { border-color: var(--dv-accent-bright); }
+.sp-hotkey.dv-keycap:focus { border-color: var(--dv-accent-bright); color: var(--dv-accent-bright); box-shadow: var(--dv-ring); }
+.sp-hotkey::placeholder { color: var(--dv-dim); }
+
+/* Sliders, with their value or exact-number box. */
+.sp-slider { gap: .75rem; }
+.sp-slider .dv-slider { width: 12rem; }
+.sp-slider .sp-field { width: 5.6rem; }
+.position-slider { gap: .5rem; }
+.position-slider .dv-slider { width: 10rem; }
+.sp-nudge.dv-button { min-width: 2.2rem; min-height: 2.2rem; padding: 0; letter-spacing: 0; }
+
+/* Colour pickers. */
+.sp-colour {
+  width: 2.7rem;
+  height: 2.1rem;
+  padding: .15rem;
+  border: 1px solid var(--dv-line);
+  background: var(--dv-control-fill);
+  cursor: pointer;
+}
+.sp-colour:hover, .sp-colour:focus { border-color: var(--dv-accent-bright); outline: none; }
+.sp-colour:disabled { opacity: .35; cursor: default; }
+
+/* Channels: name, shown, prefix, timestamps, colour. */
 .sp-ch-row {
   display: grid;
-  grid-template-columns: 76px 34px 1fr 28px 30px;
+  grid-template-columns: minmax(8rem, 1fr) auto minmax(0, 12rem) auto auto;
   align-items: center;
-  gap: 7px;
-  padding: 4px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-  font-size: 11px;
-  color: rgba(255,255,255,0.7);
+  column-gap: 1.3rem;
+  padding: .6rem 0;
+  border-bottom: 1px solid var(--dv-line-soft);
 }
-.sp-ch-row:last-child { border-bottom: none; }
-.sp-ch-name { font-weight: 600; }
-.sp-ch-row input[type=text] {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 3px;
-  color: #fff;
-  font-size: 11px;
-  font-family: inherit;
-  padding: 2px 5px;
-  width: 100%;
-  outline: none;
-}
-.sp-ch-row input[type=color] {
-  width: 26px;
-  height: 20px;
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 3px;
-  background: transparent;
+.sp-ch-name { color: var(--dv-ink); font-size: 1.05rem; }
+.sp-ch-row .sp-field { width: 100%; }
+.sp-check { display: inline-flex; cursor: pointer; }
+.sp-check input {
+  width: 1.35rem;
+  height: 1.35rem;
+  margin: 0;
+  border: 1px solid var(--dv-line);
+  border-radius: 0;
+  background: var(--dv-control-fill);
+  -webkit-appearance: none;
+  appearance: none;
   cursor: pointer;
-  padding: 1px;
 }
-.sp-ch-row input[type=checkbox] { accent-color: #4a9eff; }
+.sp-check input:checked { padding: .2rem; border-color: var(--dv-accent); background: linear-gradient(var(--dv-accent-bright), var(--dv-accent-bright)) content-box; }
+.sp-check input:focus { outline: 2px solid var(--dv-accent-bright); outline-offset: 2px; }
 
-.sp-section-hint {
-  display: block;
-  margin: -2px 0 8px;
-  line-height: 1.35;
-}
-.sp-speaker-add {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin-bottom: 8px;
-}
-.sp-speaker-add input[type=text] {
-  flex: 1;
-  min-width: 0;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 3px;
-  color: #fff;
-  font-size: 11px;
-  font-family: inherit;
-  padding: 4px 6px;
-  outline: none;
-}
-.sp-speaker-add input[type=text]:focus {
-  border-color: rgba(74,158,255,0.5);
-}
-.sp-speaker-add input[type=color],
-.sp-speaker-row input[type=color] {
-  width: 28px;
-  height: 22px;
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 3px;
-  background: transparent;
-  cursor: pointer;
-  padding: 1px;
-  flex-shrink: 0;
-}
-.sp-speaker-add .sp-btn {
-  padding: 4px 8px;
-  white-space: nowrap;
-}
+/* NPC speaker colours. */
+.sp-speaker-add { display: flex; align-items: center; gap: .8rem; padding: 1rem 0 .6rem; }
+.sp-speaker-add .sp-field { flex: 1; min-width: 0; }
 .sp-speaker-row {
   display: grid;
-  grid-template-columns: 1fr 28px auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 8px;
-  padding: 5px 0;
-  border-top: 1px solid rgba(255,255,255,0.04);
-  color: rgba(255,255,255,0.8);
-  font-size: 11px;
+  gap: 1rem;
+  padding: .55rem 0;
+  border-top: 1px solid var(--dv-line-soft);
+  color: var(--dv-ink);
+  font-size: 1.05rem;
 }
-.sp-speaker-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.sp-remove-speaker {
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 3px;
-  color: rgba(255,255,255,0.55);
-  font: inherit;
-  padding: 3px 7px;
-  cursor: pointer;
-}
-.sp-remove-speaker:hover {
-  color: #ffb4a9;
-  border-color: rgba(255,120,100,0.45);
-}
-.sp-empty {
-  color: rgba(255,255,255,0.35);
-  font-size: 11px;
-  font-style: italic;
-}
+.sp-speaker-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-remove-speaker.dv-button { min-height: 2.1rem; padding: 0 .85rem; font-size: .85rem; }
+.sp-empty { padding: .6rem 0; color: var(--dv-muted); font-size: .98rem; }
 
+/* Footer: the close prompt, then the actions. */
 #sp-footer {
   display: flex;
-  justify-content: flex-end;
-  gap: 7px;
-  padding: 9px 14px;
-  background: rgba(0,0,0,0.3);
-  border-top: 1px solid rgba(255,255,255,0.07);
   flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 2.2rem 1.3rem;
+  border-top: 1px solid var(--dv-line-soft);
 }
-
-.sp-btn {
-  background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 4px;
-  color: #e2e8f0;
-  font-size: 12px;
-  font-family: inherit;
-  padding: 5px 14px;
-  cursor: pointer;
+.sp-actions { display: flex; flex-wrap: wrap; gap: .7rem; margin-left: auto; }
+#sp-status { padding: 0 2.2rem 1rem; color: var(--dv-muted); font-size: .95rem; overflow-wrap: anywhere; }
+#sp-status:empty { display: none; }
+#sp-status.error { color: var(--dv-bad); }
+#diagnostics-output {
+  max-height: 12rem;
+  margin: 0 2.2rem 1.3rem;
+  padding: .7rem .9rem;
+  overflow: auto;
+  border: 1px solid var(--dv-line-soft);
+  background: var(--dv-control-fill);
+  color: var(--dv-ink-soft);
+  font: .85rem/1.45 Consolas, monospace;
+  white-space: pre-wrap;
+  user-select: text;
 }
-.sp-btn:hover { background: rgba(255,255,255,0.12); }
-.sp-btn.sp-primary {
-  background: #3b82f6;
-  border-color: #3b82f6;
-  color: #fff;
-}
-.sp-btn.sp-primary:hover { background: #2563eb; }
+#diagnostics-output:empty { display: none; }
 
 /* ---- Resize handle --------------------------------------------- */
 

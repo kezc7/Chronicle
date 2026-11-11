@@ -123,7 +123,7 @@ test('showing the tab loads and renders the history, newest at the bottom', asyn
   assert.equal(lydia.children[1].textContent, 'Lydia:');
   assert.equal(lydia.children[1].style.color, '#123456');
   assert.equal(tab.list.children[1].children[2].style.color, '#f5c518'); // system lines are coloured whole
-  assert.equal(tab.list.children[0].classList.contains('wf-loot-row'), true);
+  assert.equal(tab.list.children[0].classList.contains('dv-row'), true);
   assert.equal(tab.list.scrollTop, tab.list.scrollHeight);
   assert.equal(tab.page.older.hidden, true);
 });

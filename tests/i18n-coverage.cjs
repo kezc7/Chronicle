@@ -180,6 +180,7 @@ const PAGE_KEEP = {
   'Polski': 'language name', 'Türkçe': 'language name', '简体中文': 'language name', '日本語': 'language name',
   '한국어': 'language name',
   '_root.SomeHud.Subtitle.text': 'an example Scaleform path, typed as code',
+  'Esc': 'a keycap: the name printed on the key',
   'F8': 'key name', 'Enter': 'key name', '0': 'key name',
   'Loading Chronicle’s history…': 'DovahHub module page: history.js replaces it as soon as it runs',
 };

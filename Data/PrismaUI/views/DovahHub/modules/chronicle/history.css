@@ -1,16 +1,23 @@
-/* Chronicle's History tab in DovahHub. Everything is scoped under .chronicle-history. */
-.chronicle-history { display: flex; flex-direction: column; gap: .8rem; height: 100%; min-height: 0; }
+/* Chronicle's History tab in DovahHub. Everything is scoped under .chronicle-history.
+   The suite's kit classes (dv-chip, dv-button, dv-row) come from DovahHub's page, and every colour here is
+   one of the kit's --dv-* tokens, which DovahHub maps to its open theme: no colour of our own, no token set. */
+.chronicle-history { display: flex; flex-direction: column; gap: .8rem; height: 100%; min-height: 0; color: var(--dv-ink); font-family: var(--dv-font); }
 .chronicle-history .chronicle-history__tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem; }
 .chronicle-history .chronicle-history__chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+.chronicle-history .chronicle-history__chips .dv-chip { padding: .3rem .65rem; font-size: .82rem; }
 .chronicle-history .chronicle-history__search { flex: 0 0 auto; }
+.chronicle-history .chronicle-history__query { width: 16rem; height: 2.4rem; padding: 0 .8rem; border: 1px solid var(--dv-line); border-radius: 0; background: var(--dv-control-fill); color: var(--dv-ink); font: 400 .95rem var(--dv-font); letter-spacing: .04em; outline: none; }
+.chronicle-history .chronicle-history__query:hover, .chronicle-history .chronicle-history__query:focus { border-color: var(--dv-accent-bright); }
+.chronicle-history .chronicle-history__query::placeholder { color: var(--dv-dim); }
 .chronicle-history .chronicle-history__older { align-self: center; }
 .chronicle-history .chronicle-history__older[hidden] { display: none; }
-.chronicle-history .chronicle-history__list { flex: 1; min-height: 12rem; max-height: 62vh; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: rgba(var(--accent-rgb), .45) transparent; }
-.chronicle-history .chronicle-history__row { display: grid; grid-template-columns: 6.6rem minmax(0, auto) minmax(0, 1fr); align-items: baseline; column-gap: .55rem; width: 100%; padding: .35rem .8rem .35rem .6rem; border-top: 0; border-left: 0; border-right: 0; background: none; font: inherit; font-size: .95rem; line-height: 1.35; text-align: left; white-space: normal; }
+.chronicle-history .chronicle-history__list { flex: 1; min-height: 12rem; max-height: 62vh; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: rgba(var(--dv-accent-rgb), .45) transparent; }
+.chronicle-history .chronicle-history__row { display: grid; grid-template-columns: 6.6rem minmax(0, auto) minmax(0, 1fr); align-items: baseline; column-gap: .55rem; width: 100%; min-height: 0; padding: .45rem .8rem .45rem .6rem; font-size: .95rem; letter-spacing: .02em; line-height: 1.35; white-space: normal; }
 .chronicle-history .chronicle-history__row[hidden] { display: none; }
-.chronicle-history .chronicle-history__time { color: var(--dim); font-size: .8rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.chronicle-history .chronicle-history__time { color: var(--dv-dim); font-size: .8rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .chronicle-history .chronicle-history__speaker { font-weight: 600; white-space: nowrap; }
 .chronicle-history .chronicle-history__speaker:empty { display: none; }
-.chronicle-history .chronicle-history__message { min-width: 0; color: var(--ink); overflow-wrap: anywhere; }
+.chronicle-history .chronicle-history__message { min-width: 0; color: var(--dv-ink); overflow-wrap: anywhere; }
 .chronicle-history .chronicle-history__speaker:empty + .chronicle-history__message { grid-column: 2 / 4; }
+.chronicle-history .chronicle-history__empty { margin: 0; color: var(--dv-muted); font-size: .98rem; }
 .chronicle-history .chronicle-history__empty[hidden] { display: none; }

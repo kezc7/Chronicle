@@ -39,6 +39,12 @@ Copy-Item -LiteralPath "$buildDir\Chronicle.dll" -Destination "$stage\SKSE\Plugi
 foreach ($file in 'index.html','script.js','controls.js','bridge.js','i18n.js','styles.css','config.json') {
     Copy-Item -LiteralPath "$projectRoot\Data\PrismaUI\views\Chronicle\$file" -Destination "$stage\$viewDir\$file"
 }
+# The suite's theme kit (from DovahHub, unchanged) and its fonts with their licence.
+New-Item -ItemType Directory -Path "$stage\$viewDir\theme\fonts" -Force | Out-Null
+Copy-Item -LiteralPath "$projectRoot\Data\PrismaUI\views\Chronicle\theme\dovah-theme.css" -Destination "$stage\$viewDir\theme\dovah-theme.css"
+foreach ($file in 'BarlowCondensed-Regular.ttf','BarlowCondensed-Medium.ttf','BarlowCondensed-SemiBold.ttf','OFL-BarlowCondensed.txt') {
+    Copy-Item -LiteralPath "$projectRoot\Data\PrismaUI\views\Chronicle\theme\fonts\$file" -Destination "$stage\$viewDir\theme\fonts\$file"
+}
 # Chronicle's DovahHub tab: module pages live inside DovahHub's own view folder, on either UI host.
 $moduleDir = 'PrismaUI\views\DovahHub\modules\chronicle'
 New-Item -ItemType Directory -Path "$stage\$moduleDir" -Force | Out-Null
