@@ -144,5 +144,58 @@ int main()
     Require(!ShouldAdopt(true, true, 42, "42"), "only once");
     Require(!ShouldAdopt(true, false, 42, "41"), "not another character's");
     Require(!ShouldAdopt(true, false, 0, "0"), "not before a character is loaded");
+
+    // History that follows the save (CHRON-18): the story in Lineage's comment.
+    {
+        using Range = Lineage::Range;
+        const auto all = Lineage::All();
+        Require(all.ShowsAll() && all.Contains(0) && all.Contains(5000), "a save from before 1.4.17 shows every line");
+        const auto saveA = all.ForSave(100);                       // save A at t=100
+        Require(saveA == std::vector<Range>{ { 0, 100 } }, "A keeps everything up to its save");
+        const auto saveB = all.ForSave(200);                       // played on, save B at t=200
+        Require(saveB == std::vector<Range>{ { 0, 200 } }, "B keeps everything up to its own save");
+        auto now = Lineage::Loaded(saveA, 300);                    // load A at t=300
+        Require(now.Contains(50) && now.Contains(100), "A's lines show");
+        Require(!now.Contains(150) && !now.Contains(299), "lines B's play wrote are folded");
+        Require(now.Contains(300) && now.Contains(999), "lines from now on show");
+        const auto saveC = now.ForSave(400);                       // play on from A, save C at t=400
+        Require((saveC == std::vector<Range>{ { 0, 100 }, { 300, 400 } }), "C keeps A's stretch and its own");
+        now = Lineage::Loaded(saveB, 500);                         // load B again
+        Require(now.Contains(150) && !now.Contains(350), "B's lines are back; C's branch is folded");
+        now = Lineage::Loaded(saveC, 600);                         // and C
+        Require(now.Contains(50) && now.Contains(350) && !now.Contains(150) && !now.Contains(450), "C shows its own branch only");
+
+        // The list stays tidy: touching stretches merge, bad ones go, old ones are dropped.
+        now = Lineage::Loaded({ { 0, 10 }, { 11, 20 }, { 50, 40 }, { -5, 3 } }, 100);
+        Require((now.Closed() == std::vector<Range>{ { 0, 20 } }), "touching stretches merge; reversed or negative ones go");
+        Require((Lineage::Loaded({ { 0, 10 }, { 20, 30 } }, 40).ForSave(50, 25) == std::vector<Range>{ { 20, 30 }, { 40, 50 } }),
+            "stretches older than the oldest line kept are dropped");
+        std::vector<Range> many;
+        for (std::int64_t i = 0; i < 200; ++i) many.push_back({ i * 10, i * 10 + 5 });
+        const auto capped = Lineage::Loaded(many, 5000).ForSave(5001);
+        Require(capped.size() == Lineage::kMaxRanges && capped.back() == Range{ 5000, 5001 }, "at most 128 stretches, the newest kept");
+
+        // The co-save record round trip, and what it refuses.
+        const auto packed = Lineage::Pack(saveC);
+        Require((packed == std::vector<std::int64_t>{ 2, 0, 100, 300, 400 }), "count, then from/to pairs");
+        Require(Lineage::Unpack(packed) == saveC, "read back unchanged");
+        Require(!Lineage::Unpack({}) && !Lineage::Unpack({ 2, 0, 100 }) && !Lineage::Unpack({ -1 }) && !Lineage::Unpack({ 200 }),
+            "short, negative or oversized records are refused");
+
+        // The chat window's copy: closed stretches, then the open one.
+        Require(Lineage::Loaded(saveA, 300).ToJson().dump() == "[[0,100],[300,null]]", "the page's form");
+
+        // The DovahHub tab's pages count only the loaded save's lines.
+        List lines;
+        for (std::int64_t t : { 10, 20, 150, 160, 310, 320 }) lines.Add(Make(t));
+        const auto fromA = Lineage::Loaded(saveA, 300);
+        auto shown = lines.Before(std::nullopt, 10, fromA);
+        Require(shown.lines.size() == 4 && shown.lines[1].timestamp == 20 && shown.lines[2].timestamp == 310, "folded lines skipped");
+        shown = lines.Before(std::nullopt, 2, fromA);
+        Require(shown.lines.size() == 2 && shown.lines[0].timestamp == 310 && shown.more, "a page of the shown lines, more behind it");
+        shown = lines.Before(310, 10, fromA);
+        Require(shown.lines.size() == 2 && shown.lines[1].timestamp == 20 && !shown.more, "older pages skip the fold too");
+        Require(lines.Before(std::nullopt, 10).lines.size() == 6, "without a lineage every line counts");
+    }
     return 0;
 }

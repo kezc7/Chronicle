@@ -102,6 +102,16 @@ identifier. Loading an older save that predates this identifier starts a fresh
 history profile; keep the `.skse` co-save alongside its Skyrim save. Legacy shared
 history is left intact but is not assigned to an arbitrary character.
 
+The log follows the save, not just the character. Each save remembers the stretches
+of play that led to it. Load an older save and the lines written after it (play it
+never saw) are folded away, in the chat window and in DovahHub's Chronicle tab. They
+aren't deleted: load the later save and they're back. Play on from the older save
+and its new lines are a branch of their own, which the later save doesn't show.
+Saves made before 1.4.17 have no record of this and show every line, as before;
+the first save made with 1.4.17 starts keeping it. The chat window keeps up to its
+**Max messages** lines per character across all saves, the shown ones first, so a
+long new branch can push out folded lines there; DovahHub's tab keeps the last 1000.
+
 ### Chronicle in DovahMenu
 
 With DovahMenu installed, Chronicle registers its own entry in DovahMenu's list,
@@ -153,6 +163,7 @@ history files and removes it again. It never runs on its own.
 | `journal.write`, `journal.read`, `journal.remove` | Three lines (one in several scripts) go through the history writer to `history/selftest.json`, come back from disk unchanged, and the file is removed |
 | `ui.view` | The chat window's view exists, its listeners are registered and its handshake is done |
 | `saveleak.character` | The history open is the loaded character's |
+| `saveleak.lineage` | The log follows the save: the save's stretches read back from the co-save record, the DovahHub tab shows no line from outside them, and the chat window folds by the same ones |
 | `saveleak.page` | The chat window shows the same character as the game, with its search and speaker filter |
 | `saveleak.mainmenu`, `saveleak.newgame` | Skipped: they need a quit to the Main Menu or a New Game |
 | `pad` | The controller can reach the window: on PrismaUI the window sees a pad; on Magelight the gamepad layer is on and a pad is connected. Names the open combo. Skipped with no controller connected |

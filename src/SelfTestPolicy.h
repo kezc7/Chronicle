@@ -53,7 +53,7 @@ namespace ChronicleSelfTest
 
     // The fixed steps, in run order. "commands.mod.<prefix>" lines are added
     // after "commands.mods" for each other mod's command.
-    inline constexpr std::array<std::string_view, 14> kSteps = {
+    inline constexpr std::array<std::string_view, 15> kSteps = {
         "pump",
         "commands.dispatch",
         "commands.mods",
@@ -63,6 +63,7 @@ namespace ChronicleSelfTest
         "ui.view",
         "saveleak.character",
         "saveleak.page",
+        "saveleak.lineage",
         "saveleak.mainmenu",
         "saveleak.newgame",
         "pad",

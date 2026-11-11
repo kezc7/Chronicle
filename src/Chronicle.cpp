@@ -358,8 +358,37 @@ void Chronicle::PublishRuntime()
         {"loaded", m_gameLoaded.load()}, {"profile", m_gameLoaded ? std::to_string(profileId.load()) : ""},
         {"character", ChronicleUtf8::ReplaceInvalid(name).value},
         // The page offers its old localStorage lines once when this is true.
-        {"historyEmpty", m_historyProfile != 0 && m_history.Empty()}
+        {"historyEmpty", m_historyProfile != 0 && m_history.Empty()},
+        // The loaded save's stretches of play; null shows every line (CHRON-18).
+        {"lineage", m_gameLoaded && !m_lineage.ShowsAll() ? m_lineage.ToJson() : nlohmann::json(nullptr)}
     }) + ")");
+}
+
+void Chronicle::OnLineageLoaded(std::optional<std::vector<ChronicleHistory::Lineage::Range>> ranges)
+{
+    GameThread::Check();
+    if (!ranges) {
+        m_lineage = ChronicleHistory::Lineage::All();
+        return;
+    }
+    const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    m_lineage = ChronicleHistory::Lineage::Loaded(std::move(*ranges), now);
+}
+
+std::vector<ChronicleHistory::Lineage::Range> Chronicle::LineageForSave() const
+{
+    const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    // Stretches older than the oldest line kept can go: no line is there to show.
+    const bool complete = m_historyProfile && m_persistHistory && !m_history.Empty();
+    return m_lineage.ForSave(now, complete ? m_history.Lines().front().timestamp : 0);
+}
+
+std::size_t Chronicle::FoldedLines() const
+{
+    return static_cast<std::size_t>(std::count_if(m_history.Lines().begin(), m_history.Lines().end(),
+        [this](const auto& line) { return !m_lineage.Contains(line.timestamp); }));
 }
 
 void Chronicle::Tick()
@@ -426,6 +455,7 @@ void Chronicle::OnMenuOpenClose(std::string_view name, bool opening)
         // Only SKSE's Revert clears the character id. A session started from
         // the Main Menu without a load or New Game gets its own id.
         profileId = 0;
+        m_lineage = ChronicleHistory::Lineage::All();
         m_state.Menu(name, true);
         PublishRuntime();
     }
@@ -842,6 +872,9 @@ void Chronicle::LoadHistory()
     else HistoryWriter::Remove(HistoryWriter::PathFor(profile));
     m_historyAdopted = false;
     spdlog::info("Chronicle: history for profile {}: {} line(s), last id {}", profile, m_history.Size(), m_history.LastId());
+    if (m_lineage.ShowsAll()) spdlog::info("Chronicle: the save has no history stretches (before 1.4.17, or a new character): every line shows");
+    else spdlog::info("Chronicle: history follows this save: {} stretch(es), {} line(s) from other play folded away",
+        m_lineage.Closed().size(), FoldedLines());
     DovahHubModule::PushReset();
     ChronicleApi::Dispatch(CHRONICLE_API::kMsgHistoryOpened, { { "character", std::to_string(profile) } });
 }
@@ -892,7 +925,7 @@ void Chronicle::SaveHistoryNow()
 
 std::string Chronicle::HistoryPageJson(std::optional<std::int64_t> before, std::size_t limit) const
 {
-    const auto page = m_history.Before(before, limit);
+    const auto page = m_history.Before(before, limit, m_lineage);
     return Json({
         {"profile", m_historyProfile ? std::to_string(m_historyProfile) : ""},
         {"lines", ChronicleHistory::LinesToJson(page.lines)},

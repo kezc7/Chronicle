@@ -128,6 +128,7 @@ namespace
         filter.speakerFormId = query->speakerFormId;
         filter.ownerQuest = query->ownerQuest ? query->ownerQuest : "";
         filter.limit = query->limit;
+        filter.lineage = &chronicle->HistoryLineage();  // the loaded save's lines, as the chat window shows
         std::uint32_t visited = 0;
         for (const auto* line : Policy::Select(chronicle->History().Lines(), filter)) {
             const auto message = ToMessage(*line);

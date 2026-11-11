@@ -14,7 +14,20 @@
 
 'use strict';
 
-const runtime = { connected: false, loaded: false, visible: false, profile: '', character: '', gameLanguage: '', host: '' };
+const runtime = { connected: false, loaded: false, visible: false, profile: '', character: '', gameLanguage: '', host: '',
+  lineage: null, lineageKey: 'null' };
+// Lines of this character the loaded save never saw (play after it, another
+// branch): kept in storage, not shown. Loading the save that saw them shows them.
+let foldedHistory = [];
+
+// The loaded save's stretches of play, from the native side: [[from, to], ...,
+// [from, null]] in ms. null (a save from before 1.4.17) shows every line.
+function lineageShows(timestamp) {
+  if (!Array.isArray(runtime.lineage)) return true;
+  const ts = Number(timestamp) || 0;
+  return runtime.lineage.some(range => Array.isArray(range) && ts >= Number(range[0]) &&
+    (range[1] === null || ts <= Number(range[1])));
+}
 // Chat window themes (styles.css body[data-theme] blocks); anything else,
 // including a missing value, falls back to the default Skyrim theme.
 const THEMES = ['skyrim', 'daedric', 'dwemer', 'classic-mmo', 'modern', 'minimal', 'transparent', 'high-contrast'];
@@ -150,18 +163,23 @@ function setUserHidden(hidden) {
 }
 
 function setRuntime(data) {
-  if (runtime.profile !== data.profile) {
+  const lineageKey = JSON.stringify(Array.isArray(data.lineage) ? data.lineage : null);
+  // Another character, or another save of this one: the log is that save's.
+  if (runtime.profile !== data.profile || runtime.lineageKey !== lineageKey) {
     flushHistory();
     messages.length = 0;
+    foldedHistory = [];
     document.getElementById('message-list').replaceChildren();
     runtime.profile = data.profile;
+    runtime.lineage = Array.isArray(data.lineage) ? data.lineage : null;
+    runtime.lineageKey = lineageKey;
     inputHistory.length = 0;
     if (typeof inputHistoryChannel !== 'undefined') inputHistoryChannel.clear();
     inputHistoryIndex = -1;
     unreadCount = 0;
     userScrolledUp = false;
     showUnread(0);
-    // A search or speaker filter belongs to the last character's log.
+    // A search or speaker filter belongs to the last character's (or save's) log.
     searchText = '';
     speakerFilter = '';
     document.getElementById('history-search').value = '';
@@ -187,7 +205,7 @@ function chronicleSelfTest(token) {
   const api = typeof navigator !== 'undefined' && typeof navigator.getGamepads === 'function';
   const pads = api ? [...(navigator.getGamepads() || [])].filter(pad => pad && pad.connected !== false) : [];
   sendToGame('selfTestReply', {token: String(token), profile: runtime.profile || '', loaded: runtime.loaded === true,
-    lines: messages.length, search: searchText, speaker: speakerFilter,
+    lines: messages.length, search: searchText, speaker: speakerFilter, lineage: runtime.lineageKey, folded: foldedHistory.length,
     pad: {api, connected: pads.length, id: pads.length ? String(pads[0].id || '').slice(0, 80) : ''}});
 }
 
@@ -195,9 +213,15 @@ function flushHistory() {
   if (historySaveTimer) clearTimeout(historySaveTimer);
   historySaveTimer = null;
   if (!ownsStorage() || !runtime.profile || !config.general.persist_history) return;
+  // The shown lines first; folded ones fill what room is left, so loading the
+  // save that saw them shows them again.
+  const max = config.general.max_messages;
+  const shown = messages.slice(-max).map(({channel, speaker, message, timestamp}) => ({channel, speaker, message, timestamp}));
+  const room = max - shown.length;
+  const kept = (room > 0 ? foldedHistory.slice(-room) : []).concat(shown)
+    .sort((a, b) => (Number(a.timestamp) || 0) - (Number(b.timestamp) || 0));
   try {
-    localStorage.setItem(historyKey(), JSON.stringify(messages.slice(-config.general.max_messages)
-      .map(({channel, speaker, message, timestamp}) => ({channel, speaker, message, timestamp}))));
+    localStorage.setItem(historyKey(), JSON.stringify(kept));
   } catch (_) { statusText(t('status.historyNotSaved')); }
 }
 

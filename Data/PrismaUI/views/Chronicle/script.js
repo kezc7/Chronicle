@@ -451,7 +451,11 @@ function restoreHistory() {
   try {
     const saved = JSON.parse(localStorage.getItem(historyKey()) || '[]');
     if (Array.isArray(saved)) {
-      saved.slice(-config.general.max_messages).forEach(entry => addMessage(entry, false));
+      // Only the loaded save's lines show; the rest wait, folded, for the save that saw them.
+      const valid = saved.filter(entry => entry && typeof entry === 'object');
+      foldedHistory = valid.filter(entry => !lineageShows(entry.timestamp));
+      valid.filter(entry => lineageShows(entry.timestamp))
+        .slice(-config.general.max_messages).forEach(entry => addMessage(entry, false));
     }
   } catch (_) {}
 }
@@ -460,6 +464,7 @@ function clearHistory() {
   clearTimeout(historySaveTimer);
   historySaveTimer = null;
   messages.length = 0;
+  foldedHistory = [];
   historyClearedAt = Date.now();
   document.getElementById('message-list').replaceChildren();
   try { localStorage.removeItem(historyKey()); } catch (_) {}

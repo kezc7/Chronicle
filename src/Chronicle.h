@@ -122,6 +122,14 @@ public:
 
     // For Chronicle_API.h (game thread unless noted).
     const ChronicleHistory::List& History() const { return m_history; }
+    // Which of the character's lines the loaded save went through (CHRON-18).
+    const ChronicleHistory::Lineage& HistoryLineage() const { return m_lineage; }
+    // Co-save, game thread. Load: the save's list (nullopt: a save from before
+    // 1.4.17, every line shows). Save: the list to keep. Revert: forget it.
+    void OnLineageLoaded(std::optional<std::vector<ChronicleHistory::Lineage::Range>> a_ranges);
+    std::vector<ChronicleHistory::Lineage::Range> LineageForSave() const;
+    // Lines kept but not shown because the loaded save never saw them.
+    std::size_t FoldedLines() const;
     bool HistoryOpen() const { return m_historyProfile != 0; }
     bool IsVisible() const { return !m_hidden.load(); }  // any thread
     void SetApiHidden(bool a_hidden);
@@ -213,6 +221,7 @@ private:
 
     // History: game thread only.
     ChronicleHistory::List m_history;
+    ChronicleHistory::Lineage m_lineage;     // set by the co-save load before the world is ready
     ChronicleHistory::ChannelFilter m_historyChannels;
     std::uint64_t m_historyProfile{ 0 };     // the character m_history belongs to; 0 = none loaded
     std::uint64_t m_historyGeneration{ 0 };  // bumped whenever m_history changes owner

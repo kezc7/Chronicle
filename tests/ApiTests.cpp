@@ -105,5 +105,18 @@ int main()
         !IsSlug("has space") && !IsSlug(std::string(33, 'a')), "slugs");
 
     Require(VersionNumber("1.4.0") == 10400 && VersionNumber("1.2.39") == 10239 && VersionNumber("2.10.3") == 21003, "version number");
+
+    // GetMessages gives the loaded save's lines only (CHRON-18); Make's timestamp is the id.
+    {
+        std::deque<Line> history;
+        for (std::uint64_t id = 1; id <= 30; ++id) history.push_back(Make(id, "dialogue"));
+        const auto loaded = ChronicleHistory::Lineage::Loaded({ { 0, 10 } }, 21);  // saved at 10, loaded at 21
+        Filter followsSave;
+        followsSave.lineage = &loaded;
+        const auto shown = Select(history, followsSave);
+        Require(shown.size() == 20 && shown[9]->id == 10 && shown[10]->id == 21, "lines 11 to 20 are another branch's");
+        followsSave.sinceId = 15;
+        Require(Select(history, followsSave).front()->id == 21, "resuming after an id skips the fold too");
+    }
     return 0;
 }

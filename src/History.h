@@ -31,6 +31,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
 #include <vector>
 
@@ -281,19 +282,26 @@ namespace ChronicleHistory
 
         // The newest `limit` lines older than `before` (all lines without it).
         // Lines sharing the oldest returned timestamp come in the same page, so
-        // the next page's `before` cannot split them.
-        Page Before(std::optional<std::int64_t> before, std::size_t limit) const
+        // the next page's `before` cannot split them. With `shown`, only the
+        // lines it contains count: the loaded save's own (Lineage below).
+        template<class Shown = std::nullptr_t>
+        Page Before(std::optional<std::int64_t> before, std::size_t limit, const Shown& shown = nullptr) const
         {
+            std::vector<const Line*> view;
+            view.reserve(m_lines.size());
+            for (const auto& line : m_lines) {
+                if constexpr (std::is_same_v<Shown, std::nullptr_t>) view.push_back(&line);
+                else if (shown.Contains(line.timestamp)) view.push_back(&line);
+            }
             limit = std::clamp<std::size_t>(limit, 1, kMaxLines);
-            std::size_t end = m_lines.size();
+            std::size_t end = view.size();
             if (before) {
-                while (end > 0 && m_lines[end - 1].timestamp >= *before) --end;
+                while (end > 0 && view[end - 1]->timestamp >= *before) --end;
             }
             std::size_t start = end > limit ? end - limit : 0;
-            while (start > 0 && start < end && m_lines[start - 1].timestamp == m_lines[start].timestamp) --start;
+            while (start > 0 && start < end && view[start - 1]->timestamp == view[start]->timestamp) --start;
             Page page;
-            page.lines.assign(m_lines.begin() + static_cast<std::ptrdiff_t>(start),
-                m_lines.begin() + static_cast<std::ptrdiff_t>(end));
+            for (auto i = start; i < end; ++i) page.lines.push_back(*view[i]);
             page.more = start > 0;
             return page;
         }
@@ -301,6 +309,113 @@ namespace ChronicleHistory
     private:
         std::deque<Line> m_lines;
         std::uint64_t m_lastId{ 0 };
+    };
+
+    // Which of a character's lines belong to the loaded save: the stretches of
+    // real time (ms since the epoch, a line's timestamp) its play went through.
+    // Every save keeps its own list in the co-save. Loading an older save shows
+    // only its stretches, so lines from play after it (a branch it never saw)
+    // are folded away, not deleted: loading the later save shows them again.
+    //
+    //   save A at t1           A: [0..t1]
+    //   play on, save B at t2  B: [0..t2]
+    //   load A at t3, play     now: [0..t1] + [t3..)   (t1..t3 folded)
+    //   save C at t4           C: [0..t1] [t3..t4]
+    //
+    // A save from before this (no list) shows everything, as before: [0..).
+    class Lineage
+    {
+    public:
+        struct Range
+        {
+            std::int64_t from{ 0 };
+            std::int64_t to{ 0 };  // inclusive
+            bool operator==(const Range&) const = default;
+        };
+        static constexpr std::size_t kMaxRanges = 128;
+
+        // Everything: a new character, or a save with no list.
+        static Lineage All() { return {}; }
+
+        // A save's list, then play from `nowMs` on. Bad ranges are dropped.
+        static Lineage Loaded(std::vector<Range> ranges, std::int64_t nowMs)
+        {
+            Lineage lineage;
+            lineage.m_closed = Normalized(std::move(ranges));
+            lineage.m_openFrom = nowMs;
+            return lineage;
+        }
+
+        bool Contains(std::int64_t timestamp) const
+        {
+            if (timestamp >= m_openFrom) return true;
+            return std::any_of(m_closed.begin(), m_closed.end(),
+                [timestamp](const Range& r) { return r.from <= timestamp && timestamp <= r.to; });
+        }
+
+        // The list a save made now keeps. The stretch played since the load
+        // ends now. Stretches that end before `oldestMs` (no line is that
+        // old any more) are dropped; past kMaxRanges the oldest go.
+        std::vector<Range> ForSave(std::int64_t nowMs, std::int64_t oldestMs = 0) const
+        {
+            auto ranges = m_closed;
+            ranges.push_back({ m_openFrom, std::max(m_openFrom, nowMs) });
+            ranges = Normalized(std::move(ranges));
+            std::erase_if(ranges, [oldestMs](const Range& r) { return r.to < oldestMs; });
+            if (ranges.size() > kMaxRanges) ranges.erase(ranges.begin(), ranges.end() - kMaxRanges);
+            return ranges;
+        }
+
+        // True for a save with no list (or none loaded yet): every line shows.
+        bool ShowsAll() const { return m_closed.empty() && m_openFrom == 0; }
+        const std::vector<Range>& Closed() const { return m_closed; }
+        std::int64_t OpenFrom() const { return m_openFrom; }
+
+        // For the chat window: [[from, to], ..., [openFrom, null]].
+        nlohmann::json ToJson() const
+        {
+            auto out = nlohmann::json::array();
+            for (const auto& r : m_closed) out.push_back({ r.from, r.to });
+            out.push_back({ m_openFrom, nullptr });
+            return out;
+        }
+
+        // Co-save bytes: a count, then from/to pairs.
+        static std::vector<std::int64_t> Pack(const std::vector<Range>& ranges)
+        {
+            std::vector<std::int64_t> out;
+            out.push_back(static_cast<std::int64_t>(ranges.size()));
+            for (const auto& r : ranges) {
+                out.push_back(r.from);
+                out.push_back(r.to);
+            }
+            return out;
+        }
+        static std::optional<std::vector<Range>> Unpack(const std::vector<std::int64_t>& words)
+        {
+            if (words.empty() || words[0] < 0 || static_cast<std::size_t>(words[0]) > kMaxRanges ||
+                words.size() != 1 + 2 * static_cast<std::size_t>(words[0])) return std::nullopt;
+            std::vector<Range> ranges;
+            for (std::size_t i = 1; i + 1 < words.size(); i += 2) ranges.push_back({ words[i], words[i + 1] });
+            return ranges;
+        }
+
+    private:
+        // Sorted, overlapping or touching stretches merged, reversed ones dropped.
+        static std::vector<Range> Normalized(std::vector<Range> ranges)
+        {
+            std::erase_if(ranges, [](const Range& r) { return r.to < r.from || r.from < 0; });
+            std::sort(ranges.begin(), ranges.end(), [](const Range& a, const Range& b) { return a.from < b.from; });
+            std::vector<Range> merged;
+            for (const auto& r : ranges) {
+                if (!merged.empty() && r.from <= merged.back().to + 1) merged.back().to = std::max(merged.back().to, r.to);
+                else merged.push_back(r);
+            }
+            return merged;
+        }
+
+        std::vector<Range> m_closed;
+        std::int64_t m_openFrom{ 0 };
     };
 
     // Work started for one character and world must not land in another: a
