@@ -679,6 +679,35 @@ function populateSettingsForm() {
 
   buildChannelRows();
   buildSpeakerColourRows();
+  paintSliders();
+  syncToggles();
+}
+
+// The suite theme's slider fills to --dv-value; values set from script fire no
+// input event, so the form repaints after it changes them.
+function paintSliders(root = document) {
+  root.querySelectorAll('input.dv-slider').forEach(slider => {
+    const min = Number(slider.min) || 0;
+    const max = Number(slider.max);
+    const value = Number(slider.value);
+    const pct = Number.isFinite(max) && max > min ? clamp((value - min) / (max - min) * 100, 0, 100) : 0;
+    slider.style.setProperty('--dv-value', pct + '%');
+  });
+}
+
+// A theme toggle is a checkbox inside label.dv-toggle: the label carries is-on
+// and the On/Off word beside the switch.
+function syncToggles(root = document) {
+  root.querySelectorAll('label.dv-toggle').forEach(toggle => {
+    const box = toggle.querySelector('input[type=checkbox]');
+    if (!box) return;
+    toggle.classList.toggle('is-on', box.checked);
+    const state = toggle.querySelector('.sp-toggle-state');
+    if (state) {
+      state.dataset.i18n = box.checked ? 'sp.on' : 'sp.off';
+      state.textContent = t(state.dataset.i18n);
+    }
+  });
 }
 
 function buildChannelRows() {
@@ -695,16 +724,16 @@ function buildChannelRows() {
     // data-i18n keys let a language change re-translate rows built here.
     row.innerHTML = `
       <span class="sp-ch-name" data-i18n="channel.${ch}">${label}</span>
-      <label class="sp-toggle">
+      <label class="dv-toggle sp-toggle">
         <input type="checkbox" class="ch-enabled" ${cfg.enabled ? 'checked' : ''} />
-        <span class="sp-track"></span>
+        <span class="dv-toggle__track"><i></i></span>
       </label>
-      <input type="text" class="ch-prefix" value="${escapeHtml(cfg.prefix || '')}"
+      <input type="text" class="sp-field ch-prefix" value="${escapeHtml(cfg.prefix || '')}"
              placeholder="${escapeHtml(t('sp.prefix'))}" data-i18n-placeholder="sp.prefix" maxlength="16" />
-      <label title="${escapeHtml(t('sp.showTimestamps'))}" data-i18n-title="sp.showTimestamps">
+      <label class="sp-check" title="${escapeHtml(t('sp.showTimestamps'))}" data-i18n-title="sp.showTimestamps">
         <input type="checkbox" class="ch-timestamp" ${cfg.show_timestamp ? 'checked' : ''} />
       </label>
-      <input type="color" class="ch-colour" value="${cfg.colour || '#ffffff'}"
+      <input type="color" class="sp-colour ch-colour" value="${cfg.colour || '#ffffff'}"
              ${ch === 'all' ? 'disabled' : ''} />
     `;
 
@@ -743,8 +772,8 @@ function buildSpeakerColourRows() {
     row.className = 'sp-speaker-row';
     row.dataset.speaker = name;
     row.innerHTML = '<span class="sp-speaker-name"></span>' +
-      '<input type="color" class="sp-speaker-colour" />' +
-      '<button type="button" class="sp-remove-speaker"></button>';
+      '<input type="color" class="sp-colour sp-speaker-colour" />' +
+      '<button type="button" class="dv-button dv-button--danger sp-remove-speaker"></button>';
     row.querySelector('.sp-speaker-name').textContent = name;
     row.querySelector('.sp-remove-speaker').dataset.i18n = 'sp.remove';
     row.querySelector('.sp-remove-speaker').textContent = t('sp.remove');
@@ -874,7 +903,10 @@ document.getElementById('sp-tabs').addEventListener('click', e => {
   const tab = e.target.closest('.sp-tab');
   if (!tab) return;
   const section = tab.dataset.sp;
-  document.querySelectorAll('.sp-tab').forEach(t => t.classList.toggle('active', t === tab));
+  document.querySelectorAll('.sp-tab').forEach(t => {
+    t.classList.toggle('is-active', t === tab);
+    t.setAttribute('aria-selected', t === tab ? 'true' : 'false');
+  });
   document.querySelectorAll('.sp-section').forEach(s => {
     s.classList.toggle('active', s.id === 'sp-' + section);
   });
@@ -904,6 +936,11 @@ bindSlider('sp-fade-time', 'sp-fade-time-val', v => v);
 })();
 
 document.getElementById('sp-close').addEventListener('click', closeSettings);
+// Keep the theme's slider fills and toggle states in step with the form.
+['input', 'change'].forEach(type => document.getElementById('settings-panel').addEventListener(type, () => {
+  paintSliders();
+  syncToggles();
+}));
 
 // Settings Apply / Reset
 document.getElementById('sp-apply').addEventListener('click', () => {
@@ -1032,6 +1069,7 @@ function syncPositionControls() {
   yBox.max = maxY;
   xBox.value = Math.round(x);
   yBox.value = Math.round(y);
+  paintSliders();
 }
 
 // Slider, nudge buttons and exact-value box all route here and stay in sync.

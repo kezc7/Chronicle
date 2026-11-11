@@ -259,14 +259,14 @@
     chips.setAttribute('role', 'group');
     const chipFor = {};
     CHANNELS.forEach(channel => {
-      const chip = el(doc, 'button', 'hearth-filter-chip' + (channel === 'all' ? ' is-selected' : ''));
+      const chip = el(doc, 'button', 'dv-chip' + (channel === 'all' ? ' is-selected' : ''));
       chip.type = 'button';
       chip.dataset.channel = channel;
       chip.addEventListener('click', () => setChannel(channel));
       chipFor[channel] = chip;
       chips.appendChild(chip);
     });
-    const search = el(doc, 'label', 'hearth-search chronicle-history__search');
+    const search = el(doc, 'label', 'chronicle-history__search');
     const query = el(doc, 'input', 'chronicle-history__query');
     query.type = 'search';
     query.addEventListener('input', () => { state.search = String(query.value || '').trim().toLowerCase(); applyFilters(); });
@@ -274,13 +274,13 @@
     tools.appendChild(chips);
     tools.appendChild(search);
 
-    const older = el(doc, 'button', 'hearth-proof-button chronicle-history__older');
+    const older = el(doc, 'button', 'dv-button chronicle-history__older');
     older.type = 'button';
     older.hidden = true;
     older.addEventListener('click', () => loadOlder());
     const list = el(doc, 'div', 'chronicle-history__list');
     list.setAttribute('role', 'log');
-    const empty = el(doc, 'p', 'hearth-detail-note chronicle-history__empty');
+    const empty = el(doc, 'p', 'chronicle-history__empty');
     empty.hidden = true;
     let available = true;
 
@@ -322,7 +322,7 @@
     }
 
     function buildRow(line) {
-      const row = el(doc, 'button', 'wf-loot-row chronicle-history__row');
+      const row = el(doc, 'button', 'dv-row chronicle-history__row');
       row.type = 'button';
       row.dataset.channel = line.channel;
       const colour = state.colours[line.channel] || COLOURS[line.channel];

@@ -1,0 +1,266 @@
+/* dovah-theme.css: the Dovah suite's look, for every mod's pages. Copy this file and fonts/ unchanged, and pin
+   its hash (see README.txt beside it). DovahHub's own values (hearth-shell.css, nordic.css), as drawn in the
+   Figma "Dovah Suite UI": Barlow Condensed in spaced capitals, ink and gold on dark translucent panels with
+   the diamond corners, a gold gradient with an inset bar for the selection, square toggles, the gold-arrow
+   select, keycap prompts and the gold controller ring.
+
+   Plain CSS for PrismaUI's and Magelight's engines (Ultralight): no framework, no :is/:has, no external
+   files. Sizes are in rem; add class "dv-scale" to <html> for DovahHub's sizing, where 1rem follows the
+   smaller of the width and height (16.3px at 1920x1080, 17px at 2000x1125).
+
+   Colours, fonts and art are tokens (--dv-*): a mod changes a token, never a rule. States: .is-active, .is-selected,
+   .is-on (or aria-selected / aria-checked / aria-pressed), .is-muted, :disabled, and .is-hover for a hover the
+   page shows itself (the preview, or a pad moving a highlight). */
+
+/* Barlow Condensed (SIL Open Font Licence, fonts/OFL-BarlowCondensed.txt). */
+@font-face { font-family: "Barlow Condensed"; src: url("fonts/BarlowCondensed-Regular.ttf") format("truetype"); font-weight: 400; }
+@font-face { font-family: "Barlow Condensed"; src: url("fonts/BarlowCondensed-Medium.ttf") format("truetype"); font-weight: 500; }
+@font-face { font-family: "Barlow Condensed"; src: url("fonts/BarlowCondensed-SemiBold.ttf") format("truetype"); font-weight: 600; }
+
+/* ---------------------------------------------------------------- tokens -- */
+:root {
+  --dv-ink: #ece6da;
+  --dv-ink-soft: rgba(236, 230, 218, .82);
+  --dv-ink-bright: #fff8e8;
+  --dv-muted: #a4a6a3;
+  --dv-dim: #74797c;
+  --dv-accent: #d8b46b;
+  --dv-accent-bright: #f0d596;
+  --dv-accent-rgb: 216, 180, 107;
+  --dv-line-rgb: 196, 170, 118;
+  --dv-line: rgba(var(--dv-line-rgb), .42);
+  --dv-line-strong: rgba(var(--dv-accent-rgb), .72);
+  --dv-line-soft: rgba(176, 168, 150, .15);
+  --dv-good: #86d68f;
+  --dv-warn: #e3a05b;
+  --dv-bad: #e0735f;
+  --dv-panel-fill: linear-gradient(180deg, rgba(10, 14, 18, .88), rgba(8, 11, 14, .9));
+  --dv-control-fill: rgba(0, 0, 0, .38);
+  --dv-select: linear-gradient(90deg, rgba(var(--dv-accent-rgb), .27), rgba(var(--dv-accent-rgb), .08) 70%, rgba(var(--dv-accent-rgb), .02));
+  --dv-shadow: 0 .5rem 1.6rem rgba(0, 0, 0, .45), inset 0 0 2.5rem rgba(0, 0, 0, .35);
+  --dv-ring: 0 0 .9rem rgba(var(--dv-accent-rgb), .35);
+  --dv-font: "Barlow Condensed", "Arial Narrow", sans-serif;
+  /* The diamond corners, gold: a hairline elbow with a hollow and a solid diamond. */
+  --dv-corner-tl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M.5 20V.5H20' fill='none' stroke='%23d8b46b' stroke-opacity='.8'/%3E%3Cpath d='M5 1 9 5 5 9 1 5Z' fill='%23090c0f' stroke='%23d8b46b'/%3E%3Cpath d='M5 3.4 6.6 5 5 6.6 3.4 5Z' fill='%23d8b46b'/%3E%3C/svg%3E");
+  --dv-corner-tr: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M23.5 20V.5H4' fill='none' stroke='%23d8b46b' stroke-opacity='.8'/%3E%3Cpath d='M19 1 23 5 19 9 15 5Z' fill='%23090c0f' stroke='%23d8b46b'/%3E%3Cpath d='M19 3.4 20.6 5 19 6.6 17.4 5Z' fill='%23d8b46b'/%3E%3C/svg%3E");
+  --dv-corner-bl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M.5 4V23.5H20' fill='none' stroke='%23d8b46b' stroke-opacity='.8'/%3E%3Cpath d='M5 15 9 19 5 23 1 19Z' fill='%23090c0f' stroke='%23d8b46b'/%3E%3Cpath d='M5 17.4 6.6 19 5 20.6 3.4 19Z' fill='%23d8b46b'/%3E%3C/svg%3E");
+  --dv-corner-br: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M23.5 4V23.5H4' fill='none' stroke='%23d8b46b' stroke-opacity='.8'/%3E%3Cpath d='M19 15 23 19 19 23 15 19Z' fill='%23090c0f' stroke='%23d8b46b'/%3E%3Cpath d='M19 17.4 20.6 19 19 20.6 17.4 19Z' fill='%23d8b46b'/%3E%3C/svg%3E");
+  /* The select's gold arrow. */
+  --dv-select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M0 0h10L5 6Z' fill='%23d8b46b'/%3E%3C/svg%3E");
+}
+/* Chinese, Japanese and Korean: Barlow for Latin, then the system's face. A mod with its own subset sets
+   --dv-font-zh, --dv-font-ja or --dv-font-ko to that family's name. */
+:lang(zh) { --dv-font: "Barlow Condensed", var(--dv-font-zh, "Microsoft YaHei"), "Microsoft YaHei", sans-serif; }
+:lang(ja) { --dv-font: "Barlow Condensed", var(--dv-font-ja, "Yu Gothic"), "Yu Gothic", Meiryo, sans-serif; }
+:lang(ko) { --dv-font: "Barlow Condensed", var(--dv-font-ko, "Malgun Gothic"), "Malgun Gothic", sans-serif; }
+
+/* DovahHub's sizing, opt-in. */
+html.dv-scale { font-size: max(10px, min(.85vw, 1.675vh)); }
+
+/* A page or block in the suite's type and colours. */
+.dv-page { color: var(--dv-ink); font-family: var(--dv-font); font-size: 1rem; letter-spacing: .02em; }
+.dv-page *, .dv-page *::before, .dv-page *::after { box-sizing: border-box; }
+
+/* ----------------------------------------------------------------- panel -- */
+.dv-panel {
+  position: relative;
+  padding: 2.35rem 1.25rem 1.3rem;
+  border: 1px solid var(--dv-line);
+  background-image: var(--dv-corner-tl), var(--dv-corner-tr), var(--dv-corner-bl), var(--dv-corner-br), var(--dv-panel-fill);
+  background-position: 0 0, 100% 0, 0 100%, 100% 100%, 0 0;
+  background-size: 1.25rem 1.25rem, 1.25rem 1.25rem, 1.25rem 1.25rem, 1.25rem 1.25rem, auto;
+  background-repeat: no-repeat;
+  box-shadow: var(--dv-shadow);
+  color: var(--dv-ink);
+  font-family: var(--dv-font);
+}
+/* A panel without its corners (a card inside a panel). */
+.dv-panel--plain { background-image: var(--dv-panel-fill); background-size: auto; background-position: 0 0; }
+/* The gold hairline, fading out at both ends. */
+.dv-rule { height: 1px; margin: 1.05rem 0 1.4rem; border: 0; background: linear-gradient(90deg, rgba(var(--dv-line-rgb), 0), rgba(var(--dv-line-rgb), .5) 25%, rgba(var(--dv-line-rgb), .5) 75%, rgba(var(--dv-line-rgb), 0)); }
+
+/* --------------------------------------------------------------- heading -- */
+.dv-heading { margin: 0; color: #f1ece2; font: 400 2rem/1.1 var(--dv-font); letter-spacing: .2em; text-transform: uppercase; text-shadow: 0 .1rem .4rem rgba(0, 0, 0, .8); }
+.dv-heading--small { font-size: 1.35rem; letter-spacing: .16em; }
+/* The small spaced capitals above a heading or a group of settings. */
+.dv-kicker { margin: 0; color: var(--dv-muted); font: 600 .82rem/1.3 var(--dv-font); letter-spacing: .28em; text-transform: uppercase; }
+:lang(zh) .dv-heading, :lang(ja) .dv-heading, :lang(ko) .dv-heading, :lang(zh) .dv-kicker, :lang(ja) .dv-kicker, :lang(ko) .dv-kicker { letter-spacing: .1em; }
+
+/* ------------------------------------------------------------------ tabs -- */
+.dv-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; }
+.dv-tab {
+  height: 2.2rem;
+  padding: 0 .95rem;
+  border: 1px solid transparent;
+  background: none;
+  color: var(--dv-ink-soft);
+  font: 500 .95rem var(--dv-font);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.dv-tab:hover, .dv-tab.is-hover { color: var(--dv-ink-bright); border-color: var(--dv-line); }
+.dv-tab.is-active, .dv-tab[aria-selected="true"] { color: var(--dv-accent-bright); border-color: var(--dv-line-strong); background: var(--dv-select); }
+.dv-tab:disabled { opacity: .45; cursor: default; }
+
+/* ---------------------------------------------------------------- toggle -- */
+/* <button class="dv-toggle" role="switch" aria-checked="true"><span class="dv-toggle__track"><i></i></span><span>On</span></button> */
+.dv-toggle { display: inline-flex; align-items: center; gap: .8rem; flex: 0 0 auto; padding: .3rem; border: 0; background: none; color: var(--dv-ink); font: 400 .9rem var(--dv-font); letter-spacing: .14em; text-transform: uppercase; }
+button.dv-toggle { cursor: pointer; }
+.dv-toggle__track { position: relative; display: block; width: 3.3rem; height: 1.7rem; border: 1px solid rgba(190, 172, 132, .5); background: rgba(0, 0, 0, .45); }
+.dv-toggle__track i { position: absolute; top: .2rem; left: .2rem; width: 1.2rem; height: 1.2rem; background: var(--dv-dim); transition: left .15s ease, background-color .15s ease; }
+.dv-toggle[aria-checked="true"] .dv-toggle__track, .dv-toggle.is-on .dv-toggle__track { border-color: var(--dv-accent); background: rgba(var(--dv-accent-rgb), .2); }
+.dv-toggle[aria-checked="true"] .dv-toggle__track i, .dv-toggle.is-on .dv-toggle__track i { left: 1.8rem; background: var(--dv-accent-bright); }
+.dv-toggle:disabled { opacity: .45; cursor: default; }
+
+/* ---------------------------------------------------------------- select -- */
+.dv-select {
+  min-width: 10.5rem;
+  height: 2.5rem;
+  padding: 0 2.2rem 0 .9rem;
+  border: 1px solid rgba(190, 172, 132, .42);
+  border-radius: 0;
+  background: var(--dv-control-fill) var(--dv-select-arrow) right .85rem center / .6rem no-repeat;
+  color: var(--dv-ink);
+  font: 400 .95rem var(--dv-font);
+  letter-spacing: .04em;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+.dv-select option { background: #0b1016; color: var(--dv-ink); }
+.dv-select:hover, .dv-select.is-hover, .dv-select:focus { outline: none; border-color: var(--dv-accent-bright); }
+.dv-select:disabled { opacity: .45; cursor: default; }
+
+/* ---------------------------------------------------------------- slider -- */
+/* <input type="range" class="dv-slider" style="--dv-value: 60%">: the gold fill runs to --dv-value; the page
+   sets it on input (el.style.setProperty('--dv-value', pct + '%')). Without it the track is plain. */
+.dv-slider {
+  width: 9rem;
+  height: 1.4rem;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+.dv-slider::-webkit-slider-runnable-track {
+  height: 2px;
+  border: 0;
+  background: linear-gradient(90deg, var(--dv-accent) var(--dv-value, 0%), rgba(var(--dv-line-rgb), .35) var(--dv-value, 0%));
+}
+.dv-slider::-webkit-slider-thumb {
+  width: .75rem;
+  height: .75rem;
+  margin-top: calc(-.375rem + 1px);
+  border: 1px solid #0b1016;
+  border-radius: 0;
+  background: var(--dv-accent-bright);
+  -webkit-appearance: none;
+  appearance: none;
+}
+.dv-slider::-moz-range-track { height: 2px; border: 0; background: rgba(var(--dv-line-rgb), .35); }
+.dv-slider::-moz-range-progress { height: 2px; background: var(--dv-accent); }
+.dv-slider::-moz-range-thumb { width: .75rem; height: .75rem; border: 1px solid #0b1016; border-radius: 0; background: var(--dv-accent-bright); }
+.dv-slider:hover::-webkit-slider-thumb, .dv-slider.is-hover::-webkit-slider-thumb, .dv-slider:focus::-webkit-slider-thumb { box-shadow: 0 0 0 2px rgba(var(--dv-accent-rgb), .45); }
+.dv-slider:focus { outline: none; }
+.dv-slider:disabled { opacity: .45; cursor: default; }
+
+/* --------------------------------------------------------------- buttons -- */
+.dv-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .6rem;
+  min-height: 2.4rem;
+  padding: 0 1.2rem;
+  border: 1px solid var(--dv-line);
+  background: rgba(0, 0, 0, .3);
+  color: var(--dv-ink);
+  font: 500 .95rem var(--dv-font);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.dv-button:hover, .dv-button.is-hover, .dv-button:focus-visible { border-color: var(--dv-accent-bright); color: var(--dv-ink-bright); outline: none; }
+.dv-button:active { border-color: var(--dv-accent); }
+.dv-button--primary { border-color: var(--dv-line-strong); background: rgba(var(--dv-accent-rgb), .14); color: var(--dv-accent-bright); }
+.dv-button--primary:hover, .dv-button--primary.is-hover, .dv-button--primary:focus-visible { background: rgba(var(--dv-accent-rgb), .26); color: var(--dv-ink-bright); }
+.dv-button--danger { border-color: rgba(197, 106, 93, .6); background: rgba(197, 106, 93, .1); }
+.dv-button--danger:hover, .dv-button--danger.is-hover, .dv-button--danger:focus-visible { border-color: #e6a597; background: rgba(197, 106, 93, .22); }
+.dv-button:disabled { opacity: .45; cursor: default; border-color: var(--dv-line); color: var(--dv-ink); }
+
+/* ------------------------------------------------------------------ chip -- */
+.dv-chip { display: inline-flex; align-items: center; gap: .35rem; padding: .12rem .45rem; border: 1px solid var(--dv-line-strong); background: transparent; color: var(--dv-accent-bright); font: 500 .74rem/1.4 var(--dv-font); letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; }
+.dv-chip--muted { border-color: var(--dv-line-soft); color: var(--dv-muted); }
+/* A chip that is a button (a filter). */
+button.dv-chip { cursor: pointer; }
+button.dv-chip:hover, button.dv-chip.is-hover { border-color: var(--dv-accent-bright); color: var(--dv-ink-bright); }
+.dv-chip.is-selected, .dv-chip[aria-pressed="true"] { border-color: rgba(var(--dv-accent-rgb), .8); background: rgba(var(--dv-accent-rgb), .22); color: var(--dv-ink-bright); }
+
+/* ------------------------------------------------------------- stat bar -- */
+/* <div class="dv-stat"><span class="dv-stat__label">Trust</span><b class="dv-stat__value">52</b>
+   <span class="dv-stat__bar"><i style="width: 52%"></i></span></div> */
+.dv-stat { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: .9rem; row-gap: .4rem; padding: .5rem 0; font-family: var(--dv-font); }
+.dv-stat__label { color: var(--dv-ink-soft); font-size: .95rem; letter-spacing: .06em; }
+.dv-stat__value { color: var(--dv-ink); font-weight: 400; text-align: right; font-size: .95rem; }
+.dv-stat__bar { grid-column: 1 / 3; display: block; height: 3px; background: rgba(255, 255, 255, .08); }
+.dv-stat__bar i { display: block; width: 0; height: 100%; background: linear-gradient(90deg, rgba(var(--dv-accent-rgb), .55), var(--dv-accent-bright)); }
+.dv-stat--health .dv-stat__bar i { background: linear-gradient(90deg, #7c2a26, #d0564b); }
+.dv-stat--magicka .dv-stat__bar i { background: linear-gradient(90deg, #26457c, #5a8fe0); }
+.dv-stat--stamina .dv-stat__bar i { background: linear-gradient(90deg, #2d5c32, #6cbf6f); }
+
+/* -------------------------------------------------------------- list row -- */
+.dv-list { overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(var(--dv-accent-rgb), .45) transparent; }
+.dv-list::-webkit-scrollbar { width: .5rem; }
+.dv-list::-webkit-scrollbar-track { background: transparent; }
+.dv-list::-webkit-scrollbar-thumb { background-color: rgba(var(--dv-accent-rgb), .32); background-clip: padding-box; border: 2px solid transparent; border-radius: .3rem; }
+.dv-row {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  min-height: 2.95rem;
+  padding: 0 1rem;
+  border: 1px solid transparent;
+  border-bottom-color: rgba(150, 150, 140, .09);
+  background: none;
+  color: #d7d5cf;
+  font: 500 1.12rem var(--dv-font);
+  letter-spacing: .06em;
+  text-align: left;
+  cursor: pointer;
+}
+.dv-row:hover, .dv-row.is-hover { color: var(--dv-ink-bright); background: rgba(var(--dv-accent-rgb), .06); }
+.dv-row.is-selected, .dv-row[aria-selected="true"] { color: #fff; border-color: rgba(var(--dv-accent-rgb), .55); background: var(--dv-select); box-shadow: inset .2rem 0 var(--dv-accent); }
+.dv-row.is-muted { opacity: .45; }
+
+/* ----------------------------------------------------------- setting row -- */
+/* <div class="dv-setting-row"><div class="dv-setting-row__label"><b>Enabled</b><small>Master switch</small></div>
+   (a toggle, select, slider or button)</div> */
+.dv-setting-row { display: flex; align-items: center; justify-content: space-between; gap: 2rem; padding: 1rem 0; border-bottom: 1px solid var(--dv-line-soft); }
+.dv-setting-row__label { display: flex; flex-direction: column; gap: .3rem; min-width: 0; max-width: 38rem; }
+.dv-setting-row__label b { color: var(--dv-ink); font-size: 1.05rem; font-weight: 400; }
+.dv-setting-row__label small { color: var(--dv-muted); font-size: .98rem; line-height: 1.45; }
+.dv-setting-row__control { display: flex; align-items: center; gap: .8rem; flex: 0 0 auto; }
+.dv-setting-row__value { min-width: 2.5rem; color: var(--dv-ink); font-size: .95rem; text-align: right; }
+
+/* -------------------------------------------------------- prompt, keycap -- */
+.dv-prompts { display: flex; align-items: center; gap: 1.8rem; }
+.dv-prompt { display: inline-flex; align-items: center; gap: .75rem; margin: 0; padding: 0; border: 0; background: none; color: var(--dv-ink); font: 500 .98rem var(--dv-font); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
+button.dv-prompt { cursor: pointer; }
+button.dv-prompt:hover .dv-keycap, .dv-prompt.is-hover .dv-keycap { border-color: var(--dv-accent); color: var(--dv-accent); }
+.dv-keycap { display: inline-flex; align-items: center; justify-content: center; min-width: 2.15rem; height: 1.95rem; padding: 0 .45rem; border: 1px solid var(--dv-line-strong); background: rgba(0, 0, 0, .4); color: var(--dv-ink); font: 600 .78rem var(--dv-font); letter-spacing: .04em; text-transform: none; white-space: nowrap; }
+
+/* ------------------------------------------------------- controller ring -- */
+/* The input helper marks the selected element with data-meridian-focused (it follows mouse focus too), so the
+   ring shows only while a gamepad is the active input, as in DovahHub. A page that moves its own selection
+   puts .dv-focused on it instead, with data-meridian-input="gamepad" on <html>. */
+html[data-meridian-input="gamepad"] [data-meridian-focused],
+html[data-meridian-input="gamepad"] .dv-focused { outline: 2px solid var(--dv-accent-bright); outline-offset: -2px; box-shadow: var(--dv-ring); }
+html[data-meridian-input="gamepad"] .dv-row[data-meridian-focused],
+html[data-meridian-input="gamepad"] .dv-row.dv-focused { box-shadow: inset .2rem 0 var(--dv-accent), var(--dv-ring); }
+html[data-meridian-input="gamepad"] .dv-tab[data-meridian-focused],
+html[data-meridian-input="gamepad"] .dv-tab.dv-focused { outline-offset: -4px; }

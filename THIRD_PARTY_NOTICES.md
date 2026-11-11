@@ -48,6 +48,10 @@ Chronicle reaches DovahMenu.dll through it at runtime only when DovahMenu is ins
 - [rapidcsv](https://github.com/d99dc/rapidcsv): BSD 3-Clause License.
 - [xbyak](https://github.com/herumi/xbyak): BSD 3-Clause License.
 
+The settings window uses the Dovah suite theme kit (`theme/dovah-theme.css`, from
+DovahHub) with the [Barlow Condensed](https://github.com/jpt/barlow) font, which ships
+beside it under the SIL Open Font License 1.1 (`theme/fonts/OFL-BarlowCondensed.txt`).
+
 The exact notices for the resolved packages are available in the vcpkg install
 tree under `share/<package>/copyright`. Chronicle's release archive does not
 redistribute that build tree or the Skyrim, SKSE, Address Library, or PrismaUI

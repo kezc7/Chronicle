@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# The suite theme kit is pinned by its SHA-256 with LF line endings.
+Data/PrismaUI/views/Chronicle/theme/dovah-theme.css -text
+Data/PrismaUI/views/Chronicle/theme/fonts/*.ttf binary
