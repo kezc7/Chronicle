@@ -20,16 +20,8 @@
 
 #pragma once
 
-// DovahGameThread.h is copied unchanged from DovahHub, whose CommonLibSSE-NG
-// names the address library's classes REL::IDDB and REL::Offset2ID. Chronicle's
-// names them REL::IDDatabase and REL::IDDatabase::Offset2ID, with the same
-// members (get, id2offset, iteration over id/offset pairs).
-namespace REL
-{
-    using IDDB = IDDatabase;
-    using Offset2ID = IDDatabase::Offset2ID;
-}
-
+// DovahGameThread.h and DovahHub_API.h are copied unchanged from DovahHub; the
+// pump header picks the address library's names for either CommonLibSSE-NG.
 #include "DovahGameThread.h"
 
 #include <filesystem>

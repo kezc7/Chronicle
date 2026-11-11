@@ -32,8 +32,12 @@ namespace HistoryWriter
 {
     // Data/SKSE/Plugins/Chronicle/history/<profileId>.json; MO2 puts it in Overwrite.
     std::filesystem::path PathFor(std::uint64_t profile);
+    // history/selftest.json: the self-test's scratch file, never a character's.
+    std::filesystem::path SelfTestPath();
 
     void Save(std::filesystem::path path, std::vector<ChronicleHistory::Line> lines);
+    // Any thread. True while a save or removal for the file waits for the writer.
+    bool Pending(const std::filesystem::path& path);
     void Remove(std::filesystem::path path);
 
     // Game thread. Empty when there is no file or it cannot be read.

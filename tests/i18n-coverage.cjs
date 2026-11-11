@@ -99,7 +99,9 @@ const SAME_VALUE_IN = {
 
 const words = text => (text.match(/[\p{L}][\p{L}\p{N}'’-]*/gu) || []).map(w => w.toLowerCase().replace(/['’-]+$/, ''));
 const placeholders = text => [...text.matchAll(/\{(\w+)\}/g)].map(m => m[1]).sort().join(',');
-const meaningful = text => words(text.replace(/\{\w+\}/g, ' ')).filter(w => !KEEP.has(w));
+// Placeholders and file names (Chronicle.log) stay as they are in every language.
+const unnamed = text => text.replace(/\{\w+\}|\b[\w-]+\.(?:log|json|txt)\b/g, ' ');
+const meaningful = text => words(unnamed(text)).filter(w => !KEEP.has(w));
 
 function checkTable(english, table, language, sameValue) {
   const found = { missing: [], extra: [], identical: [], englishLeft: [], placeholders: [] };
@@ -119,7 +121,7 @@ function checkTable(english, table, language, sameValue) {
     if (NO_WORD_CHECK[key]) continue;
     let left;
     if (CJK.has(language)) {
-      left = words(value.replace(/\{\w+\}/g, ' ')).filter(w => /^[a-z]{2,}$/.test(w) && !KEEP.has(w));
+      left = words(unnamed(value)).filter(w => /^[a-z]{2,}$/.test(w) && !KEEP.has(w));
     } else {
       const sourceWords = new Set(meaningful(source).filter(w => w.length >= 3));
       left = meaningful(value).filter(w => sourceWords.has(w) && !allowed.has(w));

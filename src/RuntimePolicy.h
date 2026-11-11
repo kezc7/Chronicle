@@ -458,7 +458,8 @@ namespace ChronicleRuntime
     {
         GameSaved, ReachedLevel, Killed, Hit, Died, Combat, Enemy, Someone, Target, Player,
         QuestStarted, QuestCompleted, QuestFailed, NewObjective, ObjectiveCompleted, ObjectiveFailed,
-        MoreLines, UnknownCommand, Commands, NoCommands, Narrator, MenuDescription
+        MoreLines, UnknownCommand, Commands, NoCommands, Narrator, MenuDescription,
+        SelfTestStarted, SelfTestDone, SelfTestBusy
     };
 
     // "{0}" marks the inserted value (a name, a level, a line count).
@@ -490,6 +491,9 @@ namespace ChronicleRuntime
             case NoCommands: return "Aucune commande de mod enregistrée";
             case Narrator: return "Narrateur";
             case MenuDescription: return "Fenêtre de discussion et journal des messages";
+            case SelfTestStarted: return "Auto-test lancé : les résultats arrivent dans quelques secondes";
+            case SelfTestDone: return "Auto-test terminé : {0}. Chaque étape est dans Chronicle.log";
+            case SelfTestBusy: return "Un auto-test est déjà en cours";
             }
             break;
         case Lang::De:
@@ -516,6 +520,9 @@ namespace ChronicleRuntime
             case NoCommands: return "Keine Mod-Befehle registriert";
             case Narrator: return "Erzähler";
             case MenuDescription: return "Chatfenster und Nachrichtenprotokoll";
+            case SelfTestStarted: return "Selbsttest gestartet: Die Ergebnisse folgen in wenigen Sekunden";
+            case SelfTestDone: return "Selbsttest beendet: {0}. Jeder Schritt steht in Chronicle.log";
+            case SelfTestBusy: return "Ein Selbsttest läuft bereits";
             }
             break;
         case Lang::It:
@@ -542,6 +549,9 @@ namespace ChronicleRuntime
             case NoCommands: return "Nessun comando di mod registrato";
             case Narrator: return "Narratore";
             case MenuDescription: return "Finestra di chat e registro dei messaggi";
+            case SelfTestStarted: return "Autotest avviato: i risultati arrivano tra pochi secondi";
+            case SelfTestDone: return "Autotest terminato: {0}. Ogni passaggio è in Chronicle.log";
+            case SelfTestBusy: return "Un autotest è già in corso";
             }
             break;
         case Lang::Es:
@@ -568,6 +578,9 @@ namespace ChronicleRuntime
             case NoCommands: return "No hay comandos de mods registrados";
             case Narrator: return "Narrador";
             case MenuDescription: return "Ventana de chat y registro de mensajes";
+            case SelfTestStarted: return "Autoprueba iniciada: los resultados llegan en unos segundos";
+            case SelfTestDone: return "Autoprueba terminada: {0}. Cada paso está en Chronicle.log";
+            case SelfTestBusy: return "Ya hay una autoprueba en curso";
             }
             break;
         case Lang::Pl:
@@ -595,6 +608,9 @@ namespace ChronicleRuntime
             case NoCommands: return "Brak zarejestrowanych poleceń modów";
             case Narrator: return "Narrator";
             case MenuDescription: return "Okno czatu i dziennik wiadomości";
+            case SelfTestStarted: return "Autotest uruchomiony: wyniki pojawią się za kilka sekund";
+            case SelfTestDone: return "Autotest zakończony: {0}. Każdy krok jest w Chronicle.log";
+            case SelfTestBusy: return "Autotest już trwa";
             }
             break;
         case Lang::Tr:
@@ -622,6 +638,9 @@ namespace ChronicleRuntime
             case NoCommands: return "Kayıtlı mod komutu yok";
             case Narrator: return "Anlatıcı";
             case MenuDescription: return "Sohbet penceresi ve mesaj günlüğü";
+            case SelfTestStarted: return "Kendi kendine test başladı: sonuçlar birkaç saniye içinde gelir";
+            case SelfTestDone: return "Kendi kendine test bitti: {0}. Her adım Chronicle.log dosyasında";
+            case SelfTestBusy: return "Bir kendi kendine test zaten çalışıyor";
             }
             break;
         case Lang::Zh:
@@ -648,6 +667,9 @@ namespace ChronicleRuntime
             case NoCommands: return "没有已注册的模组命令";
             case Narrator: return "旁白";
             case MenuDescription: return "聊天窗口和消息记录";
+            case SelfTestStarted: return "自检已开始：结果将在几秒内显示";
+            case SelfTestDone: return "自检完成：{0}。每个步骤都记录在 Chronicle.log 中";
+            case SelfTestBusy: return "自检已在运行";
             }
             break;
         case Lang::Ja:
@@ -674,6 +696,9 @@ namespace ChronicleRuntime
             case NoCommands: return "登録された MOD コマンドはありません";
             case Narrator: return "ナレーター";
             case MenuDescription: return "チャットウィンドウとメッセージログ";
+            case SelfTestStarted: return "セルフテストを開始しました。数秒で結果が出ます";
+            case SelfTestDone: return "セルフテスト完了：{0}。各ステップは Chronicle.log にあります";
+            case SelfTestBusy: return "セルフテストはすでに実行中です";
             }
             break;
         case Lang::Ko:
@@ -701,6 +726,9 @@ namespace ChronicleRuntime
             case NoCommands: return "등록된 모드 명령이 없습니다";
             case Narrator: return "내레이터";
             case MenuDescription: return "채팅 창과 메시지 기록";
+            case SelfTestStarted: return "자체 테스트를 시작했습니다. 몇 초 후 결과가 표시됩니다";
+            case SelfTestDone: return "자체 테스트 완료: {0}. 각 단계는 Chronicle.log에 있습니다";
+            case SelfTestBusy: return "자체 테스트가 이미 실행 중입니다";
             }
             break;
         case Lang::En:
@@ -729,6 +757,9 @@ namespace ChronicleRuntime
         case NoCommands: return "No mod commands are registered";
         case Narrator: return "Narrator";
         case MenuDescription: return "Chat box and message log";
+        case SelfTestStarted: return "Self-test started: the results follow in a few seconds";
+        case SelfTestDone: return "Self-test finished: {0}. Each step is in Chronicle.log";
+        case SelfTestBusy: return "A self-test is already running";
         }
         return "";
     }

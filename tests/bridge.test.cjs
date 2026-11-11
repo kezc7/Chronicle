@@ -45,3 +45,13 @@ test('readiness can recover when the native listener arrives late', () => {
   assert.equal(ctx.sendToGame('uiReady',''),true);
   assert.equal(calls,1);
 });
+test('the self-test reply is allow-listed, and Magelight\'s display copy stays quiet', () => {
+  const calls=[];
+  const window={selfTestReply:value=>calls.push(value)};
+  const ctx=host(window);
+  assert.equal(ctx.sendToGame('selfTestReply',{token:'7',profile:'42'}),true);
+  assert.deepEqual(calls,['{"token":"7","profile":"42"}']);
+  vm.runInContext("var hostRole='hud';",ctx);
+  assert.equal(ctx.sendToGame('selfTestReply',{token:'8'}),false);
+  assert.equal(calls.length,1);
+});

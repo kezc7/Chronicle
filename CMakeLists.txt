@@ -57,6 +57,8 @@ set(headers
     src/DovahMenu_API.h
     src/Api.h
     src/ApiPolicy.h
+    src/SelfTest.h
+    src/SelfTestPolicy.h
     src/api/Chronicle_API.h
 )
 
@@ -70,6 +72,7 @@ set(sources
     src/SkyrimNet.cpp
     src/DovahMenuModule.cpp
     src/Api.cpp
+    src/SelfTest.cpp
 )
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${headers} ${sources})
@@ -123,6 +126,10 @@ if(CHRONICLE_BUILD_TESTS)
     target_include_directories(ChronicleApiTests PRIVATE src)
     target_link_libraries(ChronicleApiTests PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME ChronicleApiTests COMMAND ChronicleApiTests)
+    add_executable(ChronicleSelfTestTests tests/SelfTestTests.cpp)
+    target_include_directories(ChronicleSelfTestTests PRIVATE src)
+    target_link_libraries(ChronicleSelfTestTests PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME ChronicleSelfTestTests COMMAND ChronicleSelfTestTests)
 endif()
 
 target_precompile_headers(${PROJECT_NAME} PRIVATE src/PCH.h)

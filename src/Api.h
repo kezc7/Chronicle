@@ -42,4 +42,16 @@ namespace ChronicleApi
     // For Diagnostics.
     std::size_t SubscriberCount();
     std::vector<std::string> CommandPrefixes();
+
+    // For the self-test: the dispatch RunCommand does, without its echo or
+    // "unknown command" line in the box. Built-ins (/help, /selftest) are
+    // recognised, not run.
+    enum class Dispatched
+    {
+        NotCommand,  // plain text: it would go on to SkyrimNet
+        BuiltIn,
+        Handled,     // a registered handler answered true
+        Unhandled,   // no such command, or its handler answered false
+    };
+    Dispatched DispatchQuiet(std::string_view text);
 }

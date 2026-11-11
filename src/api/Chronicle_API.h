@@ -183,7 +183,9 @@ namespace CHRONICLE_API
         Result (*Send)(Kind kind, const char* sender, const char* speaker, const char* text);
 
         // Game thread, at kPostPostLoad or kDataLoaded. Idempotent per prefix: the same prefix again
-        // returns Duplicate and keeps the first.
+        // returns Duplicate and keeps the first. "help" and "selftest" are Chronicle's own (Duplicate).
+        // From 1.4.15, a mod that registers "<its slug>.selftest" has it run by "/selftest <its slug>"
+        // (with no arguments): the suite's way to start a mod's self-test from the chat bar.
         Result (*RegisterCommand)(const CommandDesc* desc, CommandId* outCommand);
         Result (*UnregisterCommand)(CommandId command);
 

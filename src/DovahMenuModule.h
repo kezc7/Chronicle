@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include "SelfTestPolicy.h"
+
 #include <string_view>
 
 // Chronicle's entry in DovahMenu's launcher list (DovahMenu_API.h), the same
@@ -36,4 +38,8 @@ namespace DovahMenuModule
     void SetHotkey(std::string_view a_hotkey);
     // Game thread. The entry's one-line description in Chronicle's language.
     void SetDescription(std::string_view a_description);
+
+    // Game thread. The entry is still known to DovahMenu, greyed or not as
+    // a_gameLoaded says, and shows the key the settings give (a_expected).
+    ChronicleSelfTest::Entry CheckEntry(std::string_view a_expected, bool a_gameLoaded);
 }

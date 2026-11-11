@@ -178,6 +178,13 @@ function setRuntime(data) {
 
 function historyKey() { return 'chronicle_history_' + runtime.profile; }
 
+// The self-test (/selftest or DovahHub's Run self-test) asks which character
+// the window shows, to check it is the one the game has loaded.
+function chronicleSelfTest(token) {
+  sendToGame('selfTestReply', {token: String(token), profile: runtime.profile || '', loaded: runtime.loaded === true,
+    lines: messages.length, search: searchText, speaker: speakerFilter});
+}
+
 function flushHistory() {
   if (historySaveTimer) clearTimeout(historySaveTimer);
   historySaveTimer = null;

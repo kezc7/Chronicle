@@ -23,6 +23,8 @@
 #include "ApiPolicy.h"
 #include "Chronicle.h"
 #include "GameThread.h"
+#include "SelfTest.h"
+#include "SelfTestPolicy.h"
 #include "api/Chronicle_API.h"
 
 #include <cstring>
@@ -62,6 +64,31 @@ namespace
     std::vector<Command> g_commands;
     std::uint32_t g_nextId = 1;
     Api::CommandId g_echoCommand = 0;
+
+    // Chronicle's own commands; another mod can't register these prefixes.
+    bool Reserved(std::string_view prefix)
+    {
+        return prefix == "help" || prefix == "selftest";
+    }
+
+    std::vector<Command> CopyCommands()
+    {
+        std::lock_guard lock(g_mutex);
+        return g_commands;
+    }
+
+    // Calls the handler registered for prefix: true when it answered true.
+    bool CallCommand(const std::vector<Command>& commands, std::string_view prefix, const std::string& args)
+    {
+        const auto it = std::find_if(commands.begin(), commands.end(), [&](const auto& c) { return c.prefix == prefix; });
+        if (it == commands.end()) return false;
+        try {
+            return it->fn(it->prefix.c_str(), args.c_str(), it->user);
+        } catch (...) {
+            spdlog::error("Chronicle API: command /{} threw", it->prefix);
+            return false;
+        }
+    }
 
     // The channel name as the API reports it, null-terminated for Message.
     const char* ChannelName(const ChronicleHistory::Line& line)
@@ -174,7 +201,7 @@ namespace
         const auto prefix = Policy::Lower(desc->prefix);
         if (!Policy::IsSlug(prefix)) return Api::Result::InvalidArgument;
         std::lock_guard lock(g_mutex);
-        if (prefix == "help" || std::any_of(g_commands.begin(), g_commands.end(), [&](const auto& c) { return c.prefix == prefix; })) {
+        if (Reserved(prefix) || std::any_of(g_commands.begin(), g_commands.end(), [&](const auto& c) { return c.prefix == prefix; })) {
             return Api::Result::Duplicate;
         }
         Command command{ g_nextId++, prefix, desc->help ? ChronicleUtf8::ReplaceInvalid(desc->help).value.substr(0, 200) : std::string{},
@@ -259,23 +286,19 @@ namespace ChronicleApi
 
     bool RunCommand(std::string_view text)
     {
-        const auto parsed = Policy::ParseCommand(text);
+        auto parsed = Policy::ParseCommand(text);
         if (!parsed) return false;
         auto* chronicle = Chronicle::GetSingleton();
         using ChronicleRuntime::Phrase;
         // Echoed first, so a handler's replies (Send) follow it in the box.
         chronicle->SendMessage("console", "", "> /" + parsed->prefix + (parsed->args.empty() ? "" : " " + parsed->args));
-        std::vector<Command> commands;
-        {
-            std::lock_guard lock(g_mutex);
-            commands = g_commands;
-        }
+        const auto commands = CopyCommands();
         if (parsed->prefix == "help") {
             if (commands.empty()) {
                 chronicle->SendMessage("console", "", chronicle->Text(Phrase::NoCommands));
                 return true;
             }
-            std::string list = "/help";
+            std::string list = "/help, /selftest";
             for (const auto& command : commands) list += ", /" + command.prefix;
             chronicle->SendMessage("console", "", chronicle->Text(Phrase::Commands, list));
             for (const auto& command : commands) {
@@ -283,17 +306,27 @@ namespace ChronicleApi
             }
             return true;
         }
-        const auto it = std::find_if(commands.begin(), commands.end(), [&](const auto& c) { return c.prefix == parsed->prefix; });
-        bool handled = false;
-        if (it != commands.end()) {
-            try {
-                handled = it->fn(it->prefix.c_str(), parsed->args.c_str(), it->user);
-            } catch (...) {
-                spdlog::error("Chronicle API: command /{} threw", it->prefix);
+        if (parsed->prefix == "selftest") {
+            // "/selftest": Chronicle's own; "/selftest keepsakes": that mod's "keepsakes.selftest" command.
+            parsed->prefix = ChronicleSelfTest::TargetCommand(parsed->args);
+            parsed->args.clear();
+            if (parsed->prefix.empty()) {
+                ChronicleSelfTestRun::StartFromChat();
+                return true;
             }
         }
-        if (!handled) chronicle->SendMessage("console", "", chronicle->Text(Phrase::UnknownCommand, "/" + parsed->prefix));
+        if (!CallCommand(commands, parsed->prefix, parsed->args)) {
+            chronicle->SendMessage("console", "", chronicle->Text(Phrase::UnknownCommand, "/" + parsed->prefix));
+        }
         return true;
+    }
+
+    Dispatched DispatchQuiet(std::string_view text)
+    {
+        const auto parsed = Policy::ParseCommand(text);
+        if (!parsed) return Dispatched::NotCommand;
+        if (Reserved(parsed->prefix)) return Dispatched::BuiltIn;
+        return CallCommand(CopyCommands(), parsed->prefix, parsed->args) ? Dispatched::Handled : Dispatched::Unhandled;
     }
 
     void SetEchoCommand(bool enabled)
