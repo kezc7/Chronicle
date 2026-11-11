@@ -1,4 +1,4 @@
-# Chronicle 1.4.14
+# Chronicle 1.4.15
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -238,6 +238,17 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.4.15-beta
+
+Sixteenth beta, PrismaUI and Magelight builds.
+
+- Chronicle's part of the suite self-test (CHRON-16): `/selftest` in the chat bar,
+  and DovahHub's Diagnostics > Run self-test with DovahHub 0.98. It checks the
+  game-thread pump, command dispatch, the history file round trip, the chat
+  window's view, that the history and chat window belong to the loaded character,
+  and the DovahHub tab and DovahMenu entry. See Self-test above.
+- `/selftest <mod>` starts another mod's `<mod>.selftest` command.
 
 ## 1.4.14-beta
 
