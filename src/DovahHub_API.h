@@ -15,6 +15,10 @@
 // section tab and the "libraryOpen" request.
 // DovahHub 0.97.4 appends the game-thread pump: RunOnGameThread, IsGameThread and GameThreadId (HasPump).
 // DovahGameThread.h, beside this header, uses it when it's there and hooks the frame itself when it isn't.
+// DovahHub 0.97.7 appends creature previews for module tabs: RequestPreview to ReleasePreview (HasPreviews),
+// and the page's mod.requestPreview, mod.showPreview and mod.capturePreview.
+// DovahHub 0.98.0 appends the suite self-test: RegisterSelfTest, ReportSelfTestStep and FinishSelfTest
+// (HasSelfTest), run from Settings > Diagnostics > Run self-test when DovahHub.ini [Debug] bSelfTest=1.
 //
 // DovahHub is the suite's character hub: one page with tabs grouped under People, Character,
 // Journey, Collections, Integrations and Settings, drawn on Magelight UI or PrismaUI. A PrismaUI view can only be
@@ -166,20 +170,42 @@ namespace DOVAHHUB_API
     inline constexpr std::uint32_t kHostWithStoryMessages = 9604;  // PackVersion(0, 96, 4): kMsgStoryEvent
     inline constexpr std::uint32_t kHostWithKeepsakes = 9700;  // PackVersion(0, 97, 0): GetBestiaryJson to RemoveLibraryEntry
     inline constexpr std::uint32_t kHostWithPump = 9704;  // PackVersion(0, 97, 4): RunOnGameThread, IsGameThread, GameThreadId
+    inline constexpr std::uint32_t kHostWithPreviews = 9707;  // PackVersion(0, 97, 7): RequestPreview to ReleasePreview
+    inline constexpr std::uint32_t kHostWithSelfTest = 9800;  // PackVersion(0, 98, 0): RegisterSelfTest, ReportSelfTestStep, FinishSelfTest
+
+    // A module that hasn't called FinishSelfTest this many seconds after its start gets one FAIL "timed out".
+    inline constexpr std::uint32_t kSelfTestTimeoutSeconds = 180;
+    // Game thread. DovahHub's self-test run reached your module. runJson is
+    //   {"runId":"20261112-101500","lang":"en","host":"0.98.0","hubOpen":true}
+    // runId names the run (and its log file), lang is DovahHub's language, hubOpen says whether DovahHub's page
+    // is on screen. Later versions may add keys: ignore the ones you don't know. Return quickly: start your
+    // steps (through the pump) and report them as they finish, from any thread. It must not throw.
+    using SelfTestStartFn = void (*)(const char* runJson, void* user);
+
+    using PreviewHandle = std::uint32_t;  // 0 = none
+    // A capture's state (GetCaptureStatus). Unknown: no such ticket.
+    enum class CaptureStatus : std::int32_t
+    {
+        Pending = 0,
+        Saved = 1,
+        Failed = 2,
+        Unknown = 3,
+    };
 
     // Only RegisterModule, UnregisterModule and AddSettings (and from 0.95.0 AddStoryEvent, AddSection and
     // SetSettingStatus) may be called off the game thread (some loaders send kDataLoaded from a loading thread). Every call marked "Game thread" returns NotReady (and logs it)
     // when made from another thread;
     // GetOutfitsJson returns {"error":"called off the game thread"}.
     //
-    // "The game thread" is the game's main thread, RE::Main::GetSingleton()->threadID. In some load orders
-    // SKSE's AddTask runs tasks on other threads as well, so being in a task proves nothing. DovahHub calls
-    // your onRequest, onEvent and every SKSE message on the game thread (from 0.97.2 also in those load orders).
-    // To call DovahHub from your own code: call it from those callbacks, or queue the work with SKSE's
-    // AddUITask (UI tasks run on the game thread), or check RE::Main's threadID yourself; not from AddTask.
-    // From 0.97.4: in some load orders UI tasks run on worker threads too, so the game thread is the thread the
-    // game's frame update runs on, as DovahHub's pump sees it (GameThreadId). Queue work with RunOnGameThread,
-    // or with DovahGameThread.h, which does that for you; never with SKSE's AddTask or AddUITask.
+    // "The game thread" is the thread the game's frame update runs on, as DovahHub's pump sees it
+    // (GameThreadId, from 0.97.4). Neither of SKSE's task queues is sure to reach it: in some load orders
+    // AddTask runs its tasks on worker threads, in others AddUITask does, so being in a task proves nothing.
+    // DovahHub calls your onRequest, onEvent and every SKSE message on the game thread.
+    // To call DovahHub from your own code: call it from those callbacks, or queue the work with
+    // RunOnGameThread (after HasPump), or with DovahGameThread.h beside this header, which does that for you
+    // and hooks the frame itself when DovahHub isn't there. IsGameThread says whether you're on it already.
+    // Never queue game work with SKSE's AddTask or AddUITask. (Before 0.97.4 DovahHub judged the game thread
+    // by RE::Main::GetSingleton()->threadID.)
     struct DovahHubApi1
     {
         std::uint32_t apiVersion;        // = kApiVersion1
@@ -383,6 +409,90 @@ namespace DOVAHHUB_API
         bool (*IsGameThread)();
         // That thread's id; 0 before the first frame, or when the hook couldn't be installed.
         std::uint32_t (*GameThreadId)();
+
+        // ---- appended in 0.97.7: check HasPreviews(api) first ---------------------------------------------
+        // Creature (or person) previews on your tab, drawn by the game as DovahHub's Companions and Character
+        // pages are, and stills of them saved as PNG. Game thread: off it they return NotReady (and log it).
+        // Every request, reuse, show, capture and release is logged with your module's name.
+        //
+        // DovahHub has one 3D surface, shared by People, Companions, Family, Wardrobe, Character and every
+        // module: one preview is on screen at a time, and only while your tab is the open one. Leaving the tab
+        // hides it. The copies behind previews are never freed (freeing one crashed the game's allocator); they
+        // are kept for the session, which is why each module has limits:
+        //   - at most 2 loaded actors whose live 3D is copied (RequestPreview answers Refused for a third);
+        //     ask with "base" instead, which is never limited this way;
+        //   - at most 48 different looks built from records ("base"); the same look again reuses its copy.
+        // Handles are dropped on every load and when DovahHub closes: ask again after "tabShown".
+        // The calls that take a handle answer NotFound for one that was dropped or released.
+        //
+        // json is one of:
+        //   {"actor":"Skyrim.esm|0x109E3"}: that actor. Loaded nearby: a copy of its live 3D, with everything it
+        //       shows now (worn saddle, runtime coat). Not loaded: a copy built from its base record and race.
+        //   {"base":"Skyrim.esm|0x68D6E", "race":"...", "sex":0|1, "skin":"...", "armor":["...", ...],
+        //    "overrides":[{"match":"actors\\horse\\horse", "diffuse":"textures\\MyMod\\coat.dds"}]}:
+        //       built from records, for anyone, loaded or not: the race's skeleton (the base's race when "race" is
+        //       left out), the skin ("skin", else the base's, else the race's), and each armour's models for that
+        //       race (a saddle). An override swaps the diffuse texture of every shape whose name is "match", or
+        //       whose diffuse path starts with "match" (with or without "textures\"), on the copy only. An
+        //       override that matches no shape is logged, not an error. At most 8 armours and 16 overrides.
+        //   Either may add "frame":"head" (start closer in; "full" is the default) and "pose":"default" (the
+        //   only pose for now).
+        // Ok; InvalidArgument (bad JSON, keys not in the "Plugin.esp|0x1234" form; the log says why), NotFound
+        // (a record isn't in the load order, or isn't the right kind), NoSave, Refused (a limit above).
+        Result (*RequestPreview)(ModuleId module, const char* json, PreviewHandle* outHandle);
+        // Draws the preview in the element with that id inside your tab (letters, digits, '-' and '_'), which
+        // must be on screen. It turns with the mouse (drag), the wheel and the right stick, and zooms with the
+        // triggers. NotReady when DovahHub isn't open; the page skips it while your tab isn't the open one.
+        // The page side does the same with mod.showPreview(element, handle) (MODULE-STYLE.md).
+        Result (*ShowPreview)(PreviewHandle handle, const char* elementId);
+        // Takes it off the surface. Ok when it wasn't shown.
+        Result (*HidePreview)(PreviewHandle handle);
+        // Saves what the shown preview looks like, at width x height pixels: the centre of the element with
+        // that shape, scaled down (never up; a size bigger than the element on screen fails). 0 x 0 keeps the
+        // element's size. The preview must be shown and drawn (DovahHub waits up to about ten seconds for it).
+        // One capture at a time across DovahHub: Busy while another is waiting. NotReady when the handle isn't
+        // the one shown. The file is modules/<id>/captures/<ticket>.png in DovahHub's view folder, kept until
+        // you delete it; that path also works as an <img src> on your page.
+        Result (*CapturePreview)(PreviewHandle handle, std::uint32_t width, std::uint32_t height, std::uint64_t* outTicket);
+        // Any thread.
+        CaptureStatus (*GetCaptureStatus)(std::uint64_t ticket);
+        // Any thread. The saved file's path inside DovahHub's view folder ("modules/stable/captures/....png"),
+        // "" until it's Saved. The pointer stays valid for the session.
+        const char* (*GetCapturePath)(std::uint64_t ticket);
+        // Hides it if it's shown and drops the handle. The copy stays with DovahHub for the session.
+        Result (*ReleasePreview)(PreviewHandle handle);
+
+        // ---- appended in 0.98.0: check HasSelfTest(api) first ---------------------------------------------
+        // The suite self-test. Settings > Diagnostics shows "Run self-test" only when DovahHub.ini [Debug]
+        // bSelfTest=1, and asks before it runs ("This changes the current save. Use a save you can throw away.").
+        // A run starts DovahHub's own checks first, with its page open, then every registered module's, one at a
+        // time, in alphabetical order of module id. Each module gets kSelfTestTimeoutSeconds from its start to
+        // call FinishSelfTest; after that DovahHub records one FAIL "timed out" and moves on, and the module's
+        // later reports answer NotReady. A module that needs the screen to itself (another menu) may Close()
+        // DovahHub during its turn and OpenTab("settings") after it: the run carries on while DovahHub is closed.
+        //
+        // Every step becomes one line, in the shared format, in <SKSE log folder>/DovahSuite-SelfTest-<runId>.log
+        // (its own file, so it survives the next start) and in DovahHub.log:
+        //   SELFTEST <module id> <step> PASS|FAIL|SKIP <detail>
+        //   SELFTEST <module id> DONE pass=N fail=N skip=N ms=N
+        // DovahHub writes the DONE line for you from your reports. When your mod runs its self-test on its own
+        // (its INI flag or command), write the same lines to your own log; ReportSelfTestStep then answers
+        // NotReady and records nothing, so calling it either way is safe.
+        //
+        // Any thread, once per module, after RegisterModule (a module with no tab can register one too).
+        // Ok; InvalidArgument (null start); InvalidModule; Duplicate (that module already has one; the first is
+        // kept).
+        Result (*RegisterSelfTest)(ModuleId module, SelfTestStartFn start, void* user);
+        // Any thread. One step's result, while it's your module's turn:
+        //   {"step":"recruit","result":"pass"|"fail"|"skip","detail":"short reason"}
+        // step: 1 to 48 letters, digits, '-', '_' or '.'. detail is optional, kept to 200 characters on one line.
+        // A step that can't run here (nothing to test, a feature switched off) is "skip" with the reason.
+        // Ok; InvalidArgument (bad JSON, step or result; the log says why); InvalidModule; NotReady (no run is on
+        // your module: a run of your own, not your turn, or after FinishSelfTest or the time-out).
+        Result (*ReportSelfTestStep)(ModuleId module, const char* stepJson);
+        // Any thread. Your module's run is over; DovahHub writes its DONE line and moves on to the next module.
+        // Ok; InvalidModule; NotReady (no run is on your module).
+        Result (*FinishSelfTest)(ModuleId module);
     };
 
     // True when the host serves the 0.95.0 calls (Close, AddStoryEvent, AddSection, SetSettingStatus) and
@@ -408,6 +518,21 @@ namespace DOVAHHUB_API
     inline bool HasPump(const DovahHubApi1* api)
     {
         return api && api->hostVersionNumber >= kHostWithPump && api->RunOnGameThread && api->IsGameThread && api->GameThreadId;
+    }
+
+    // True when the host serves RequestPreview, ShowPreview, HidePreview, CapturePreview, GetCaptureStatus,
+    // GetCapturePath and ReleasePreview (and the page's mod.requestPreview, showPreview and capturePreview).
+    inline bool HasPreviews(const DovahHubApi1* api)
+    {
+        return api && api->hostVersionNumber >= kHostWithPreviews && api->RequestPreview && api->ReleasePreview;
+    }
+
+    // True when the host serves RegisterSelfTest, ReportSelfTestStep and FinishSelfTest.
+    //   if (DOVAHHUB_API::HasSelfTest(hub)) hub->RegisterSelfTest(g_module, &StartSelfTest, nullptr);
+    inline bool HasSelfTest(const DovahHubApi1* api)
+    {
+        return api && api->hostVersionNumber >= kHostWithSelfTest && api->RegisterSelfTest && api->ReportSelfTestStep &&
+               api->FinishSelfTest;
     }
 
     // True when the host sends kMsgStoryEvent and the player's outfit fields in kMsgOutfitChanged.

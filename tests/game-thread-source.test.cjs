@@ -84,3 +84,19 @@ test('the poller and HUD read are posted one at a time', () => {
   assert.match(events, /if \(!m_pending\.exchange\(true\)\) \{\s*const bool posted = GameThread::Post/);
   assert.match(events, /if \(m_hudPending\.exchange\(true\)\) \{\s*return;\s*\}/);
 });
+test('the self-test runs only when started, and only on the pump', () => {
+  const files = sources();
+  const starters = files.filter(file => /ChronicleSelfTestRun::Start(FromChat|FromHub)\s*\(/.test(file.code)).map(file => file.name).sort();
+  // /selftest typed in the chat box, and DovahHub's Diagnostics > Run self-test: never a load or a game event.
+  assert.deepEqual(starters, ['Api.cpp', 'DovahHubModule.cpp']);
+  const selfTest = files.find(file => file.name === 'SelfTest.cpp').code;
+  assert.match(selfTest, /GameThread::Post\(\[\] \{ Tick\(\); \}\)/);
+  assert.doesNotMatch(selfTest, /std::thread|CreateThread|AddTask|AddUITask/);
+  // DovahHub's runner is used only behind HasSelfTest.
+  const hub = files.find(file => file.name === 'DovahHubModule.cpp').code;
+  for (const call of ['RegisterSelfTest', 'ReportSelfTestStep(g_module', 'FinishSelfTest(g_module']) {
+    const at = hub.indexOf('g_hub->' + call);
+    assert.ok(at > 0, call);
+    assert.match(hub.slice(Math.max(0, at - 200), at), /HasSelfTest\(g_hub\)/, call + ' is behind HasSelfTest');
+  }
+});

@@ -28,6 +28,7 @@
 #include "Api.h"
 #include "api/Chronicle_API.h"
 #include "GameThread.h"
+#include "SelfTest.h"
 
 #include <fstream>
 #include <filesystem>
@@ -218,6 +219,9 @@ void Chronicle::OnViewReady()
     host.RegisterListener("focusReleased", [](const char*) { GetSingleton()->RequestUnfocus(); });
     host.RegisterListener("uiReady", [](const char*) { MainTask([] { GetSingleton()->Bootstrap(); }); });
     host.RegisterListener("diagnostics", [](const char*) { MainTask([] { GetSingleton()->Diagnostics(); }); });
+    host.RegisterListener("selfTestReply", [](const char* text) {
+        if (text) MainTask([payload = std::string(text)] { ChronicleSelfTestRun::OnPageReply(payload); });
+    });
     m_viewReady = true;
     spdlog::info("Chronicle: listeners ready, waiting for UI handshake");
 }
@@ -711,7 +715,8 @@ void Chronicle::ApplyNativeSettings(const nlohmann::json& settings)
     m_interactKey = key(general.value("interact_hotkey", std::string("F8")), VK_F8);
     m_settingsKey = key(general.value("config_hotkey", std::string("0")), '0');
     m_inputKey = key(general.value("input_hotkey", std::string("Enter")), VK_RETURN);
-    DovahMenuModule::SetHotkey(ChronicleRuntime::LauncherHotkey(general.value("config_hotkey", std::string("0"))));
+    m_launcherHotkey = ChronicleRuntime::LauncherHotkey(general.value("config_hotkey", std::string("0")));
+    DovahMenuModule::SetHotkey(m_launcherHotkey);
     m_toggleKey = key(general.value("toggle_hotkey", std::string()), 0);  // 0 = no key
     // Remembered hidden state is restored from the settings file; otherwise
     // the current session's state is left as it is.
@@ -933,6 +938,11 @@ void Chronicle::Diagnostics()
         {"lastSpeakerFormId", m_lastSpeakerFormId ? fmt::format("{:08X}", m_lastSpeakerFormId) : std::string{}},
         {"lastOwnerQuest", m_lastOwnerQuest}
     }) + ")");
+}
+
+void Chronicle::AskPageSelfTest(std::uint64_t token)
+{
+    InvokeUI("if (typeof chronicleSelfTest === 'function') chronicleSelfTest(" + std::to_string(token) + ")");
 }
 
 void Chronicle::FlushPendingUI()

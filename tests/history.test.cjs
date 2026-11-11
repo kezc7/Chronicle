@@ -61,3 +61,21 @@ test('disabled persistence does not write history',()=>{
   ctx.messages.push({message:'not saved'}); ctx.flushHistory();
   assert.equal(saved.size,0);
 });
+test('the self-test learns which character the window shows',()=>{
+  const {ctx}=setup();
+  const sent=[];
+  ctx.sendToGame=(name,data)=>{sent.push([name,data]);return true;};
+  ctx.setRuntime({profile:'1731254400',loaded:true,character:'Dragonborn'});
+  ctx.messages.push({channel:'dialogue',speaker:'Lydia',message:'I am sworn to carry your burdens.',timestamp:1});
+  vm.runInContext("searchText='burdens'; speakerFilter='Lydia';",ctx);
+  ctx.chronicleSelfTest(5);
+  assert.equal(sent.length,1);
+  assert.equal(sent[0][0],'selfTestReply');
+  assert.deepEqual(JSON.parse(JSON.stringify(sent[0][1])),
+    {token:'5',profile:'1731254400',loaded:true,lines:1,search:'burdens',speaker:'Lydia'});
+  ctx.setRuntime({profile:'',loaded:false,character:''});
+  ctx.chronicleSelfTest(6);
+  assert.equal(sent[1][1].profile,'');
+  assert.equal(sent[1][1].loaded,false);
+  assert.equal(sent[1][1].search,'');
+});

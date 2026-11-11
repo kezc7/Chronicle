@@ -21,6 +21,7 @@
 #pragma once
 
 #include "History.h"
+#include "SelfTestPolicy.h"
 
 // Chronicle's tab in DovahHub (its history page), through DovahHub's module
 // host (DovahHub_API.h). A soft dependency: without DovahHub.dll every
@@ -39,4 +40,11 @@ namespace DovahHubModule
     // Game thread. Sent to the page only while the tab is on screen.
     void PushLine(const ChronicleHistory::Line& line);
     void PushReset();
+
+    // The suite self-test (DovahHub 0.98, HasSelfTest). Any thread; nothing
+    // is recorded unless DovahHub is running a self-test on Chronicle.
+    void ReportSelfTestStep(const ChronicleSelfTest::Entry& entry);
+    void FinishSelfTest();
+    // Game thread. The tab answers a history request for this character.
+    ChronicleSelfTest::Entry CheckModule(std::uint64_t historyProfile);
 }

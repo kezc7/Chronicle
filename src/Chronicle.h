@@ -121,6 +121,17 @@ public:
     bool IsVisible() const { return !m_hidden.load(); }  // any thread
     void SetApiHidden(bool a_hidden);
 
+    // For the self-test (game thread).
+    std::uint64_t HistoryProfile() const { return m_historyProfile; }
+    bool KeepsHistory() const { return m_persistHistory; }
+    bool ListenersReady() const { return m_viewReady.load(); }
+    bool Bootstrapped() const { return m_bootstrapped; }
+    std::uint64_t WorldRevision() const { return m_worldRevision.load(); }
+    // DovahMenu's key for the entry, from the settings ("Shift+0").
+    const std::string& LauncherHotkey() const { return m_launcherHotkey; }
+    // The page answers through its "selfTestReply" listener with this token.
+    void AskPageSelfTest(std::uint64_t a_token);
+
 private:
     Chronicle() = default;
 
@@ -174,6 +185,7 @@ private:
     std::uint32_t m_settingsKey{ '0' };
     std::uint32_t m_inputKey{ VK_RETURN };
     std::uint32_t m_toggleKey{ 0 };              // show/hide hotkey; 0 = none
+    std::string m_launcherHotkey{ "Shift+0" };   // game thread
     std::atomic<bool> m_rememberHidden{ true };
     ChronicleRuntime::SkyrimNetSend m_skyrimNetSend{ ChronicleRuntime::SkyrimNetSend::Dialogue };  // game thread
     std::string m_lastSubtitle;

@@ -24,6 +24,7 @@
 #include <condition_variable>
 #include <fstream>
 #include <map>
+#include <set>
 
 namespace
 {
@@ -37,6 +38,7 @@ namespace
     std::condition_variable g_wake;
     std::map<std::filesystem::path, Job> g_jobs;
     bool g_started = false;
+    std::set<std::filesystem::path> g_inFlight;  // taken by the writer and not finished (g_mutex)
 
     void Write(const std::filesystem::path& path, const std::vector<ChronicleHistory::Line>& lines)
     {
@@ -63,6 +65,7 @@ namespace
                 std::unique_lock lock(g_mutex);
                 g_wake.wait(lock, [] { return !g_jobs.empty(); });
                 jobs.swap(g_jobs);
+                for (const auto& entry : jobs) g_inFlight.insert(entry.first);
             }
             for (const auto& [path, job] : jobs) {
                 try {
@@ -71,6 +74,8 @@ namespace
                 } catch (const std::exception& e) {
                     spdlog::warn("Chronicle: history file '{}' not {}: {}", path.string(), job ? "saved" : "removed", e.what());
                 }
+                std::lock_guard lock(g_mutex);
+                g_inFlight.erase(path);
             }
         }
     }
@@ -94,6 +99,17 @@ namespace HistoryWriter
     std::filesystem::path PathFor(std::uint64_t profile)
     {
         return kHistoryDir / (std::to_string(profile) + ".json");
+    }
+
+    std::filesystem::path SelfTestPath()
+    {
+        return kHistoryDir / L"selftest.json";
+    }
+
+    bool Pending(const std::filesystem::path& path)
+    {
+        std::lock_guard lock(g_mutex);
+        return g_jobs.contains(path) || g_inFlight.contains(path);
     }
 
     void Save(std::filesystem::path path, std::vector<ChronicleHistory::Line> lines)

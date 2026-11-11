@@ -109,6 +109,36 @@ commands they registered, and the form ID and owner quest of the last NPC line.
 It does not generate sample messages or claim that an integration works merely
 because text can render.
 
+### Self-test
+
+Type `/selftest` in the chat bar with a game loaded. With DovahHub 0.98 or newer,
+**Settings > Diagnostics > Run self-test** (shown when `DovahHub.ini` has
+`[Debug] bSelfTest=1`) runs the same steps as part of the suite's run. It takes a
+second or two and changes nothing in the save: it writes a scratch file next to the
+history files and removes it again. It never runs on its own.
+
+| Step | What it checks |
+|---|---|
+| `pump` | Work posted to the game thread runs on the frame's thread, and which pump ran it (DovahHub's or Chronicle's own hook) |
+| `commands.dispatch` | A throwaway command registered through `Chronicle_RequestApi`, as another mod would, is parsed and dispatched with its arguments; plain text, unknown and built-in commands aren't; reserved and duplicate prefixes are refused; it unregisters |
+| `commands.mods`, `commands.mod.<prefix>` | Other mods' commands are listed with a handler. They aren't called: commands have no dry run |
+| `journal.write`, `journal.read`, `journal.remove` | Three lines (one in several scripts) go through the history writer to `history/selftest.json`, come back from disk unchanged, and the file is removed |
+| `ui.view` | The chat window's view exists, its listeners are registered and its handshake is done |
+| `saveleak.character` | The history open is the loaded character's |
+| `saveleak.page` | The chat window shows the same character as the game, with its search and speaker filter |
+| `saveleak.mainmenu`, `saveleak.newgame` | Skipped: they need a quit to the Main Menu or a New Game |
+| `dovahhub.module` | Chronicle's DovahHub tab answers a history request for this character (skipped without DovahHub) |
+| `dovahmenu.entry` | DovahMenu still knows Chronicle's entry, greyed or not as it should be, with the settings key (skipped without DovahMenu) |
+
+Each step writes one line to `Chronicle.log` in the SKSE log folder, in the suite's
+format: `SELFTEST chronicle <step> PASS|FAIL|SKIP <detail>`, then
+`SELFTEST chronicle DONE pass=N fail=N skip=N ms=N`. The chat box shows the totals
+and any failed step. In DovahHub's run the steps also go to its
+`DovahSuite-SelfTest-<run>.log`.
+
+`/selftest <mod>` runs another mod's self-test command, `/<mod>.selftest`, for mods
+that register one through Chronicle_API.h.
+
 ### For mod authors: Chronicle_API.h
 
 Other SKSE plugins can read Chronicle's log through `src/api/Chronicle_API.h`
@@ -126,7 +156,9 @@ topic's owner quest and kind, the game day and hour, the real time and the
 player's location. Lines read from the HUD alone (no SubtitleManager entry) have
 no speaker or quest. The header documents the thread rules. Adding
 `"debug_commands": true` at the top level of `Chronicle.json` registers a
-`/chronicle.echo` test command.
+`/chronicle.echo` test command. `/help` and `/selftest` are Chronicle's own; a mod
+that wants its self-test started from the chat bar registers `<its slug>.selftest`,
+and `/selftest <its slug>` runs it.
 
 ## Requirements and installation
 

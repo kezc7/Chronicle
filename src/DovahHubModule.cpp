@@ -22,6 +22,7 @@
 #include "DovahHubModule.h"
 #include "Chronicle.h"
 #include "DovahHub_API.h"
+#include "SelfTest.h"
 
 #include <cstring>
 
@@ -61,6 +62,16 @@ namespace
         }
         reply = Chronicle::GetSingleton()->HistoryPageJson(before, limit);
         return reply.c_str();
+    }
+
+    // Game thread: DovahHub's Diagnostics > Run self-test reached Chronicle.
+    void StartSelfTest(const char* runJson, void*)
+    {
+        try {
+            ChronicleSelfTestRun::StartFromHub(runJson ? runJson : "{}");
+        } catch (...) {
+            spdlog::error("Chronicle: the self-test did not start");
+        }
     }
 
     void OnEvent(const char* event, void*)
@@ -108,6 +119,10 @@ namespace DovahHubModule
         spdlog::info("Chronicle: DovahHub {} on {} answered; Chronicle tab {} (result {})",
             g_hub->hostVersion ? g_hub->hostVersion : "?", g_hub->host ? g_hub->host : "?",
             g_module ? "registered" : "NOT registered", static_cast<int>(result));
+        if (g_module && DOVAHHUB_API::HasSelfTest(g_hub)) {
+            const auto selfTest = g_hub->RegisterSelfTest(g_module, &StartSelfTest, nullptr);
+            spdlog::info("Chronicle: self-test registered with DovahHub's Diagnostics (result {})", static_cast<int>(selfTest));
+        }
     }
 
     void PushLine(const ChronicleHistory::Line& line)
@@ -118,5 +133,44 @@ namespace DovahHubModule
     void PushReset()
     {
         Push({ { "reset", true } });
+    }
+
+    void ReportSelfTestStep(const ChronicleSelfTest::Entry& entry)
+    {
+        if (!g_module || !DOVAHHUB_API::HasSelfTest(g_hub)) return;
+        // NotReady when the run is Chronicle's own (/selftest): nothing is recorded, by design.
+        g_hub->ReportSelfTestStep(g_module, ChronicleSelfTest::StepJson(entry.step, entry.result, entry.detail).c_str());
+    }
+
+    void FinishSelfTest()
+    {
+        if (g_module && DOVAHHUB_API::HasSelfTest(g_hub)) g_hub->FinishSelfTest(g_module);
+    }
+
+    ChronicleSelfTest::Entry CheckModule(std::uint64_t historyProfile)
+    {
+        using ChronicleSelfTest::Result;
+        constexpr const char* step = "dovahhub.module";
+        if (!g_hub) return { step, Result::Skip, "DovahHub is not installed" };
+        if (!g_module) return { step, Result::Fail, "DovahHub answered but the Chronicle tab is not registered" };
+        const std::string version = g_hub->hostVersion ? g_hub->hostVersion : "?";
+        // The same call DovahHub makes when the tab asks for its lines.
+        const char* answer = OnRequest("history", R"({"limit":3})", nullptr);
+        if (!answer) return { step, Result::Fail, "the tab's history request got no answer" };
+        const auto reply = nlohmann::json::parse(answer, nullptr, false);
+        if (!reply.is_object() || !reply.contains("lines") || !reply["lines"].is_array() || !reply.contains("profile")) {
+            return { step, Result::Fail, "the history answer is not the tab's JSON" };
+        }
+        const std::string profile = reply["profile"].is_string() ? reply["profile"].get<std::string>() : std::string{};
+        const std::string expected = historyProfile ? std::to_string(historyProfile) : std::string{};
+        if (profile != expected) {
+            return { step, Result::Fail, "the tab got character '" + profile + "', the history is '" + expected + "'" };
+        }
+        const auto lines = reply["lines"].size();
+        if (lines > 3) return { step, Result::Fail, "asked for 3 lines, got " + std::to_string(lines) };
+        if (OnRequest("selftest.unknown", "{}", nullptr)) return { step, Result::Fail, "an unknown request got an answer" };
+        return { step, Result::Pass, "DovahHub " + version + "; the tab answered with " + std::to_string(lines) +
+            " line(s) for character " + (expected.empty() ? std::string("(none loaded)") : expected) +
+            (DOVAHHUB_API::HasSelfTest(g_hub) ? "; self-test registered" : "; this DovahHub has no self-test runner") };
     }
 }

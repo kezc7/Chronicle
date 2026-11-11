@@ -123,6 +123,17 @@ namespace DovahGameThread
         inline constexpr std::uint64_t kUpdateIdSE = 35565, kUpdateIdAE = 36564;
         inline constexpr double kSlowMs = 5.0;
 
+        // The address library under either CommonLibSSE-NG's names: newer checkouts have REL::IDDB and
+        // REL::Offset2ID (REL/IDDB.h), older ones REL::IDDatabase and REL::IDDatabase::Offset2ID. Kept in here,
+        // so a mod that added its own aliases for an older copy of this header still builds.
+#if __has_include(<REL/IDDB.h>)
+        using AddressLibrary = REL::IDDB;
+        using IdsByOffset = REL::Offset2ID;
+#else
+        using AddressLibrary = REL::IDDatabase;
+        using IdsByOffset = REL::IDDatabase::Offset2ID;
+#endif
+
         enum Mode : int
         {
             kPending,   // before Install: jobs wait in the queue
@@ -253,7 +264,7 @@ namespace DovahGameThread
         {
             std::vector<bool> found(a_ids.size(), false);
             try {
-                const REL::Offset2ID ids;
+                const IdsByOffset ids;
                 for (const auto& entry : ids) {
                     std::size_t i = 0;
                     for (const auto id : a_ids) {
@@ -326,7 +337,7 @@ namespace DovahGameThread
                 return false;
             }
             const auto base = REL::Module::get().base();
-            const auto site = base + REL::IDDB::get().id2offset(loopId) + callOffset;
+            const auto site = base + AddressLibrary::get().id2offset(loopId) + callOffset;
             if (!Executable(site)) {
                 a_why = std::format("ID {} +0x{:X} isn't code", loopId, callOffset);
                 return false;
@@ -351,7 +362,7 @@ namespace DovahGameThread
                     a_why = std::format("the address library has no ID {} (Main::Update)", updateId);
                     return false;
                 }
-                if (target != base + REL::IDDB::get().id2offset(updateId)) {
+                if (target != base + AddressLibrary::get().id2offset(updateId)) {
                     a_why = std::format("ID {} +0x{:X} calls SkyrimSE.exe+0x{:X}, not Main::Update (ID {})", loopId, callOffset, target - base, updateId);
                     return false;
                 }
