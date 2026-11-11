@@ -237,7 +237,7 @@ int main()
         // The player's typed line, then SkyrimNet's own echo of it.
         Require(!echo.IsEcho("player", "Cerberus", "Lydia, wait here.", 7000));
         Require(echo.IsEcho("skyrimnet", "Cerberus", "Lydia, wait here.", 7500));
-        // A whole reply, then a sentence of it from the subtitle (Kev's Herman lines).
+        // A whole reply, then a sentence of it from the subtitle (a playtest's Herman lines).
         Require(!echo.IsEcho("skyrimnet", "Herman", "That fancy elf is still breathing! Why are we standing around chatting?", 8000));
         Require(echo.IsEcho("dialogue", "Herman", "That fancy elf is still breathing!", 8500));
         Require(!echo.IsEcho("dialogue", "Herman", "Why?", 8600));  // too short to match inside a longer line
@@ -251,7 +251,7 @@ int main()
         echo.Clear();
         Require(!echo.IsEcho("dialogue", "Lydia", "Lydia, wait here.", 7600));
     }
-    // SkyrimNet's voice directions and inline narration (Kev's Coralyn and Zora lines).
+    // SkyrimNet's voice directions and inline narration (a playtest's Coralyn and Zora lines).
     {
         using ChronicleRuntime::StripAudioTags;
         Require(StripAudioTags("[say with a hint of amusement] Herman is right.") == "Herman is right.");

@@ -20,7 +20,7 @@
 // Game-originated text (dialogue, notifications, quest names) is already in the
 // game's language and is never translated here.
 
-// The suite's language codes (Kev's decision of 5 Nov 2026).
+// The suite's language codes (the suite's decision of 5 Nov 2026).
 const LANGUAGES = ['en', 'fr', 'de', 'it', 'es', 'pl', 'tr', 'zh-CN', 'ja', 'ko'];
 
 // Skyrim's sLanguage:General values for the supported languages ("Auto").
