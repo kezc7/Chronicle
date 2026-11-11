@@ -54,7 +54,7 @@ namespace DovahMenuModule
         const auto description = Chronicle::GetSingleton()->Text(ChronicleRuntime::Phrase::MenuDescription);
         desc.description = description.c_str();
         desc.version = CHRONICLE_VERSION;
-        desc.hotkey = "Enter";
+        desc.hotkey = "Shift+0";  // the entry opens settings; ApplyNativeSettings sends the saved key
         desc.framework = magelight ? DOVAHMENU_API::Framework::Magelight : DOVAHMENU_API::Framework::PrismaUI;
         desc.onOpen = &OnOpen;
         const auto result = g_menu->Register(&desc, &g_entry);
@@ -80,7 +80,7 @@ namespace DovahMenuModule
     void SetHotkey(std::string_view a_hotkey)
     {
         if (!g_menu || !g_entry || !g_menu->SetHotkey) return;
-        const std::string text(a_hotkey.empty() ? std::string_view("Enter") : a_hotkey);
+        const std::string text(a_hotkey.empty() ? std::string_view("Shift+0") : a_hotkey);
         g_menu->SetHotkey(g_entry, text.c_str());
     }
 }

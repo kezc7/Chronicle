@@ -364,6 +364,11 @@ int main()
     for (const auto code : { "en", "fr", "de", "it", "es", "pl", "tr", "zh-CN", "ja", "ko" }) {
         Require(ChronicleRuntime::LanguageCode(ChronicleRuntime::ResolveLanguage(code, "")) == code);
     }
+    // DovahMenu's entry opens settings, so it shows Shift + the settings key (DMN-25).
+    Require(ChronicleRuntime::LauncherHotkey("0") == "Shift+0");
+    Require(ChronicleRuntime::LauncherHotkey("") == "Shift+0");
+    Require(ChronicleRuntime::LauncherHotkey("k") == "Shift+K");
+    Require(ChronicleRuntime::LauncherHotkey("F5") == "Shift+F5");
     // The narrator's name and DovahMenu's description come in every language.
     Require(ChronicleRuntime::Phrased(Lang::En, Phrase::Narrator) == "Narrator");
     Require(ChronicleRuntime::Phrased(Lang::De, Phrase::Narrator) == "Erzähler");

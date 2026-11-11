@@ -415,6 +415,15 @@ namespace ChronicleRuntime
         return {};
     }
 
+    // The key DovahMenu shows on Chronicle's entry: the entry opens settings,
+    // which Shift + the settings hotkey also does ("Shift+0", "Shift+F5").
+    inline std::string LauncherHotkey(std::string_view configHotkey)
+    {
+        std::string key(configHotkey.empty() ? std::string_view("0") : configHotkey);
+        if (key.size() == 1 && key[0] >= 'a' && key[0] <= 'z') key[0] = static_cast<char>(key[0] - 'a' + 'A');
+        return "Shift+" + key;
+    }
+
     // The suite's code for a language, as i18n.js names it.
     inline std::string_view LanguageCode(Lang lang)
     {
