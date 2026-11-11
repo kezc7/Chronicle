@@ -15,6 +15,7 @@
     "hide_game_notifications": false,
     "language": "auto",
     "toggle_hotkey": "",
+    "controller_combo": "lb+y",
     "remember_hidden": true,
     "user_hidden": false,
     "auto_hide": 0

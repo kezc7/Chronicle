@@ -25,7 +25,7 @@ const vm = require('node:vm');
 const path = require('node:path');
 
 const view = path.join(__dirname, '../Data/PrismaUI/views/Chronicle');
-const sources = ['i18n.js', 'bridge.js', 'controls.js', 'script.js']
+const sources = ['i18n.js', 'bridge.js', 'controls.js', 'pad.js', 'script.js']
   .map(name => fs.readFileSync(path.join(view, name), 'utf8'));
 
 function setup() {

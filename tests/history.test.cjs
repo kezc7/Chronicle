@@ -72,10 +72,22 @@ test('the self-test learns which character the window shows',()=>{
   assert.equal(sent.length,1);
   assert.equal(sent[0][0],'selfTestReply');
   assert.deepEqual(JSON.parse(JSON.stringify(sent[0][1])),
-    {token:'5',profile:'1731254400',loaded:true,lines:1,search:'burdens',speaker:'Lydia'});
+    {token:'5',profile:'1731254400',loaded:true,lines:1,search:'burdens',speaker:'Lydia',
+      pad:{api:false,connected:0,id:''}});
   ctx.setRuntime({profile:'',loaded:false,character:''});
   ctx.chronicleSelfTest(6);
   assert.equal(sent[1][1].profile,'');
   assert.equal(sent[1][1].loaded,false);
   assert.equal(sent[1][1].search,'');
+});
+test('the self-test learns whether the page sees a controller',()=>{
+  const {ctx}=setup();
+  const sent=[];
+  ctx.sendToGame=(name,data)=>{sent.push([name,data]);return true;};
+  ctx.navigator={getGamepads:()=>[null,{id:'Skyrim Controller (Standard Mapping)',connected:true}]};
+  ctx.chronicleSelfTest(7);
+  assert.deepEqual(JSON.parse(JSON.stringify(sent[0][1].pad)),{api:true,connected:1,id:'Skyrim Controller (Standard Mapping)'});
+  ctx.navigator={getGamepads:()=>[]};
+  ctx.chronicleSelfTest(8);
+  assert.deepEqual(JSON.parse(JSON.stringify(sent[1][1].pad)),{api:true,connected:0,id:''});
 });

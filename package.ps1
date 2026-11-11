@@ -36,7 +36,7 @@ if (Test-Path -LiteralPath "$projectRoot\out\$name.zip") { Remove-Item -LiteralP
 New-Item -ItemType Directory -Path "$stage\SKSE\Plugins", "$stage\$viewDir" -Force | Out-Null
 Copy-Item -LiteralPath "$buildDir\Chronicle.dll" -Destination "$stage\SKSE\Plugins\Chronicle.dll"
 # Explicit file list excludes the obsolete standalone settings page and all preview/test assets.
-foreach ($file in 'index.html','script.js','controls.js','bridge.js','i18n.js','styles.css','config.json') {
+foreach ($file in 'index.html','script.js','controls.js','pad.js','bridge.js','i18n.js','styles.css','config.json') {
     Copy-Item -LiteralPath "$projectRoot\Data\PrismaUI\views\Chronicle\$file" -Destination "$stage\$viewDir\$file"
 }
 # The suite's theme kit (from DovahHub, unchanged) and its fonts with their licence.

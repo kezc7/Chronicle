@@ -21,7 +21,7 @@ const path = require('node:path');
 const view = path.join(__dirname, '../Data/PrismaUI/views/Chronicle');
 const i18n = fs.readFileSync(path.join(view, 'i18n.js'), 'utf8');
 const html = fs.readFileSync(path.join(view, 'index.html'), 'utf8');
-const scripts = ['controls.js', 'script.js'].map(file => fs.readFileSync(path.join(view, file), 'utf8')).join('\n');
+const scripts = ['controls.js', 'pad.js', 'script.js'].map(file => fs.readFileSync(path.join(view, file), 'utf8')).join('\n');
 
 function load() {
   const context = vm.createContext({});

@@ -45,6 +45,34 @@ are preserved.
 - **Escape** releases interaction and returns control to Skyrim.
 - **Position** in settings restores an on-screen window position.
 
+### Controller
+
+Hold **LB** and press **Y** to open the chat window with a controller (General →
+**Open with the controller** picks LB + Y, LB + X, RB + Y, RB + X or Off). Only that Y
+press is kept from the game. The buttons follow the rest of the Dovah suite:
+
+| Button | In the log | In the chat bar |
+|---|---|---|
+| **LB / RB** | previous / next channel tab | channel to send on |
+| **D-pad or left stick** up / down | scroll (held: repeats) | go through the recent commands |
+| **D-pad** left / right | previous / next channel tab | |
+| **Right stick** | scroll | |
+| **A** | open the chat bar with the recent commands | send |
+| **B** | close the window | close the chat bar |
+| **Y** | next speaker in the speaker filter | |
+| **X** | jump to the newest line | |
+
+A recent command goes back out on the channel it was first sent on, so a console
+command stays a console command. The prompts at the bottom of the window show the
+buttons while the controller is in use, and the keyboard's arrow keys do the same
+in the log.
+
+On **PrismaUI** (1.5 or newer) the window reads the controller itself. On **Magelight**
+(1.6 or newer, with its gamepad layer on) Magelight hands the controller over as keys:
+the d-pad and A work as above, B closes the whole window (as Escape does there), the
+right stick scrolls under the pointer, and LB, RB, X and Y aren't passed to the window.
+Use left / right for the channel tabs there.
+
 Hotkeys can be letters, digits, Enter, or F1–F12. Settings adds Shift to its key.
 The overlay is always hidden on the main menu and during loading. Hiding it during
 other menus is configurable (this includes PrismaUI menus such as DFC, which open
@@ -127,6 +155,7 @@ history files and removes it again. It never runs on its own.
 | `saveleak.character` | The history open is the loaded character's |
 | `saveleak.page` | The chat window shows the same character as the game, with its search and speaker filter |
 | `saveleak.mainmenu`, `saveleak.newgame` | Skipped: they need a quit to the Main Menu or a New Game |
+| `pad` | The controller can reach the window: on PrismaUI the window sees a pad; on Magelight the gamepad layer is on and a pad is connected. Names the open combo. Skipped with no controller connected |
 | `dovahhub.module` | Chronicle's DovahHub tab answers a history request for this character (skipped without DovahHub) |
 | `dovahmenu.entry` | DovahMenu still knows Chronicle's entry, greyed or not as it should be, with the settings key (skipped without DovahMenu) |
 

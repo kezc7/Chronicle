@@ -116,6 +116,14 @@ body.interacting #interaction-tools { display: flex; }
 }
 #copy-output { width: 100%; min-height: 70px; color: var(--theme-control-text); background: var(--theme-control-bg); user-select: text; }
 #status-text { color: var(--theme-status); font-size: 10px; padding: 3px 7px; flex-shrink: 0; }
+/* The pad's prompts: only while the window is open and the pad is the input in use. They take the
+   status line's place, on one line, most needed first, so a small window keeps its log. */
+#pad-prompts { display: none; flex-wrap: nowrap; overflow: hidden; gap: 9px; padding: 2px 7px; flex-shrink: 0; white-space: nowrap; }
+html[data-meridian-input="gamepad"] body.interacting #pad-prompts { display: flex; }
+html[data-meridian-input="gamepad"] body.interacting #status-text { display: none; }
+#pad-prompts .dv-prompt { flex-shrink: 0; gap: 4px; color: var(--theme-status); font: 500 10px var(--theme-font), var(--font-cjk); letter-spacing: .06em; }
+#pad-prompts .dv-keycap { min-width: 18px; height: 16px; padding: 0 3px; font: 600 9px var(--theme-font), var(--font-cjk);
+  color: var(--theme-control-text); background: var(--theme-control-bg); border-color: var(--theme-control-border); }
 body.mouse-active #status-text { color: var(--dv-good); }
 body.interacting .message.fading { opacity: 1; }
 

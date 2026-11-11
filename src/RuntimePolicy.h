@@ -424,6 +424,95 @@ namespace ChronicleRuntime
         return "Shift+" + key;
     }
 
+    // The controller combo that opens the chat window: hold the first button,
+    // press the second. Codes are the game's gamepad button IDs (XInput's).
+    namespace PadButton
+    {
+        inline constexpr std::uint32_t kLB = 0x0100, kRB = 0x0200, kA = 0x1000, kB = 0x2000, kX = 0x4000, kY = 0x8000;
+    }
+
+    struct PadCombo
+    {
+        std::uint32_t modifier{ 0 };
+        std::uint32_t button{ 0 };
+        bool On() const { return modifier && button; }
+        bool operator==(const PadCombo&) const = default;
+    };
+
+    // The setting's values: "lb+y" (the default), "lb+x", "rb+y", "rb+x" or
+    // "off". DovahMenu has Back+Start / Back+Y and DovahHub LB+A by default.
+    inline PadCombo ParsePadCombo(std::string_view value)
+    {
+        using namespace PadButton;
+        if (value == "off") return {};
+        if (value == "lb+x") return { kLB, kX };
+        if (value == "rb+y") return { kRB, kY };
+        if (value == "rb+x") return { kRB, kX };
+        return { kLB, kY };
+    }
+
+    inline std::string PadComboName(PadCombo combo)
+    {
+        if (!combo.On()) return "off";
+        const auto name = [](std::uint32_t code) -> std::string {
+            using namespace PadButton;
+            switch (code) {
+            case kLB: return "LB";
+            case kRB: return "RB";
+            case kA: return "A";
+            case kB: return "B";
+            case kX: return "X";
+            case kY: return "Y";
+            default: return "?";
+            }
+        };
+        return name(combo.modifier) + "+" + name(combo.button);
+    }
+
+    // Follows the pad's button events for the combo. OnButton answers Fire for
+    // the press that completes it; the caller decides whether to act and then
+    // calls Swallow, so the rest of that press (held, released) stays Chronicle's.
+    class PadComboGate
+    {
+    public:
+        enum class Step { None, Fire, Swallow };
+
+        void Set(PadCombo combo)
+        {
+            m_combo = combo;
+            Reset();
+        }
+        // On a load and whenever input is uncertain: nothing counts as held.
+        void Reset()
+        {
+            m_modifierHeld = false;
+            m_swallowing = false;
+        }
+        void Swallow() { m_swallowing = true; }
+        const PadCombo& Combo() const { return m_combo; }
+
+        // pressed: the button is down in this event; down: it went down in this event.
+        Step OnButton(std::uint32_t code, bool pressed, bool down)
+        {
+            if (!m_combo.On()) return Step::None;
+            if (code == m_combo.modifier) {
+                m_modifierHeld = pressed;
+                return Step::None;
+            }
+            if (code != m_combo.button) return Step::None;
+            if (m_swallowing) {
+                if (!pressed) m_swallowing = false;
+                return Step::Swallow;
+            }
+            return down && m_modifierHeld ? Step::Fire : Step::None;
+        }
+
+    private:
+        PadCombo m_combo;
+        bool m_modifierHeld{ false };
+        bool m_swallowing{ false };
+    };
+
     // The suite's code for a language, as i18n.js names it.
     inline std::string_view LanguageCode(Lang lang)
     {

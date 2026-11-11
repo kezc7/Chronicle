@@ -33,6 +33,7 @@ const DEFAULT_CONFIG = {
     hide_game_notifications: false,
     language: 'auto',          // 'auto' follows Skyrim's sLanguage
     toggle_hotkey: '',         // show/hide hotkey; '' = none
+    controller_combo: 'lb+y',  // hold the first pad button, press the second: opens the window; 'off'
     remember_hidden: true,     // keep the show/hide state across loads
     user_hidden: false,        // that state, saved when remember_hidden is on
     auto_hide: 0,              // seconds without new messages before the window fades; 0 = never
@@ -76,6 +77,7 @@ let updateResizeHandlePosition = () => {};
 let userScrolledUp = false;
 let unreadCount = 0;
 const inputHistory = [];
+const inputHistoryChannel = new Map();  // a recent command -> the channel it was sent on
 let inputHistoryIndex = -1;
 
 
@@ -129,6 +131,7 @@ function normalizeConfig() {
   g.hide_game_notifications = g.hide_game_notifications === true;
   g.language = normalizeLanguage(g.language);
   if (typeof g.toggle_hotkey !== 'string' || !/^(Enter|[a-z0-9]|F([1-9]|1[0-2]))?$/i.test(g.toggle_hotkey)) g.toggle_hotkey = '';
+  if (!['lb+y', 'lb+x', 'rb+y', 'rb+x', 'off'].includes(g.controller_combo)) g.controller_combo = 'lb+y';
   g.remember_hidden = g.remember_hidden !== false;
   g.user_hidden = g.remember_hidden && g.user_hidden === true;
   g.auto_hide = clamp(Math.round(Number(g.auto_hide) || 0), 0, 300);
@@ -241,6 +244,7 @@ function applyConfig() {
   const root = document.documentElement;
   uiLanguage = resolveLanguage(config.general.language, runtime.gameLanguage);
   applyTranslations();
+  if (typeof renderPadPrompts === 'function') renderPadPrompts();
   if (!runtime.connected) statusText(t('ui.connecting'));
   showUnread(unreadCount);
   document.body.dataset.theme = win.theme || 'skyrim';
@@ -546,6 +550,7 @@ function openInput() {
   input.value = '';
   input.focus();
   keepListBottom(stick);
+  if (typeof renderPadPrompts === 'function') renderPadPrompts();
 
   return true;
 }
@@ -559,6 +564,18 @@ function closeInput() {
   document.getElementById('input-bar').classList.add('hidden');
   document.getElementById('chat-input').blur();
   keepListBottom(stick);
+  if (typeof renderPadPrompts === 'function') renderPadPrompts();
+}
+
+// The recent commands, newest first: step 1 goes back one, -1 forward (to an empty bar).
+function recallInput(step) {
+  if (inputHistory.length === 0) return;
+  inputHistoryIndex = Math.max(-1, Math.min(inputHistoryIndex + step, inputHistory.length - 1));
+  const text = inputHistoryIndex < 0 ? '' : inputHistory[inputHistory.length - 1 - inputHistoryIndex];
+  document.getElementById('chat-input').value = text;
+  // A recalled command goes back on its own channel: a console command stays a console command.
+  const channel = inputHistoryChannel.get(text);
+  if (channel && enabledChannels().includes(channel)) setInputTarget(channel);
 }
 
 function submitInput() {
@@ -572,9 +589,13 @@ function submitInput() {
 
   if (inputHistory[inputHistory.length - 1] !== text) {
     inputHistory.push(text);
-    if (inputHistory.length > 50) inputHistory.shift();
+    if (inputHistory.length > 50) {
+      const dropped = inputHistory.shift();
+      if (!inputHistory.includes(dropped)) inputHistoryChannel.delete(dropped);
+    }
   }
   inputHistoryIndex = -1;
+  inputHistoryChannel.set(text, inputTarget);
 
   if (inputTarget === 'console') {
     sendToGame('consoleCommand', text);
@@ -669,6 +690,7 @@ function populateSettingsForm() {
   document.getElementById('sp-theme').value = w.theme || 'skyrim';
   document.getElementById('sp-language').value = g.language || 'auto';
   document.getElementById('sp-toggle-hotkey').value = g.toggle_hotkey || '';
+  document.getElementById('sp-controller-combo').value = g.controller_combo || 'lb+y';
   document.getElementById('sp-remember-hidden').checked = g.remember_hidden !== false;
   document.getElementById('sp-auto-hide').value = g.auto_hide;
   document.getElementById('sp-auto-hide-val').value = g.auto_hide;
@@ -852,6 +874,7 @@ function collectSettingsFromForm() {
       hide_game_notifications: document.getElementById('sp-hide-game-notifications').checked,
       language:           document.getElementById('sp-language').value || 'auto',
       toggle_hotkey:      document.getElementById('sp-toggle-hotkey').value || '',
+      controller_combo:   document.getElementById('sp-controller-combo').value || 'lb+y',
       remember_hidden:    document.getElementById('sp-remember-hidden').checked,
       user_hidden:        document.getElementById('sp-remember-hidden').checked && config.general.user_hidden === true,
       auto_hide:          parseInt(document.getElementById('sp-auto-hide').value, 10) || 0,
@@ -1216,19 +1239,23 @@ document.addEventListener('keydown', e => {
       e.preventDefault();
     } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
       if (inputHistory.length === 0) return;
-      if (e.key === 'ArrowUp') {
-        inputHistoryIndex = Math.min(inputHistoryIndex + 1, inputHistory.length - 1);
-      } else {
-        inputHistoryIndex = Math.max(inputHistoryIndex - 1, -1);
-      }
-      e.target.value = inputHistoryIndex < 0
-        ? '' : inputHistory[inputHistory.length - 1 - inputHistoryIndex];
+      recallInput(e.key === 'ArrowUp' ? 1 : -1);
       e.preventDefault();
     } else if (e.key === 'Tab') {
       const channels = enabledChannels();
       setInputTarget(channels[(channels.indexOf(inputTarget) + 1) % channels.length]);
       e.preventDefault();
     }
+    return;
+  }
+
+  // The log with the arrow keys, which is also how Magelight's gamepad layer
+  // types the d-pad: up / down scroll, left / right change the channel tab.
+  const arrow = {38: 'up', 40: 'down', 37: 'left', 39: 'right'}[e.keyCode] ||
+    {ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right'}[e.key];
+  if (arrow && !typing && !e.shiftKey && !e.ctrlKey && !e.altKey) {
+    padAction(arrow);
+    e.preventDefault();
     return;
   }
 
@@ -1243,11 +1270,23 @@ document.addEventListener('keydown', e => {
 
   // Input hotkey → open input bar
   const inputKey = config.general.input_hotkey || 'Enter';
-  if (e.key.toUpperCase() === inputKey.toUpperCase()) {
+  // Enter opens it too while the window is open, as A does (Magelight types A as Enter).
+  if (e.key.toUpperCase() === inputKey.toUpperCase() || (e.key === 'Enter' && !typing)) {
     openInput();
     e.preventDefault();
   }
 });
+
+// The pad's prompts and ring show while the pad is in use. Magelight's layer
+// types the pad as arrows, Enter and Escape, so those keys don't count there.
+document.addEventListener('keydown', e => {
+  const typedByPad = runtime.host === 'Magelight' && /^(Arrow(Up|Down|Left|Right)|Enter|Escape)$/.test(e.key);
+  if (!typedByPad) setInputDevice('keyboardMouse');
+}, true);
+document.addEventListener('mousedown', () => setInputDevice('keyboardMouse'), true);
+document.addEventListener('mousemove', e => {
+  if (e.movementX || e.movementY) setInputDevice('keyboardMouse');
+}, true);
 
 // Channel tab clicks
 
@@ -1280,6 +1319,7 @@ loadConfig().then(() => {
   normalizeConfig();
   applyConfig();
   startHandshake();
+  startPad();
 
   // The native handshake supplies the authoritative settings file and profile.
 

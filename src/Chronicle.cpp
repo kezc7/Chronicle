@@ -102,6 +102,7 @@ void Chronicle::OnDataLoaded()
     }
     m_language = static_cast<int>(ChronicleRuntime::ResolveLanguage("auto", m_gameLanguage));
     spdlog::info("Chronicle: game language '{}'", m_gameLanguage);
+    m_padGate.Set(ChronicleRuntime::ParsePadCombo("lb+y"));  // until the settings file says otherwise
     DovahMenuModule::SetDescription(Text(ChronicleRuntime::Phrase::MenuDescription));
     RegisterEventSinks();
     InitUiHost();
@@ -131,6 +132,7 @@ void Chronicle::OnPreLoadGame()
     }
     m_lastSubtitle.clear();
     m_messageCount = 0;
+    m_padGate.Reset();
     DropHistory();
     UpdateVisibility();
 }
@@ -718,6 +720,11 @@ void Chronicle::ApplyNativeSettings(const nlohmann::json& settings)
     m_launcherHotkey = ChronicleRuntime::LauncherHotkey(general.value("config_hotkey", std::string("0")));
     DovahMenuModule::SetHotkey(m_launcherHotkey);
     m_toggleKey = key(general.value("toggle_hotkey", std::string()), 0);  // 0 = no key
+    if (const auto combo = ChronicleRuntime::ParsePadCombo(general.value("controller_combo", std::string("lb+y")));
+        !(combo == m_padGate.Combo())) {
+        m_padGate.Set(combo);
+        spdlog::info("Chronicle: controller combo {}", ChronicleRuntime::PadComboName(combo));
+    }
     // Remembered hidden state is restored from the settings file; otherwise
     // the current session's state is left as it is.
     m_rememberHidden = general.value("remember_hidden", true);
@@ -783,6 +790,28 @@ bool Chronicle::OnHotkey(std::uint32_t scanCode, bool shift)
     m_keyboardCapture = true;
     MainTask([this, action] {
         if (!m_hidden && m_gameLoaded) InvokeUI("nativeHotkey(" + Json(action) + ")");
+    });
+    return true;
+}
+
+bool Chronicle::OnPadButton(std::uint32_t code, bool pressed, bool down)
+{
+    using Step = ChronicleRuntime::PadComboGate::Step;
+    const auto step = m_padGate.OnButton(code, pressed, down);
+    if (step == Step::Swallow) return true;
+    if (step != Step::Fire) return false;
+    // The interact key's rules: a loaded game, Chronicle shown, no view holding
+    // input (an open Chronicle closes with B), no game menu, not the console.
+    auto& host = UiHost();
+    if (!m_bootstrapped || m_hidden || !m_gameLoaded || !host.Available() || host.AnyFocus() || !m_state.menus.empty()) return false;
+    if (auto* ui = RE::UI::GetSingleton(); ui && ui->IsMenuOpen("Console")) return false;
+    m_padGate.Swallow();
+    if (!m_padComboLogged) {
+        m_padComboLogged = true;
+        spdlog::info("Chronicle: controller combo {} opened the chat window", ChronicleRuntime::PadComboName(m_padGate.Combo()));
+    }
+    MainTask([this] {
+        if (!m_hidden && m_gameLoaded) InvokeUI("nativeHotkey(\"interact\", \"pad\")");
     });
     return true;
 }
