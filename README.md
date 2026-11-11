@@ -1,4 +1,4 @@
-# Chronicle 1.4.15
+# Chronicle 1.4.16
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -267,6 +267,20 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.4.16-beta
+
+Seventeenth beta, PrismaUI and Magelight builds.
+
+- Controller support for the chat window (CHRON-17). LB + Y opens it; LB / RB change
+  the channel, the d-pad and right stick scroll, A opens the chat bar where up and down
+  pick a recent command, A sends, B closes. Y walks the speaker filter and X jumps to the
+  newest line. Prompts show the buttons while the controller is in use. See Controller
+  above. The combo can be changed or switched off in General.
+- A recalled command (up / down in the chat bar) is sent on the channel it was first sent
+  on, with the keyboard too.
+- The arrow keys scroll the log and change the channel tab while the window is open.
+- The self-test gains a `pad` step.
 
 ## 1.4.15-beta
 
