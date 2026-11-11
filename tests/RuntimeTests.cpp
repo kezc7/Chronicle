@@ -195,7 +195,11 @@ int main()
     Require(!ChronicleRuntime::ReportDeath(Side::Other, Side::Other)); // guards vs. a dragon
     // Player dialogue choices: logged only when the NPC answers that choice.
     {
-        int infoA = 0, infoB = 0, topicA = 0, topicB = 0;
+        // Four objects of one array. Separate zero-valued locals whose addresses are only compared can
+        // share one stack slot under whole-program optimisation (MSVC 14.44 and 14.51 both do it), and
+        // the test then compared equal addresses. Game forms are separate objects, so the DLL is unaffected.
+        int ids[4] = {};
+        int &infoA = ids[0], &infoB = ids[1], &topicA = ids[2], &topicB = ids[3];
         using ChronicleRuntime::AnswersChoice;
         Require(AnswersChoice(&infoA, &topicA, &infoA, &topicA));   // NPC answers the chosen option
         Require(AnswersChoice(&infoB, &topicA, &infoA, &topicA));   // another answer of the same topic
@@ -369,6 +373,38 @@ int main()
     Require(ChronicleRuntime::LauncherHotkey("") == "Shift+0");
     Require(ChronicleRuntime::LauncherHotkey("k") == "Shift+K");
     Require(ChronicleRuntime::LauncherHotkey("F5") == "Shift+F5");
+    // The controller combo that opens the window (CHRON-17).
+    {
+        using namespace ChronicleRuntime;
+        using Step = PadComboGate::Step;
+        namespace P = PadButton;
+        Require(ParsePadCombo("lb+y") == PadCombo{ P::kLB, P::kY });
+        Require(ParsePadCombo("") == PadCombo{ P::kLB, P::kY });          // unknown or missing: the default
+        Require(ParsePadCombo("rb+x") == PadCombo{ P::kRB, P::kX });
+        Require(!ParsePadCombo("off").On());
+        Require(PadComboName(ParsePadCombo("lb+x")) == "LB+X" && PadComboName({}) == "off");
+        PadComboGate gate;
+        gate.Set(ParsePadCombo("lb+y"));
+        Require(gate.OnButton(P::kY, true, true) == Step::None);         // Y alone is the game's jump
+        Require(gate.OnButton(P::kY, false, false) == Step::None);
+        Require(gate.OnButton(P::kLB, true, true) == Step::None);        // LB down...
+        Require(gate.OnButton(P::kLB, true, false) == Step::None);       // ...and held
+        Require(gate.OnButton(P::kA, true, true) == Step::None);         // other buttons pass
+        Require(gate.OnButton(P::kY, true, true) == Step::Fire);         // LB held + Y pressed
+        gate.Swallow();
+        Require(gate.OnButton(P::kY, true, false) == Step::Swallow);     // Y held: still Chronicle's
+        Require(gate.OnButton(P::kY, false, false) == Step::Swallow);    // Y released: the last one
+        Require(gate.OnButton(P::kY, true, true) == Step::Fire);         // again while LB is held
+        Require(gate.OnButton(P::kY, false, false) == Step::None);       // not swallowed: the caller didn't act
+        Require(gate.OnButton(P::kLB, false, false) == Step::None);
+        Require(gate.OnButton(P::kY, true, true) == Step::None);         // LB let go
+        gate.OnButton(P::kLB, true, true);
+        gate.Reset();                                                     // a load forgets LB
+        Require(gate.OnButton(P::kY, true, true) == Step::None);
+        gate.Set(ParsePadCombo("off"));
+        gate.OnButton(P::kLB, true, true);
+        Require(gate.OnButton(P::kY, true, true) == Step::None);         // off: never
+    }
     // The narrator's name and DovahMenu's description come in every language.
     Require(ChronicleRuntime::Phrased(Lang::En, Phrase::Narrator) == "Narrator");
     Require(ChronicleRuntime::Phrased(Lang::De, Phrase::Narrator) == "Erzähler");

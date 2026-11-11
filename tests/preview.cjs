@@ -58,7 +58,7 @@ const TYPES = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-
 http.createServer((req,res) => {
   const name = new URL(req.url, 'http://localhost').pathname.slice(1) || 'index.html';
   const file = name === 'backdrop.svg' ? backdrop : path.join(root, name);
-  const known = ['index.html','styles.css','config.json','bridge.js','controls.js','script.js','i18n.js','backdrop.svg'].includes(name) ||
+  const known = ['index.html','styles.css','config.json','bridge.js','controls.js','pad.js','script.js','i18n.js','backdrop.svg'].includes(name) ||
     /^theme\/(dovah-theme\.css|fonts\/[A-Za-z-]+\.ttf)$/.test(name);
   if (!known || !fs.existsSync(file)) {
     res.writeHead(404); return res.end();

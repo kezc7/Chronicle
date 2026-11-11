@@ -59,6 +59,9 @@ namespace
         std::size_t lines{ 0 };
         std::string search;
         std::string speaker;
+        bool padApi{ false };          // the page has navigator.getGamepads
+        std::size_t padsConnected{ 0 };
+        std::string padId;
     };
 
     // One run at a time, owned by the game thread.
@@ -371,6 +374,24 @@ namespace
             return Outcome::Done("saveleak.newgame", Result::Skip, "needs a New Game (save-leak in-game check 3)");
         } });
 
+        // The controller (CHRON-17): the combo setting, and how the pad reaches the page.
+        // Pressing buttons is left to the player: the step only checks the path is there.
+        steps.push_back({ "pad", [&run, chronicle](std::int64_t) {
+            constexpr const char* step = "pad";
+            const auto combo = "combo " + chronicle->PadComboName();
+            const auto pad = UiHost().Gamepad();
+            if (pad.path == IUiHost::PadPath::HostKeys) {
+                if (!pad.connected) return Outcome::Done(step, Result::Skip, "no controller connected; " + pad.detail + "; " + combo);
+                return Outcome::Done(step, Result::Pass, pad.detail + ", a controller is connected; " + combo);
+            }
+            if (pad.path == IUiHost::PadPath::None) return Outcome::Done(step, Result::Skip, pad.detail + "; " + combo);
+            // The page reads the pad itself: saveleak.page asked it.
+            if (!run.page) return Outcome::Done(step, Result::Skip, "the chat window didn't answer (see saveleak.page); " + combo);
+            if (!run.page->padApi) return Outcome::Done(step, Result::Fail, "the chat window has no gamepad API; " + combo);
+            if (!run.page->padsConnected) return Outcome::Done(step, Result::Skip, "no controller connected; " + combo);
+            return Outcome::Done(step, Result::Pass, "the chat window sees '" + run.page->padId + "'; " + combo);
+        } });
+
         steps.push_back({ "dovahhub.module", [chronicle](std::int64_t) {
             return Outcome{ false, { DovahHubModule::CheckModule(chronicle->HistoryProfile()) } };
         } });
@@ -476,6 +497,13 @@ namespace ChronicleSelfTestRun
         reply.speaker = text("speaker");
         if (const auto it = data.find("loaded"); it != data.end() && it->is_boolean()) reply.loaded = it->get<bool>();
         if (const auto it = data.find("lines"); it != data.end() && it->is_number_unsigned()) reply.lines = it->get<std::size_t>();
+        if (const auto pad = data.find("pad"); pad != data.end() && pad->is_object()) {
+            if (const auto it = pad->find("api"); it != pad->end() && it->is_boolean()) reply.padApi = it->get<bool>();
+            if (const auto it = pad->find("connected"); it != pad->end() && it->is_number_unsigned()) reply.padsConnected = it->get<std::size_t>();
+            if (const auto it = pad->find("id"); it != pad->end() && it->is_string()) {
+                reply.padId = ChronicleSelfTest::Detail(ChronicleUtf8::ReplaceInvalid(it->get<std::string>()).value.substr(0, 80));
+            }
+        }
         g_run->page = std::move(reply);
     }
 }

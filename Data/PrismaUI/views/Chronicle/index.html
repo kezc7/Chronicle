@@ -57,6 +57,9 @@
              placeholder="Type a message… (Escape to cancel)" data-i18n-placeholder="ui.inputPlaceholder" />
     </div>
 
+    <!-- Controller prompts (pad.js), shown while the pad is the input in use -->
+    <div id="pad-prompts" class="dv-prompts" aria-hidden="true"></div>
+
     <div id="status-text" role="status">Connecting to Skyrim…</div>
 
   </div>
@@ -158,6 +161,16 @@
               <label class="dv-setting-row__label" for="sp-toggle-hotkey"><b data-i18n="sp.toggleHotkey">Show/hide hotkey</b><small data-i18n="sp.toggleHotkeyHint">Hides or shows Chronicle; the settings hotkey also brings it back. Backspace removes the key</small></label>
               <input type="text" id="sp-toggle-hotkey" class="dv-keycap sp-hotkey" value="" readonly data-optional="true"
                      placeholder="None" data-i18n-placeholder="hotkey.none" />
+            </div>
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-controller-combo"><b data-i18n="sp.controllerCombo">Open with the controller</b><small data-i18n="sp.controllerComboHint">Hold the first button and press the second. B closes the window</small></label>
+              <select id="sp-controller-combo" class="dv-select">
+                <option value="lb+y">LB + Y</option>
+                <option value="lb+x">LB + X</option>
+                <option value="rb+y">RB + Y</option>
+                <option value="rb+x">RB + X</option>
+                <option value="off" data-i18n="sp.off">Off</option>
+              </select>
             </div>
             <div id="sp-hotkey-status" class="sp-section-hint" role="status"></div>
           </div>
@@ -322,6 +335,7 @@
   <script src="i18n.js"></script>
   <script src="bridge.js"></script>
   <script src="controls.js"></script>
+  <script src="pad.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

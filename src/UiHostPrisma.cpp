@@ -94,6 +94,13 @@ namespace
         int ApiVersion() const override { return m_v2 ? 2 : 1; }
         std::uint64_t ViewHandle() const override { return s_view; }
 
+        // PrismaUI 1.5 and later hand the focused page the controller as a
+        // standard browser gamepad; pad.js reads it there.
+        PadSupport Gamepad() override
+        {
+            return { PadPath::Page, false, "PrismaUI hands the focused page the controller as a browser gamepad" };
+        }
+
     private:
         PRISMA_UI_API::IVPrismaUI1* m_api{ nullptr };
         PRISMA_UI_API::IVPrismaUI2* m_v2{ nullptr };  // real V2 only, never a V1 cast

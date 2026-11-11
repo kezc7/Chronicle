@@ -27,9 +27,18 @@ RE::BSEventNotifyControl ChronicleInputSink::ProcessEvent(RE::InputEvent* const*
 {
     GameThread::Check();
     bool keyboardEvent = false;
+    bool padEvent = false;
     bool consume = false;
     if (events) for (auto* event = *events; event; event = event->next) {
         const auto* button = event->AsButtonEvent();
+        if (button && button->GetDevice() == RE::INPUT_DEVICE::kGamepad) {
+            // Only the combo's own press is kept from the game; everything else on the pad passes.
+            if (Chronicle::GetSingleton()->OnPadButton(button->GetIDCode(), button->IsPressed(), button->IsDown())) {
+                padEvent = true;
+                consume = true;
+            }
+            continue;
+        }
         if (button && button->GetDevice() == RE::INPUT_DEVICE::kKeyboard) {
             keyboardEvent = true;
             auto* chronicle = Chronicle::GetSingleton();
@@ -40,7 +49,7 @@ RE::BSEventNotifyControl ChronicleInputSink::ProcessEvent(RE::InputEvent* const*
             }
         }
     }
-    return keyboardEvent && consume ? RE::BSEventNotifyControl::kStop :
+    return (keyboardEvent || padEvent) && consume ? RE::BSEventNotifyControl::kStop :
         RE::BSEventNotifyControl::kContinue;
 }
 

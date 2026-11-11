@@ -75,6 +75,18 @@ public:
     virtual const char* FocusMenu() const = 0;  // "PrismaUI_FocusMenu" or "MagelightFocus"
     virtual int ApiVersion() const = 0;
     virtual std::uint64_t ViewHandle() const = 0;
+
+    // How the controller reaches the page while Chronicle holds input: the
+    // page reads it itself (PrismaUI's browser gamepad), the host types it as
+    // keys (Magelight's gamepad layer), or not at all. For the self-test.
+    enum class PadPath { Page, HostKeys, None };
+    struct PadSupport
+    {
+        PadPath path{ PadPath::None };
+        bool connected{ false };  // HostKeys: the host sees a pad; Page: ask the page
+        std::string detail;
+    };
+    virtual PadSupport Gamepad() = 0;
 };
 
 IUiHost& UiHost();

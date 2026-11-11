@@ -53,8 +53,8 @@ const KEEP = new Set([
 const SAME_WORD = {
   fr: ['message', 'messages', 'notifications', 'session', 'active', 'interaction', 'menus', 'mode', 'photo', 'visible',
        'corrections', 'max', 'position', 'configuration', 'exact', 'palette', 'distance', 'console', 'code', 'combat'],
-  de: ['export', 'native', 'quest', 'tabs', 'max', 'position', 'optional', 'palette', 'code', 'info'],
-  it: ['mouse', 'native', 'file', 'max', 'per', 'console', 'chat'],
+  de: ['export', 'native', 'quest', 'tabs', 'max', 'position', 'optional', 'palette', 'code', 'info', 'controller'],
+  it: ['mouse', 'native', 'file', 'max', 'per', 'console', 'chat', 'controller'],
   es: ['visible', 'cursor', 'real', 'chat'],
   pl: [],
   tr: [],
@@ -184,6 +184,7 @@ const PAGE_KEEP = {
   '_root.SomeHud.Subtitle.text': 'an example Scaleform path, typed as code',
   'Esc': 'a keycap: the name printed on the key',
   'F8': 'key name', 'Enter': 'key name', '0': 'key name',
+  'LB + Y': 'controller buttons, named as printed on the pad', 'LB + X': 'controller buttons', 'RB + Y': 'controller buttons', 'RB + X': 'controller buttons',
   'Loading Chronicle’s history…': 'DovahHub module page: history.js replaces it as soon as it runs',
 };
 // Elements whose text or attribute the scripts replace through t() at start-up.
@@ -240,7 +241,7 @@ const SCRIPT_KEEP = new Set([
 const classList = text => text.split(' ').every(token => /^[a-z][\w-]*$/.test(token)) && /-|__/.test(text);
 function scriptBypass() {
   const found = [];
-  const files = ['bridge.js', 'controls.js', 'script.js'].map(file => path.join(view, file))
+  const files = ['bridge.js', 'controls.js', 'pad.js', 'script.js'].map(file => path.join(view, file))
     .concat(path.join(hub, 'history.js'));
   for (const full of files) {
     const file = path.relative(root, full).replace(/\\/g, '/');

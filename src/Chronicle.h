@@ -67,6 +67,11 @@ public:
     // Returns true when the keyboard event belongs to Chronicle and should not
     // continue into Skyrim's gameplay/menu input pipeline.
     bool OnHotkey(std::uint32_t scanCode, bool shift);
+    // A gamepad button event (game thread). True for the controller combo's
+    // press, which opens the chat window and is kept from the game.
+    bool OnPadButton(std::uint32_t code, bool pressed, bool down);
+    // The combo from the settings ("LB+Y", or "off"), for the self-test.
+    std::string PadComboName() const { return ChronicleRuntime::PadComboName(m_padGate.Combo()); }
     bool ShouldConsumeKeyboardInput() const { return m_keyboardCapture.load(); }
     bool ShowCombatHits() const { return m_combatHits.load(); }
     float DialogueRadius() const { return m_dialogueRadius.load(); }
@@ -186,6 +191,8 @@ private:
     std::uint32_t m_inputKey{ VK_RETURN };
     std::uint32_t m_toggleKey{ 0 };              // show/hide hotkey; 0 = none
     std::string m_launcherHotkey{ "Shift+0" };   // game thread
+    ChronicleRuntime::PadComboGate m_padGate;    // game thread
+    bool m_padComboLogged{ false };
     std::atomic<bool> m_rememberHidden{ true };
     ChronicleRuntime::SkyrimNetSend m_skyrimNetSend{ ChronicleRuntime::SkyrimNetSend::Dialogue };  // game thread
     std::string m_lastSubtitle;

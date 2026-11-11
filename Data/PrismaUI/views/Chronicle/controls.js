@@ -93,6 +93,7 @@ function beginInteraction() {
   focusPending = true;
   document.body.classList.add('interacting');
   refreshSpeakerOptions();
+  if (typeof renderPadPrompts === 'function') renderPadPrompts();
   statusText(t('status.requestingMouse'));
   if (!sendToGame('focusAcquired', '')) {
     focusResult(false, 'status.noConnection');
@@ -155,6 +156,7 @@ function setRuntime(data) {
     document.getElementById('message-list').replaceChildren();
     runtime.profile = data.profile;
     inputHistory.length = 0;
+    if (typeof inputHistoryChannel !== 'undefined') inputHistoryChannel.clear();
     inputHistoryIndex = -1;
     unreadCount = 0;
     userScrolledUp = false;
@@ -179,10 +181,14 @@ function setRuntime(data) {
 function historyKey() { return 'chronicle_history_' + runtime.profile; }
 
 // The self-test (/selftest or DovahHub's Run self-test) asks which character
-// the window shows, to check it is the one the game has loaded.
+// the window shows, to check it is the one the game has loaded, and whether
+// the page sees a controller (PrismaUI hands it the pad as a browser gamepad).
 function chronicleSelfTest(token) {
+  const api = typeof navigator !== 'undefined' && typeof navigator.getGamepads === 'function';
+  const pads = api ? [...(navigator.getGamepads() || [])].filter(pad => pad && pad.connected !== false) : [];
   sendToGame('selfTestReply', {token: String(token), profile: runtime.profile || '', loaded: runtime.loaded === true,
-    lines: messages.length, search: searchText, speaker: speakerFilter});
+    lines: messages.length, search: searchText, speaker: speakerFilter,
+    pad: {api, connected: pads.length, id: pads.length ? String(pads[0].id || '').slice(0, 80) : ''}});
 }
 
 function flushHistory() {
@@ -219,9 +225,11 @@ function nativeBootstrap(data) {
   if (!retryPendingSettings() && !data.settings && !data.warning) persistConfig();
 }
 
-function nativeHotkey(action) {
+function nativeHotkey(action, source) {
   // The panel copy answers; a release from here would cancel its focus request.
   if (hostRole === 'hud') return false;
+  // The controller combo opened it: show the pad's prompts straight away.
+  if (source === 'pad' && typeof setInputDevice === 'function') setInputDevice('gamepad');
   if (!runtime.connected || !runtime.loaded || !runtime.visible) {
     sendToGame('focusReleased', '');
     return false;

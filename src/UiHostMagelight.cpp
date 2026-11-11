@@ -50,6 +50,7 @@ namespace
 
     constexpr std::uint32_t kMinHost = PackVersion(0, 30, 1);      // PostGameTask
     constexpr std::uint32_t kCancelHost = PackVersion(1, 1, 0);    // CancelUIModeRequest
+    constexpr std::uint32_t kGamepadHost = PackVersion(1, 6, 0);   // SetViewGamepad, GetViewGamepadState
     const std::filesystem::path kViewDir = L"Data/Magelight/Chronicle/views";
 
     const MagelightApi4* RequestApi4()
@@ -153,7 +154,46 @@ namespace
             }
             m_panel = panel;
             m_hud = hud;
+            EnableGamepad();
             return true;
+        }
+
+        // Magelight 1.6.0+ gives the pad to the panel while it holds UI mode, typed
+        // as keys (d-pad and left stick the arrows, A Enter, B Escape, right stick
+        // the wheel), as DovahMenu uses it, and keeps it from the game. pad.js
+        // takes those keys the same way it takes PrismaUI's gamepad.
+        void EnableGamepad()
+        {
+            if (m_api->hostVersionNumber < kGamepadHost || !m_api->QueryCapability || m_api->QueryCapability("gamepad") != 1) {
+                m_padDetail = std::string("Magelight ") + m_api->hostVersion + " has no gamepad layer here (needs 1.6.0, flat, with the layer on)";
+                spdlog::info("Chronicle: {}", m_padDetail);
+                return;
+            }
+            GamepadConfig pad{};
+            pad.size = sizeof(pad);
+            pad.enabled = true;
+            pad.style = kGamepadStyleKeys;
+            pad.allowCursor = false;
+            pad.startInCursorMode = false;
+            if (const auto result = m_api->SetViewGamepad(m_panel, &pad); result != Result::Ok) {
+                m_padDetail = std::string("Magelight refused the gamepad layer: ") + ResultName(result) + " " + LastError();
+                spdlog::warn("Chronicle: {}", m_padDetail);
+                return;
+            }
+            m_padLayer = true;
+            spdlog::info("Chronicle: controller on Magelight's gamepad layer (d-pad, A, B, right stick)");
+        }
+
+        PadSupport Gamepad() override
+        {
+            if (!m_padLayer || !ViewValid()) return { PadPath::None, false, m_padDetail };
+            GamepadState state{};
+            state.size = sizeof(state);
+            if (const auto result = m_api->GetViewGamepadState(m_panel, &state); result != Result::Ok) {
+                return { PadPath::None, false, std::string("the gamepad layer's state didn't answer: ") + ResultName(result) };
+            }
+            if (!state.enabled) return { PadPath::None, false, "the gamepad layer is switched off for the panel" };
+            return { PadPath::HostKeys, state.connected, std::string("Magelight ") + m_api->hostVersion + "'s gamepad layer is on for the panel" };
         }
 
         bool Available() const override { return m_api != nullptr; }
@@ -428,6 +468,8 @@ namespace
         ModId m_mod{ 0 };
         std::atomic<ViewId> m_panel{ 0 };
         std::atomic<ViewId> m_hud{ 0 };
+        bool m_padLayer{ false };
+        std::string m_padDetail{ "the gamepad layer was not set up" };
         std::atomic<bool> m_renderDead{ false };
         DomReadyFn m_onDomReady{ nullptr };
         std::deque<Listener> m_listeners;
