@@ -1,4 +1,4 @@
-# Chronicle 1.4.16
+# Chronicle 1.4.17
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -278,6 +278,16 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.4.17-beta
+
+Eighteenth beta, PrismaUI and Magelight builds.
+
+- The log follows the save (CHRON-18). Loading an older save folds away the lines from
+  play after it, in the chat window and in DovahHub's Chronicle tab; loading the later
+  save brings them back. Nothing is deleted. Saves from before 1.4.17 show every line.
+  Mods reading the log through Chronicle_API.h get the loaded save's lines too.
+- The self-test gains `saveleak.lineage`, which also logs how many lines are folded.
 
 ## 1.4.16-beta
 
