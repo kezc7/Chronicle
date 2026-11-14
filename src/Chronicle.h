@@ -214,6 +214,7 @@ private:
     // PublishInputGate on the game thread, read from any thread. The menu set
     // and the game's UI are never read from the input thread.
     std::atomic<bool> m_gateKeysFree{ false };    // no game menu or other window has the keyboard (State::KeysFree)
+    std::atomic<bool> m_gateDialogueOnly{ false }; // only a conversation has it (State::DialogueOnly)
     std::atomic<std::int64_t> m_captureSince{ 0 }; // steady ms when m_keyboardCapture was last set
     std::atomic<bool> m_gateUserHidden{ false };
     std::mutex m_padMutex;                         // m_padGate: the input thread and the game thread
