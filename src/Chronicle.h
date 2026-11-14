@@ -78,7 +78,9 @@ public:
         std::lock_guard lock(m_padMutex);
         return ChronicleRuntime::PadComboName(m_padGate.Combo());
     }
-    bool ShouldConsumeKeyboardInput() const { return m_keyboardCapture.load(); }
+    // Any thread: keep this keyboard event from the game (Chronicle's window has
+    // the keyboard, or an opener waits for focus while no menu has it).
+    bool ShouldConsumeKeyboardInput();
     bool ShowCombatHits() const { return m_combatHits.load(); }
     float DialogueRadius() const { return m_dialogueRadius.load(); }
     // A line Chronicle writes itself, in the chosen language (game text is already localized).
@@ -163,6 +165,8 @@ private:
     void ToggleUserHidden();
     void UpdateVisibility();
     void PublishInputGate();    // game thread: the snapshot OnHotkey and OnPadButton read
+    void HoldKeyboard();        // any thread: an opener keeps keys until focus arrives (kCaptureGraceMs)
+    void OpenFromKey(const std::string& a_action);  // game thread: the page's nativeHotkey, or the keyboard back
     void PublishRuntime();
     void ApplyNativeSettings(const nlohmann::json& settings);
     void LoadHistory();
@@ -209,7 +213,8 @@ private:
     // What the input sink may know of the game thread's state: published by
     // PublishInputGate on the game thread, read from any thread. The menu set
     // and the game's UI are never read from the input thread.
-    std::atomic<bool> m_gateMenusClear{ false };  // no menu that hides Chronicle, no console
+    std::atomic<bool> m_gateKeysFree{ false };    // no game menu or other window has the keyboard (State::KeysFree)
+    std::atomic<std::int64_t> m_captureSince{ 0 }; // steady ms when m_keyboardCapture was last set
     std::atomic<bool> m_gateUserHidden{ false };
     std::mutex m_padMutex;                         // m_padGate: the input thread and the game thread
     std::string m_launcherHotkey{ "Shift+0" };   // game thread

@@ -62,6 +62,11 @@ namespace
         func(a_script, &compiler, RE::COMPILER_NAME::kSystemWindowCompiler, a_target);
     }
 
+    std::int64_t NowMs()
+    {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    }
+
     std::string Json(const nlohmann::json& value)
     {
         return value.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
@@ -325,7 +330,7 @@ void Chronicle::UpdateVisibility()
             spdlog::info("Chronicle: DovahMenu open dropped: Chronicle stayed hidden");
         } else if (visible && UiHost().ViewValid() && m_viewReady && !UiHost().AnyFocus()) {
             m_launcherOpenUntil = {};
-            m_keyboardCapture = true;
+            HoldKeyboard();
             InvokeUI("nativeHotkey(\"settings\")");
         }
     }
@@ -337,7 +342,13 @@ void Chronicle::PublishInputGate()
     GameThread::Check();
     bool console = false;
     if (auto* ui = RE::UI::GetSingleton()) console = ui->IsMenuOpen("Console");
-    m_gateMenusClear = m_state.menus.empty() && !console;
+    // A menu whose close event went astray mustn't hold the keys for good.
+    if (auto* ui = RE::UI::GetSingleton()) {
+        std::erase_if(m_state.keyboardMenus, [ui](const std::string& name) {
+            return name != ChronicleRuntime::kMenuFrameworkMenu && name != ChronicleRuntime::kDovahHubMenu && !ui->IsMenuOpen(name);
+        });
+    }
+    m_gateKeysFree = m_state.KeysFree() && !console;
     m_gateUserHidden = m_state.userHidden;
 }
 
@@ -804,49 +815,91 @@ bool Chronicle::OnHotkey(std::uint32_t scanCode, bool shift)
     const auto key = MapVirtualKeyW(scanCode, MAPVK_VSC_TO_VK_EX);
     // Any thread: only atomics (m_gate*, published on the game thread) and the
     // UI host's focus calls are read here; everything else goes to the pump.
+    // With a game menu or another mod's window holding the keyboard every key
+    // passes (CHRON-21); the decision itself is ChronicleRuntime::DecideKey.
     auto& host = UiHost();
-    // The show/hide key must work while Chronicle is hidden by it, but never
-    // while typing (any focused view), in menus or in Skyrim's console.
-    const bool canToggle = m_bootstrapped && m_gameLoaded && host.Available() &&
-        !host.AnyFocus() && m_gateMenusClear;
-    const auto toggleKey = m_toggleKey.load();
-    const auto settingsKey = m_settingsKey.load();
-    if (canToggle && toggleKey && key == toggleKey && !shift) {
+    const bool anyFocus = host.AnyFocus();
+    ChronicleRuntime::KeyState state;
+    state.bootstrapped = m_bootstrapped;
+    state.loaded = m_gameLoaded;
+    state.hidden = m_hidden;
+    state.hostAvailable = host.Available();
+    state.anyFocus = anyFocus;
+    state.ownFocus = anyFocus && host.HasFocus();
+    state.keysFree = m_gateKeysFree;
+    state.userHidden = m_gateUserHidden;
+    state.toggleKey = m_toggleKey;
+    state.settingsKey = m_settingsKey;
+    state.interactKey = m_interactKey;
+    state.inputKey = m_inputKey;
+    using Action = ChronicleRuntime::KeyAction;
+    const auto decision = ChronicleRuntime::DecideKey(key, shift, state);
+    switch (decision) {
+    case Action::Pass:
+        return false;
+    case Action::Keep:
+        return true;
+    case Action::Toggle:
         MainTask([this] { ToggleUserHidden(); });
         return true;
-    }
-    // The settings hotkey also brings a hidden Chronicle back (and opens
-    // settings), so a forgotten show/hide key cannot leave it lost. Tasks run
-    // in order: the view is visible again before the settings request.
-    if (canToggle && m_gateUserHidden && shift && key == settingsKey) {
-        m_keyboardCapture = true;
+    case Action::ShowSettings:
+        // The settings hotkey also brings a hidden Chronicle back (and opens
+        // settings), so a forgotten show/hide key cannot leave it lost. Tasks run
+        // in order: the view is visible again before the settings request.
+        HoldKeyboard();
         MainTask([this] { if (m_state.userHidden) ToggleUserHidden(); });
-        MainTask([this] { if (!m_hidden && m_gameLoaded) InvokeUI("nativeHotkey(\"settings\")"); });
+        MainTask([this] { OpenFromKey("settings"); });
         return true;
-    }
-    if (!m_bootstrapped || m_hidden || !m_gameLoaded || !host.Available()) return false;
-    if (host.AnyFocus()) {
-        if (!host.HasFocus()) return false;
+    case Action::Unfocus:
         // Release natively too: if the view never receives keys, the close
         // hotkey/Escape must still return control to Skyrim. Letter/Enter
         // hotkeys are left to JS so typing in the input bar cannot close it.
-        const bool functionKey = key >= VK_F1 && key <= VK_F12;
-        if (key == VK_ESCAPE || (functionKey && key == m_interactKey)) MainTask([this] { RequestUnfocus(); });
+        MainTask([this] { RequestUnfocus(); });
+        return true;
+    case Action::OpenSettings:
+    case Action::OpenInteract:
+    case Action::OpenInput: {
+        const std::string action = decision == Action::OpenSettings ? "settings" :
+            decision == Action::OpenInteract ? "interact" : "input";
+        // Hold the keyboard at once. Focus() is asynchronous, so without this
+        // the same Enter/F8 key could reach Skyrim before the view owns it.
+        HoldKeyboard();
+        MainTask([this, action] { OpenFromKey(action); });
         return true;
     }
-    if (!m_gateMenusClear) return false;
-    const std::string action = shift && key == settingsKey ? "settings" :
-        key == m_interactKey ? "interact" : key == m_inputKey ? "input" : "";
-    if (action.empty()) return false;
+    }
+    return false;
+}
 
-    // Consume the opener immediately. Focus() is asynchronous, so without
-    // this pending capture the same Enter/F8 key can reach Skyrim before the
-    // view owns the keyboard, and subsequent typing can trigger game menus.
+void Chronicle::HoldKeyboard()
+{
+    m_captureSince = NowMs();
     m_keyboardCapture = true;
-    MainTask([this, action] {
-        if (!m_hidden && m_gameLoaded) InvokeUI("nativeHotkey(" + Json(action) + ")");
-    });
-    return true;
+}
+
+bool Chronicle::ShouldConsumeKeyboardInput()
+{
+    // Any thread, as OnHotkey. Only Chronicle's own window, or an opener still
+    // waiting for focus while no menu has the keyboard, keeps keys from the game.
+    if (!m_keyboardCapture) return false;
+    const bool own = UiHost().HasFocus();
+    if (ChronicleRuntime::HoldsKeyboard(true, own, m_gateKeysFree, NowMs() - m_captureSince)) return true;
+    if (m_keyboardCapture.exchange(false)) {
+        spdlog::info("Chronicle: keyboard handed back to the game ({})", m_gateKeysFree ? "focus didn't arrive in time" : "a menu has it");
+    }
+    return false;
+}
+
+void Chronicle::OpenFromKey(const std::string& action)
+{
+    GameThread::Check();
+    if (m_hidden || !m_gameLoaded || !m_gateKeysFree) {
+        // Hidden, or a menu took the keyboard since the key: the key opens nothing
+        // and the keyboard goes back to the game.
+        m_keyboardCapture = false;
+        return;
+    }
+    InvokeUI("nativeHotkey(" + Json(action) + ")");
 }
 
 bool Chronicle::OnPadButton(std::uint32_t code, bool pressed, bool down)
@@ -860,7 +913,7 @@ bool Chronicle::OnPadButton(std::uint32_t code, bool pressed, bool down)
     // input (an open Chronicle closes with B), no game menu, not the console.
     // Any thread: atomics and the UI host's focus only, as OnHotkey.
     auto& host = UiHost();
-    if (!m_bootstrapped || m_hidden || !m_gameLoaded || !host.Available() || host.AnyFocus() || !m_gateMenusClear) return false;
+    if (!m_bootstrapped || m_hidden || !m_gameLoaded || !host.Available() || host.AnyFocus() || !m_gateKeysFree) return false;
     m_padGate.Swallow();
     if (!m_padComboLogged) {
         m_padComboLogged = true;

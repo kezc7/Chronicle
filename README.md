@@ -43,6 +43,10 @@ are preserved.
   not sent to SkyrimNet: `/help` lists the commands mods have registered, and an
   unknown one says so in the Console channel.
 - **Escape** releases interaction and returns control to Skyrim.
+- While a game menu has the keyboard, Chronicle's keys do nothing and reach the menu.
+  That covers crafting, barter, containers, inventory, dialogue, message boxes and the
+  console, and another mod's window too: Enter confirms there as usual. So the chat
+  bar opens before or after a conversation, not during it.
 - **Position** in settings restores an on-screen window position.
 
 ### Controller
