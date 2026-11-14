@@ -1,4 +1,4 @@
-# Chronicle 1.4.18
+# Chronicle 1.4.19
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -283,6 +283,19 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.4.19-beta
+
+Twentieth beta, PrismaUI and Magelight builds.
+
+- Chronicle no longer takes Enter (or any of its keys) while a game menu or another
+  mod's window has the keyboard (CHRON-21). That covers crafting, barter, containers,
+  inventory, dialogue, message boxes, the console, and any menu that takes input. Its
+  keys open the window only when nothing else has the keyboard. A key kept to open the
+  window goes back to the game if focus doesn't follow within a second and a half, or
+  if a menu opens first.
+- The self-test's `dovahhub.module` step no longer fails when the newest lines share a
+  millisecond: the tab keeps those together on purpose.
 
 ## 1.4.18-beta
 
