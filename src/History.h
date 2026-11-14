@@ -311,6 +311,20 @@ namespace ChronicleHistory
         std::uint64_t m_lastId{ 0 };
     };
 
+    // A page of `limit` lines (timestamps oldest first, as Before returns them) is
+    // right when it holds at most `limit`, or more only because older lines share
+    // the timestamp of the oldest of the newest `limit`, which Before keeps together.
+    inline bool PageFits(const std::vector<std::int64_t>& oldestFirst, std::size_t limit)
+    {
+        if (oldestFirst.size() <= limit) return true;
+        if (limit == 0) return false;
+        const auto edge = oldestFirst[oldestFirst.size() - limit];
+        for (std::size_t i = 0; i + limit < oldestFirst.size(); ++i) {
+            if (oldestFirst[i] != edge) return false;
+        }
+        return true;
+    }
+
     // Which of a character's lines belong to the loaded save: the stretches of
     // real time (ms since the epoch, a line's timestamp) its play went through.
     // Every save keeps its own list in the co-save. Loading an older save shows

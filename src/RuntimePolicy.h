@@ -982,6 +982,82 @@ namespace ChronicleRuntime
         return IsBlocking(name) || (menuFlags & kInputMenuFlags) != 0;
     }
 
+    // A menu whose keys are its own while it is open (CHRON-21): every menu
+    // that takes input (InterruptsFocus), and the two that leave Chronicle on
+    // screen, whose flags may not say so. Overlays (HUD, Cursor, widgets) don't.
+    inline bool TakesKeyboard(std::string_view name, std::uint32_t menuFlags = kInputMenuFlags)
+    {
+        return name == "Dialogue Menu" || name == "MessageBoxMenu" || name == "Console" ||
+            name == "Quantity Menu" || InterruptsFocus(name, menuFlags);
+    }
+
+    // What the input sink does with a key (CHRON-21). Pass: the game, a menu or
+    // another mod gets it. Everything else Chronicle keeps.
+    enum class KeyAction
+    {
+        Pass,
+        Keep,           // Chronicle's own window has the keyboard
+        Toggle,         // the show/hide key
+        ShowSettings,   // Shift + the settings key while hidden by the show/hide key
+        Unfocus,        // Escape, or the interact key, while Chronicle's window has the keyboard
+        OpenSettings,
+        OpenInteract,
+        OpenInput,
+    };
+
+    struct KeyState
+    {
+        bool bootstrapped{ false };
+        bool loaded{ false };
+        bool hidden{ true };
+        bool hostAvailable{ false };
+        bool anyFocus{ false };   // some web view (any mod's) has the keyboard
+        bool ownFocus{ false };   // Chronicle's view has it
+        bool keysFree{ false };   // State::KeysFree: no menu or other window has the keyboard
+        bool userHidden{ false };
+        std::uint32_t toggleKey{ 0 };
+        std::uint32_t settingsKey{ '0' };
+        std::uint32_t interactKey{ 0x77 };  // F8
+        std::uint32_t inputKey{ 0x0D };     // Enter
+    };
+
+    // vk: the Windows virtual key. Chronicle takes a key only when its own
+    // window has the keyboard, or when nothing else does and the key is one of
+    // its hotkeys. With a menu or another mod's window open, every key passes.
+    inline KeyAction DecideKey(std::uint32_t vk, bool shift, const KeyState& s)
+    {
+        using enum KeyAction;
+        // The show/hide key works while Chronicle is hidden by it, but never while
+        // any view or menu has the keyboard.
+        const bool canToggle = s.bootstrapped && s.loaded && s.hostAvailable && !s.anyFocus && s.keysFree;
+        if (canToggle && s.toggleKey && vk == s.toggleKey && !shift) return Toggle;
+        if (canToggle && s.userHidden && shift && vk == s.settingsKey) return ShowSettings;
+        if (!s.bootstrapped || s.hidden || !s.loaded || !s.hostAvailable) return Pass;
+        if (s.anyFocus) {
+            if (!s.ownFocus) return Pass;  // another mod's window
+            // Typing in Chronicle: the host routes keys to the page; the game gets none.
+            const bool functionKey = vk >= 0x70 && vk <= 0x7B;  // F1..F12
+            if (vk == 0x1B || (functionKey && vk == s.interactKey)) return Unfocus;
+            return Keep;
+        }
+        if (!s.keysFree) return Pass;
+        if (shift && vk == s.settingsKey) return OpenSettings;
+        if (vk == s.interactKey) return OpenInteract;
+        if (vk == s.inputKey) return OpenInput;
+        return Pass;
+    }
+
+    // A key Chronicle kept to open its window holds the keyboard until the window
+    // has it. If focus hasn't come within this long, the keyboard goes back.
+    inline constexpr std::int64_t kCaptureGraceMs = 1500;
+
+    inline bool HoldsKeyboard(bool capture, bool ownFocus, bool keysFree, std::int64_t msSinceCapture)
+    {
+        if (!capture) return false;
+        if (ownFocus) return true;
+        return keysFree && msSinceCapture >= 0 && msSinceCapture < kCaptureGraceMs;
+    }
+
     // PrismaUI's Focus() can succeed before HasFocus() reports the view as
     // focused. Focus counts as lost only once it was seen, or when it never
     // arrives within the grace period; earlier ticks would close a panel
@@ -1021,14 +1097,33 @@ namespace ChronicleRuntime
         bool ownsFocus = false;
         bool apiHidden = false;   // hidden by another mod (Chronicle_API.h SetVisible)
         std::unordered_set<std::string> menus;
+        // Open menus that take the keyboard (CHRON-21), whether or not they hide
+        // Chronicle: Dialogue Menu and message boxes leave it shown, but their
+        // Enter is theirs.
+        std::unordered_set<std::string> keyboardMenus;
 
         void Menu(std::string_view name, bool opening, std::uint32_t menuFlags = kInputMenuFlags)
         {
             if (!opening) {
                 menus.erase(std::string(name));
+                keyboardMenus.erase(std::string(name));
                 return;
             }
             if (HidesChronicle(name, menuFlags)) menus.emplace(name);
+            if (TakesKeyboard(name, menuFlags)) keyboardMenus.emplace(name);
+        }
+
+        // No game menu or other mod's window has the keyboard: Chronicle's keys
+        // may open it. Chronicle's own focus menu doesn't count while it holds focus.
+        bool KeysFree() const
+        {
+            for (const auto* set : { &menus, &keyboardMenus }) {
+                for (const auto& name : *set) {
+                    if (ownsFocus && name == ownFocusMenu) continue;
+                    return false;
+                }
+            }
+            return true;
         }
 
         bool Visible() const

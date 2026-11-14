@@ -151,7 +151,7 @@ test('the work sinks post checks the thread when it runs', () => {
 
 test('the input path reads only atomics; its work and page updates go to the pump', () => {
   const chronicle = sources().find(file => file.name === 'Chronicle.cpp').code;
-  for (const signature of ['bool Chronicle::OnHotkey(', 'bool Chronicle::OnPadButton(']) {
+  for (const signature of ['bool Chronicle::OnHotkey(', 'bool Chronicle::OnPadButton(', 'bool Chronicle::ShouldConsumeKeyboardInput(']) {
     const body = block(chronicle, chronicle.indexOf('{', chronicle.indexOf(signature)));
     const here = without(body, 'MainTask');
     assert.doesNotMatch(here, /m_state\.|RE::UI|IsMenuOpen|InvokeUI\(|RequestUnfocus\(|RequestFocus\(/, signature);

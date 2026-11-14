@@ -166,8 +166,15 @@ namespace DovahHubModule
         if (profile != expected) {
             return { step, Result::Fail, "the tab got character '" + profile + "', the history is '" + expected + "'" };
         }
+        // A page keeps lines that share a millisecond together, so the next page can't
+        // split them: asked for 3, it may hold more, but only older lines with the same
+        // timestamp as the oldest of the newest 3 (CHRON-21: a burst of lines did that).
         const auto lines = reply["lines"].size();
-        if (lines > 3) return { step, Result::Fail, "asked for 3 lines, got " + std::to_string(lines) };
+        std::vector<std::int64_t> stamps;
+        for (const auto& line : reply["lines"]) stamps.push_back(line.value("timestamp", std::int64_t{ -1 }));
+        if (!ChronicleHistory::PageFits(stamps, 3)) {
+            return { step, Result::Fail, "asked for 3 lines, got " + std::to_string(lines) + ", not all sharing a timestamp" };
+        }
         if (OnRequest("selftest.unknown", "{}", nullptr)) return { step, Result::Fail, "an unknown request got an answer" };
         return { step, Result::Pass, "DovahHub " + version + "; the tab answered with " + std::to_string(lines) +
             " line(s) for character " + (expected.empty() ? std::string("(none loaded)") : expected) +

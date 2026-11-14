@@ -373,6 +373,90 @@ int main()
     Require(ChronicleRuntime::LauncherHotkey("") == "Shift+0");
     Require(ChronicleRuntime::LauncherHotkey("k") == "Shift+K");
     Require(ChronicleRuntime::LauncherHotkey("F5") == "Shift+F5");
+    // Keys while a menu or another mod's window has the keyboard (CHRON-21).
+    {
+        using namespace ChronicleRuntime;
+        using enum KeyAction;
+        const std::uint32_t keys[] = { 0x0D, 0x77, '0', 'K' };  // Enter (input), F8 (interact), settings, a show/hide key
+        KeyState free;
+        free.bootstrapped = free.loaded = free.hostAvailable = true;
+        free.hidden = false;
+        free.keysFree = true;
+        free.toggleKey = 'K';
+        Require(DecideKey(0x0D, false, free) == OpenInput);
+        Require(DecideKey(0x77, false, free) == OpenInteract);
+        Require(DecideKey('0', true, free) == OpenSettings);
+        Require(DecideKey('K', false, free) == Toggle);
+        Require(DecideKey('W', false, free) == Pass);
+        // Each menu the report names, and a few more: every bound key passes, with or without Shift.
+        for (const auto* menu : { "Crafting Menu", "BarterMenu", "ContainerMenu", "InventoryMenu", "Dialogue Menu",
+                 "MessageBoxMenu", "Console", "Quantity Menu", "Lockpicking Menu", "Book Menu" }) {
+            State state;
+            state.Menu(menu, true);
+            Require(!state.KeysFree());
+            KeyState s = free;
+            s.keysFree = state.KeysFree();
+            for (const auto key : keys) {
+                Require(DecideKey(key, false, s) == Pass && DecideKey(key, true, s) == Pass);
+            }
+            state.Menu(menu, false);
+            Require(state.KeysFree());
+        }
+        // Dialogue and message boxes leave Chronicle shown but still have the keyboard.
+        {
+            State state;
+            state.loaded = state.ready = true;
+            state.Menu("Dialogue Menu", true);
+            Require(state.Visible() && !state.KeysFree());
+        }
+        // A menu with no input flags (a HUD widget) leaves the keys free; one with them doesn't.
+        {
+            State state;
+            state.Menu("Some Widget Menu", true, 0);
+            Require(state.KeysFree());
+            state.Menu("Some Modal Menu", true, kInputMenuFlags);
+            Require(!state.KeysFree());
+        }
+        // Another mod's window: on this host (anyFocus without ownFocus), or another host's focus menu.
+        {
+            KeyState s = free;
+            s.anyFocus = true;
+            for (const auto key : keys) Require(DecideKey(key, false, s) == Pass);
+            State state;
+            state.ownFocusMenu = "MagelightFocus";
+            state.Menu("PrismaUI_FocusMenu", true);
+            Require(!state.KeysFree());
+            State own;
+            own.ownFocusMenu = "MagelightFocus";
+            own.ownsFocus = true;
+            own.Menu("MagelightFocus", true);
+            Require(own.KeysFree());  // Chronicle's own focus menu
+            own.ownsFocus = false;
+            Require(!own.KeysFree());  // another Magelight mod's window
+        }
+        // Chronicle's own window has the keyboard: the game gets nothing, Escape and F8 close it.
+        {
+            KeyState s = free;
+            s.anyFocus = s.ownFocus = true;
+            s.keysFree = false;
+            Require(DecideKey(0x0D, false, s) == Keep && DecideKey('W', false, s) == Keep);
+            Require(DecideKey(0x1B, false, s) == Unfocus && DecideKey(0x77, false, s) == Unfocus);
+        }
+        // Hidden by the show/hide key: that key and Shift + settings bring it back, nothing else opens.
+        {
+            KeyState s = free;
+            s.hidden = s.userHidden = true;
+            Require(DecideKey('K', false, s) == Toggle && DecideKey('0', true, s) == ShowSettings);
+            Require(DecideKey(0x0D, false, s) == Pass);
+        }
+        // A key kept to open the window holds the keyboard only until focus comes,
+        // only while no menu has it, and never past the grace period.
+        Require(HoldsKeyboard(true, true, false, 99999));
+        Require(HoldsKeyboard(true, false, true, 100));
+        Require(!HoldsKeyboard(true, false, false, 100));
+        Require(!HoldsKeyboard(true, false, true, kCaptureGraceMs));
+        Require(!HoldsKeyboard(false, true, true, 0));
+    }
     // The controller combo that opens the window (CHRON-17).
     {
         using namespace ChronicleRuntime;

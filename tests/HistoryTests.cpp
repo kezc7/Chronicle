@@ -145,6 +145,21 @@ int main()
     Require(!ShouldAdopt(true, false, 42, "41"), "not another character's");
     Require(!ShouldAdopt(true, false, 0, "0"), "not before a character is loaded");
 
+    // The self-test's check of a tab page (CHRON-21): 6 lines for a limit of 3 are
+    // right when the 3 extra share the timestamp of the oldest of the newest 3.
+    {
+        List burst;
+        for (std::int64_t t : { 10, 20, 20, 20, 20, 30, 40 }) burst.Add(Make(t));
+        const auto page = burst.Before(std::nullopt, 3);
+        std::vector<std::int64_t> stamps;
+        for (const auto& line : page.lines) stamps.push_back(line.timestamp);
+        Require(stamps == std::vector<std::int64_t>{ 20, 20, 20, 20, 30, 40 }, "a page keeps a shared millisecond together");
+        Require(PageFits(stamps, 3), "and that page fits a limit of 3");
+        Require(PageFits({ 30, 40 }, 3) && PageFits({}, 3), "fewer lines fit");
+        Require(!PageFits({ 10, 20, 30, 40 }, 3), "an extra line with its own timestamp doesn't");
+        Require(!PageFits({ 5, 20, 20, 30, 40 }, 3), "nor one older than the shared millisecond");
+    }
+
     // History that follows the save (CHRON-18): the story in Lineage's comment.
     {
         using Range = Lineage::Range;
