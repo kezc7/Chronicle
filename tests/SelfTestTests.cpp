@@ -55,7 +55,7 @@ namespace
         Require(at("journal.write") < at("journal.read") && at("journal.read") < at("journal.remove"), "the history file is written, read, removed");
         Require(at("commands.dispatch") < at("commands.mods"), "Chronicle's own dispatch comes before the other mods' list");
         for (const auto name : { "saveleak.character", "saveleak.page", "saveleak.mainmenu", "saveleak.newgame",
-                 "dovahhub.module", "dovahmenu.entry", "ui.view", "pad", "saveleak.lineage" }) {
+                 "dovahhub.module", "dovahmenu.entry", "ui.view", "pad", "saveleak.lineage", "threads" }) {
             Require(at(name) < kSteps.size(), "the save-leak, module and view checks are in the list");
         }
         // "commands.mod." + a 32-letter prefix still fits.
