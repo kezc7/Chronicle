@@ -1,4 +1,4 @@
-# Chronicle 1.4.19
+# Chronicle 1.4.20
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -284,6 +284,17 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.4.20-beta
+
+Twenty-first beta, PrismaUI and Magelight builds.
+
+- In a conversation, the input key (Enter by default) opens Chronicle's chat bar again,
+  to speak to that NPC through SkyrimNet, as before 1.4.19. Chronicle's other keys still
+  go to the conversation. Every other menu and other mods' windows keep 1.4.19's rule:
+  they get every key.
+- The Controls section names Chronicle's keys by what they do, with their defaults,
+  since all of them can be changed in its settings.
 
 ## 1.4.19-beta
 
