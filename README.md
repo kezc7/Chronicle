@@ -1,4 +1,4 @@
-# Chronicle 1.4.17
+# Chronicle 1.4.18
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -279,6 +279,18 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.4.18-beta
+
+Nineteenth beta, PrismaUI and Magelight builds.
+
+- Game events no longer do game work on the thread they arrive on (CHRON-20). In some
+  load orders menu and input events come on Magelight's thread, hits and deaths on
+  worker threads and mod events on Papyrus's threads. Each event now copies what it
+  needs and hands the work to the game-thread pump. Input still decides at once
+  whether a key belongs to Chronicle, from state the game thread publishes. This
+  ends the "game work off the game thread" warnings in Chronicle.log.
+- The self-test gains a `threads` step that fails if any such warning was logged.
 
 ## 1.4.17-beta
 
