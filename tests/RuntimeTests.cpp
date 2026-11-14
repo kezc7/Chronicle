@@ -400,15 +400,16 @@ int main()
             const bool dialogue = std::string_view(menu) == "Dialogue Menu";
             Require(s.dialogueOnly == dialogue);
             for (const auto key : keys) {
-                // In a conversation the input key alone opens the chat bar (as before 1.4.19).
-                const auto expected = dialogue && key == 0x0D ? OpenInput : Pass;
-                Require(DecideKey(key, false, s) == expected && DecideKey(key, true, s) == expected);
+                // In a conversation alone every key decides as with nothing open (as before 1.4.19).
+                for (const bool shift : { false, true }) {
+                    Require(DecideKey(key, shift, s) == (dialogue ? DecideKey(key, shift, free) : Pass));
+                }
             }
             state.Menu(menu, false);
             Require(state.KeysFree() && !state.DialogueOnly());
         }
-        // Dialogue leaves Chronicle shown, and its keyboard is the game's except for the
-        // input key, which opens the chat bar to speak to that NPC through SkyrimNet.
+        // Dialogue leaves Chronicle shown, and Chronicle's keys work there as before 1.4.19:
+        // the input key opens the chat bar to speak to that NPC through SkyrimNet.
         {
             State state;
             state.loaded = state.ready = true;
@@ -418,9 +419,9 @@ int main()
             s.keysFree = state.KeysFree();
             s.dialogueOnly = state.DialogueOnly();
             Require(DecideKey(0x0D, false, s) == OpenInput);   // the input key (Enter by default)
-            Require(DecideKey(0x77, false, s) == Pass);         // the interact key (F8 by default)
-            Require(DecideKey('0', true, s) == Pass);           // Shift + the settings key
-            Require(DecideKey('K', false, s) == Pass);          // the show/hide key
+            Require(DecideKey(0x77, false, s) == OpenInteract); // the interact key (F8 by default)
+            Require(DecideKey('0', true, s) == OpenSettings);   // Shift + the settings key
+            Require(DecideKey('K', false, s) == Toggle);        // the show/hide key
             Require(DecideKey('E', false, s) == Pass && DecideKey(0x26, false, s) == Pass);  // the game's own keys
             // A message box over the conversation takes every key, Enter included.
             state.Menu("MessageBoxMenu", true);

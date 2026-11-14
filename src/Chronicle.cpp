@@ -885,7 +885,7 @@ bool Chronicle::ShouldConsumeKeyboardInput()
     // waiting for focus while no menu has the keyboard, keeps keys from the game.
     if (!m_keyboardCapture) return false;
     const bool own = UiHost().HasFocus();
-    // In a conversation the input key opens the chat bar over it, so that counts as free here.
+    // In a conversation Chronicle's window opens over it, so that counts as free here.
     const bool free = m_gateKeysFree || m_gateDialogueOnly;
     if (ChronicleRuntime::HoldsKeyboard(true, own, free, NowMs() - m_captureSince)) return true;
     if (m_keyboardCapture.exchange(false)) {
@@ -897,8 +897,8 @@ bool Chronicle::ShouldConsumeKeyboardInput()
 void Chronicle::OpenFromKey(const std::string& action)
 {
     GameThread::Check();
-    // A conversation leaves room for the input key's chat bar only.
-    const bool keysFree = m_gateKeysFree || (m_gateDialogueOnly && action == "input");
+    // A conversation alone leaves Chronicle's keys working (as before 1.4.19).
+    const bool keysFree = m_gateKeysFree || m_gateDialogueOnly;
     if (m_hidden || !m_gameLoaded || !keysFree) {
         // Hidden, or a menu took the keyboard since the key: the key opens nothing
         // and the keyboard goes back to the game.
@@ -919,7 +919,7 @@ bool Chronicle::OnPadButton(std::uint32_t code, bool pressed, bool down)
     // input (an open Chronicle closes with B), no game menu, not the console.
     // Any thread: atomics and the UI host's focus only, as OnHotkey.
     auto& host = UiHost();
-    if (!m_bootstrapped || m_hidden || !m_gameLoaded || !host.Available() || host.AnyFocus() || !m_gateKeysFree) return false;
+    if (!m_bootstrapped || m_hidden || !m_gameLoaded || !host.Available() || host.AnyFocus() || !(m_gateKeysFree || m_gateDialogueOnly)) return false;
     m_padGate.Swallow();
     if (!m_padComboLogged) {
         m_padComboLogged = true;

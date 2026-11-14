@@ -46,8 +46,9 @@ are preserved.
 - While a game menu has the keyboard, Chronicle's keys do nothing and reach the menu.
   That covers crafting, barter, containers, inventory, message boxes, the console and
   another mod's window: Enter confirms there as usual. A conversation is the one
-  exception: the input key still opens the chat bar there, so you can speak to that NPC
-  through SkyrimNet. Chronicle's other keys go to the conversation.
+  exception: Chronicle's keys work there as always, so the input key opens the chat bar
+  to speak to that NPC through SkyrimNet. A message box or another mod's window over the
+  conversation still gets the keys.
 - **Position** in settings restores an on-screen window position.
 
 ### Controller

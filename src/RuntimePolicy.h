@@ -1014,7 +1014,7 @@ namespace ChronicleRuntime
         bool anyFocus{ false };   // some web view (any mod's) has the keyboard
         bool ownFocus{ false };   // Chronicle's view has it
         bool keysFree{ false };   // State::KeysFree: no menu or other window has the keyboard
-        bool dialogueOnly{ false };  // State::DialogueOnly: only a conversation has it
+        bool dialogueOnly{ false };  // State::DialogueOnly: only a conversation has it; Chronicle's keys work
         bool userHidden{ false };
         std::uint32_t toggleKey{ 0 };
         std::uint32_t settingsKey{ '0' };
@@ -1025,14 +1025,15 @@ namespace ChronicleRuntime
     // vk: the Windows virtual key. Chronicle takes a key only when its own
     // window has the keyboard, or when nothing else does and the key is one of
     // its hotkeys. With a menu or another mod's window open, every key passes,
-    // except in a conversation alone, where the input key opens the chat bar
-    // to speak to that NPC through SkyrimNet.
+    // except in a conversation alone, where Chronicle's keys work as they did
+    // before 1.4.19 (the input key opens the chat bar to speak to that NPC).
     inline KeyAction DecideKey(std::uint32_t vk, bool shift, const KeyState& s)
     {
         using enum KeyAction;
         // The show/hide key works while Chronicle is hidden by it, but never while
         // any view or menu has the keyboard.
-        const bool canToggle = s.bootstrapped && s.loaded && s.hostAvailable && !s.anyFocus && s.keysFree;
+        const bool free = s.keysFree || s.dialogueOnly;
+        const bool canToggle = s.bootstrapped && s.loaded && s.hostAvailable && !s.anyFocus && free;
         if (canToggle && s.toggleKey && vk == s.toggleKey && !shift) return Toggle;
         if (canToggle && s.userHidden && shift && vk == s.settingsKey) return ShowSettings;
         if (!s.bootstrapped || s.hidden || !s.loaded || !s.hostAvailable) return Pass;
@@ -1043,7 +1044,7 @@ namespace ChronicleRuntime
             if (vk == 0x1B || (functionKey && vk == s.interactKey)) return Unfocus;
             return Keep;
         }
-        if (!s.keysFree) return s.dialogueOnly && vk == s.inputKey ? OpenInput : Pass;
+        if (!free) return Pass;
         if (shift && vk == s.settingsKey) return OpenSettings;
         if (vk == s.interactKey) return OpenInteract;
         if (vk == s.inputKey) return OpenInput;
@@ -1118,8 +1119,9 @@ namespace ChronicleRuntime
             if (TakesKeyboard(name, menuFlags)) keyboardMenus.emplace(name);
         }
 
-        // A conversation is the only thing holding the keyboard: Chronicle's input
-        // key may still open its chat bar to speak to that NPC (CHRON-21).
+        // A conversation is the only thing holding the keyboard: Chronicle's keys
+        // work as they did before 1.4.19, so its chat bar can open to speak to that
+        // NPC (CHRON-21).
         bool DialogueOnly() const
         {
             bool dialogue = false;
