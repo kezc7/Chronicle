@@ -1014,6 +1014,7 @@ namespace ChronicleRuntime
         bool anyFocus{ false };   // some web view (any mod's) has the keyboard
         bool ownFocus{ false };   // Chronicle's view has it
         bool keysFree{ false };   // State::KeysFree: no menu or other window has the keyboard
+        bool dialogueOnly{ false };  // State::DialogueOnly: only a conversation has it
         bool userHidden{ false };
         std::uint32_t toggleKey{ 0 };
         std::uint32_t settingsKey{ '0' };
@@ -1023,7 +1024,9 @@ namespace ChronicleRuntime
 
     // vk: the Windows virtual key. Chronicle takes a key only when its own
     // window has the keyboard, or when nothing else does and the key is one of
-    // its hotkeys. With a menu or another mod's window open, every key passes.
+    // its hotkeys. With a menu or another mod's window open, every key passes,
+    // except in a conversation alone, where the input key opens the chat bar
+    // to speak to that NPC through SkyrimNet.
     inline KeyAction DecideKey(std::uint32_t vk, bool shift, const KeyState& s)
     {
         using enum KeyAction;
@@ -1040,7 +1043,7 @@ namespace ChronicleRuntime
             if (vk == 0x1B || (functionKey && vk == s.interactKey)) return Unfocus;
             return Keep;
         }
-        if (!s.keysFree) return Pass;
+        if (!s.keysFree) return s.dialogueOnly && vk == s.inputKey ? OpenInput : Pass;
         if (shift && vk == s.settingsKey) return OpenSettings;
         if (vk == s.interactKey) return OpenInteract;
         if (vk == s.inputKey) return OpenInput;
@@ -1051,6 +1054,8 @@ namespace ChronicleRuntime
     // has it. If focus hasn't come within this long, the keyboard goes back.
     inline constexpr std::int64_t kCaptureGraceMs = 1500;
 
+    // keysFree: nothing else has the keyboard, or only a conversation does (the
+    // input key opened the chat bar over it).
     inline bool HoldsKeyboard(bool capture, bool ownFocus, bool keysFree, std::int64_t msSinceCapture)
     {
         if (!capture) return false;
@@ -1111,6 +1116,21 @@ namespace ChronicleRuntime
             }
             if (HidesChronicle(name, menuFlags)) menus.emplace(name);
             if (TakesKeyboard(name, menuFlags)) keyboardMenus.emplace(name);
+        }
+
+        // A conversation is the only thing holding the keyboard: Chronicle's input
+        // key may still open its chat bar to speak to that NPC (CHRON-21).
+        bool DialogueOnly() const
+        {
+            bool dialogue = false;
+            for (const auto* set : { &menus, &keyboardMenus }) {
+                for (const auto& name : *set) {
+                    if (ownsFocus && name == ownFocusMenu) continue;
+                    if (name != "Dialogue Menu") return false;
+                    dialogue = true;
+                }
+            }
+            return dialogue;
         }
 
         // No game menu or other mod's window has the keyboard: Chronicle's keys

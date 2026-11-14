@@ -349,6 +349,7 @@ void Chronicle::PublishInputGate()
         });
     }
     m_gateKeysFree = m_state.KeysFree() && !console;
+    m_gateDialogueOnly = m_state.DialogueOnly() && !console;
     m_gateUserHidden = m_state.userHidden;
 }
 
@@ -827,6 +828,7 @@ bool Chronicle::OnHotkey(std::uint32_t scanCode, bool shift)
     state.anyFocus = anyFocus;
     state.ownFocus = anyFocus && host.HasFocus();
     state.keysFree = m_gateKeysFree;
+    state.dialogueOnly = m_gateDialogueOnly;
     state.userHidden = m_gateUserHidden;
     state.toggleKey = m_toggleKey;
     state.settingsKey = m_settingsKey;
@@ -883,9 +885,11 @@ bool Chronicle::ShouldConsumeKeyboardInput()
     // waiting for focus while no menu has the keyboard, keeps keys from the game.
     if (!m_keyboardCapture) return false;
     const bool own = UiHost().HasFocus();
-    if (ChronicleRuntime::HoldsKeyboard(true, own, m_gateKeysFree, NowMs() - m_captureSince)) return true;
+    // In a conversation the input key opens the chat bar over it, so that counts as free here.
+    const bool free = m_gateKeysFree || m_gateDialogueOnly;
+    if (ChronicleRuntime::HoldsKeyboard(true, own, free, NowMs() - m_captureSince)) return true;
     if (m_keyboardCapture.exchange(false)) {
-        spdlog::info("Chronicle: keyboard handed back to the game ({})", m_gateKeysFree ? "focus didn't arrive in time" : "a menu has it");
+        spdlog::info("Chronicle: keyboard handed back to the game ({})", free ? "focus didn't arrive in time" : "a menu has it");
     }
     return false;
 }
@@ -893,7 +897,9 @@ bool Chronicle::ShouldConsumeKeyboardInput()
 void Chronicle::OpenFromKey(const std::string& action)
 {
     GameThread::Check();
-    if (m_hidden || !m_gameLoaded || !m_gateKeysFree) {
+    // A conversation leaves room for the input key's chat bar only.
+    const bool keysFree = m_gateKeysFree || (m_gateDialogueOnly && action == "input");
+    if (m_hidden || !m_gameLoaded || !keysFree) {
         // Hidden, or a menu took the keyboard since the key: the key opens nothing
         // and the keyboard goes back to the game.
         m_keyboardCapture = false;

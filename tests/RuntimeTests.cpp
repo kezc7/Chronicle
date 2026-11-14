@@ -396,18 +396,54 @@ int main()
             Require(!state.KeysFree());
             KeyState s = free;
             s.keysFree = state.KeysFree();
+            s.dialogueOnly = state.DialogueOnly();
+            const bool dialogue = std::string_view(menu) == "Dialogue Menu";
+            Require(s.dialogueOnly == dialogue);
             for (const auto key : keys) {
-                Require(DecideKey(key, false, s) == Pass && DecideKey(key, true, s) == Pass);
+                // In a conversation the input key alone opens the chat bar (as before 1.4.19).
+                const auto expected = dialogue && key == 0x0D ? OpenInput : Pass;
+                Require(DecideKey(key, false, s) == expected && DecideKey(key, true, s) == expected);
             }
             state.Menu(menu, false);
-            Require(state.KeysFree());
+            Require(state.KeysFree() && !state.DialogueOnly());
         }
-        // Dialogue and message boxes leave Chronicle shown but still have the keyboard.
+        // Dialogue leaves Chronicle shown, and its keyboard is the game's except for the
+        // input key, which opens the chat bar to speak to that NPC through SkyrimNet.
         {
             State state;
             state.loaded = state.ready = true;
             state.Menu("Dialogue Menu", true);
-            Require(state.Visible() && !state.KeysFree());
+            Require(state.Visible() && !state.KeysFree() && state.DialogueOnly());
+            KeyState s = free;
+            s.keysFree = state.KeysFree();
+            s.dialogueOnly = state.DialogueOnly();
+            Require(DecideKey(0x0D, false, s) == OpenInput);   // the input key (Enter by default)
+            Require(DecideKey(0x77, false, s) == Pass);         // the interact key (F8 by default)
+            Require(DecideKey('0', true, s) == Pass);           // Shift + the settings key
+            Require(DecideKey('K', false, s) == Pass);          // the show/hide key
+            Require(DecideKey('E', false, s) == Pass && DecideKey(0x26, false, s) == Pass);  // the game's own keys
+            // A message box over the conversation takes every key, Enter included.
+            state.Menu("MessageBoxMenu", true);
+            Require(!state.DialogueOnly());
+            s.dialogueOnly = state.DialogueOnly();
+            Require(DecideKey(0x0D, false, s) == Pass);
+            state.Menu("MessageBoxMenu", false);
+            // So does another mod's window, on this host or another.
+            Require(state.DialogueOnly());
+            s.dialogueOnly = true;
+            s.anyFocus = true;
+            Require(DecideKey(0x0D, false, s) == Pass);
+            state.Menu("PrismaUI_FocusMenu", true);
+            Require(!state.DialogueOnly());
+            // With the input key rebound (to I, say), Enter is the conversation's again.
+            KeyState rebound = free;
+            rebound.keysFree = false;
+            rebound.dialogueOnly = true;
+            rebound.inputKey = 'I';
+            Require(DecideKey(0x0D, false, rebound) == Pass && DecideKey('I', false, rebound) == OpenInput);
+            // Chronicle hidden by the show/hide key: nothing opens over the conversation.
+            rebound.hidden = true;
+            Require(DecideKey('I', false, rebound) == Pass);
         }
         // A menu with no input flags (a HUD widget) leaves the keys free; one with them doesn't.
         {

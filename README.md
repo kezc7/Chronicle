@@ -13,9 +13,9 @@ are preserved.
 
 ## Controls
 
-- **F8** activates mouse interaction: click tabs, scroll, search, filter by speaker,
+- **The interact key** (F8 by default) activates mouse interaction: click tabs, scroll, search, filter by speaker,
   copy/export history, drag the empty tab-bar area, or resize the lower-right corner.
-- **Shift+0** opens settings (Shift+N up to 1.4.0-beta). **Apply** saves and keeps
+- **Shift + the settings key** (0 by default; N up to 1.4.0-beta) opens settings. **Apply** saves and keeps
   the panel open to show the result.
 - Settings includes live **Position X/Y** sliders; the box moves as the sliders move.
 - **Channels → NPC speaker name colours** lets you assign exact display-name colours;
@@ -28,7 +28,7 @@ are preserved.
 - **NPC speech radius** under General → Behaviour filters attributed NPC dialogue
   by distance from the player. `0` keeps the default unlimited range; the value
   uses Skyrim world units.
-- **Enter** opens chat input. With SkyrimNet installed, a submitted line is handed
+- **The input key** (Enter by default) opens chat input. With SkyrimNet installed, a submitted line is handed
   to SkyrimNet's API as your character's words, said to an NPC when Chronicle can
   tell who: the one you are talking to in the Dialogue Menu, else one the line
   starts with by name ("Sally, ...", found by SkyrimNet among nearby NPCs), else
@@ -44,9 +44,10 @@ are preserved.
   unknown one says so in the Console channel.
 - **Escape** releases interaction and returns control to Skyrim.
 - While a game menu has the keyboard, Chronicle's keys do nothing and reach the menu.
-  That covers crafting, barter, containers, inventory, dialogue, message boxes and the
-  console, and another mod's window too: Enter confirms there as usual. So the chat
-  bar opens before or after a conversation, not during it.
+  That covers crafting, barter, containers, inventory, message boxes, the console and
+  another mod's window: Enter confirms there as usual. A conversation is the one
+  exception: the input key still opens the chat bar there, so you can speak to that NPC
+  through SkyrimNet. Chronicle's other keys go to the conversation.
 - **Position** in settings restores an on-screen window position.
 
 ### Controller
