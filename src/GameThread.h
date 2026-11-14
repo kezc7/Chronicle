@@ -51,16 +51,37 @@ namespace GameThread
         return id == 0 || id == GetCurrentThreadId();
     }
 
+    // The places Check has warned about this session (file:line), for the self-test.
+    struct Warned
+    {
+        std::mutex mutex;
+        std::unordered_set<std::string> places;
+    };
+    inline Warned& WarnedPlaces()
+    {
+        static Warned warned;
+        return warned;
+    }
+
     inline void Check(const std::source_location& where = std::source_location::current())
     {
         if (IsCurrent()) return;
-        static std::mutex mutex;
-        static std::unordered_set<std::string> warned;
         std::string place = std::filesystem::path(where.file_name()).filename().string() + ":" + std::to_string(where.line());
-        std::lock_guard lock(mutex);
-        if (warned.size() >= 64 || !warned.insert(place).second) return;
+        auto& warned = WarnedPlaces();
+        std::lock_guard lock(warned.mutex);
+        if (warned.places.size() >= 64 || !warned.places.insert(place).second) return;
         spdlog::warn("Chronicle: game work off the game thread at {} ({}): thread {}, game thread {}",
             place, where.function_name(), GetCurrentThreadId(), Id());
+    }
+
+    // A sorted copy of WarnedPlaces.
+    inline std::vector<std::string> Warnings()
+    {
+        auto& warned = WarnedPlaces();
+        std::lock_guard lock(warned.mutex);
+        std::vector<std::string> places(warned.places.begin(), warned.places.end());
+        std::sort(places.begin(), places.end());
+        return places;
     }
 
     // Logged at kDataLoaded and by the first posted task: the game thread as

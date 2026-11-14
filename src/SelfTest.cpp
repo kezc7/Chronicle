@@ -274,6 +274,18 @@ namespace
             return Outcome::Done(step, Result::Pass, pump + " ran the work on the frame thread " + thread);
         } });
 
+        // CHRON-20: game work that found itself off the game thread this session (each
+        // place warns once in Chronicle.log). A sink or caller that does game work
+        // where its event arrives shows up here, even when the pump itself is fine.
+        steps.push_back({ "threads", [](std::int64_t) {
+            constexpr const char* step = "threads";
+            const auto places = GameThread::Warnings();
+            if (places.empty()) return Outcome::Done(step, Result::Pass, "no game work ran off the game thread this session");
+            std::string list;
+            for (const auto& place : places) list += (list.empty() ? "" : ", ") + place;
+            return Outcome::Done(step, Result::Fail, std::to_string(places.size()) + " place(s) ran game work off the game thread: " + list);
+        } });
+
         steps.push_back({ "commands.dispatch", &CommandsDispatch });
         steps.push_back({ "commands.mods", &CommandsMods });
 

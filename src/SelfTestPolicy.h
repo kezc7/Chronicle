@@ -53,8 +53,9 @@ namespace ChronicleSelfTest
 
     // The fixed steps, in run order. "commands.mod.<prefix>" lines are added
     // after "commands.mods" for each other mod's command.
-    inline constexpr std::array<std::string_view, 15> kSteps = {
+    inline constexpr std::array<std::string_view, 16> kSteps = {
         "pump",
+        "threads",
         "commands.dispatch",
         "commands.mods",
         "journal.write",

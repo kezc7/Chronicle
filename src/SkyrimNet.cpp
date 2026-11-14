@@ -38,8 +38,10 @@ namespace
     constexpr float kCrosshairRange = 1500.0F;
     constexpr auto kCrosshairMaxAge = std::chrono::seconds(30);
 
-    // Game thread (SKSE's crosshair event). The last NPC the player looked at:
-    // opening Chronicle's input clears the crosshair, so the last actor is kept.
+    // The last NPC the player looked at: opening Chronicle's input clears the
+    // crosshair, so the last actor is kept. Crosshair events come on another
+    // thread in some load orders: the reference is held by NiPointer there and
+    // read on the game thread.
     class CrosshairSink final : public RE::BSTEventSink<SKSE::CrosshairRefEvent>
     {
     public:
@@ -52,13 +54,20 @@ namespace
         RE::BSEventNotifyControl ProcessEvent(const SKSE::CrosshairRefEvent* a_event,
             RE::BSTEventSource<SKSE::CrosshairRefEvent>*) override
         {
+            if (!a_event || !a_event->crosshairRef) return RE::BSEventNotifyControl::kContinue;
+            GameThread::Post([this, ref = a_event->crosshairRef] { Look(ref.get()); });
+            return RE::BSEventNotifyControl::kContinue;
+        }
+
+        // Game thread.
+        void Look(RE::TESObjectREFR* a_ref)
+        {
             GameThread::Check();
-            auto* actor = a_event && a_event->crosshairRef ? a_event->crosshairRef->As<RE::Actor>() : nullptr;
+            auto* actor = a_ref ? a_ref->As<RE::Actor>() : nullptr;
             if (actor && actor != RE::PlayerCharacter::GetSingleton() && !actor->IsDead()) {
                 m_actor = actor->GetFormID();
                 m_seen = Clock::now();
             }
-            return RE::BSEventNotifyControl::kContinue;
         }
 
         RE::FormID Recent() const { return Clock::now() - m_seen <= kCrosshairMaxAge ? m_actor : 0; }

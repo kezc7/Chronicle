@@ -22,10 +22,13 @@
 #include "Chronicle.h"
 #include "GameThread.h"
 
+// ANY_THREAD: input is dispatched on Magelight's present thread in some load
+// orders, and whether to keep a key from the game must be answered here. Only
+// the input event and Chronicle's atomics are read (OnHotkey, OnPadButton);
+// the work itself goes to the pump.
 RE::BSEventNotifyControl ChronicleInputSink::ProcessEvent(RE::InputEvent* const* events,
     RE::BSTEventSource<RE::InputEvent*>*)
 {
-    GameThread::Check();
     bool keyboardEvent = false;
     bool padEvent = false;
     bool consume = false;
@@ -217,44 +220,42 @@ void SubtitlePoller::SetHudCapture(bool enabled)
     }
 }
 
+// Menu events can come on another thread (Magelight's present thread): the
+// name is copied here and the menu is handled on the game thread.
 RE::BSEventNotifyControl MenuEventSink::ProcessEvent(
     const RE::MenuOpenCloseEvent* a_event,
     RE::BSTEventSource<RE::MenuOpenCloseEvent>*)
 {
-    GameThread::Check();
     if (!a_event) {
         return RE::BSEventNotifyControl::kContinue;
     }
-
-    std::string_view menuName = a_event->menuName.c_str();
-
-    auto* chronicle = Chronicle::GetSingleton();
-
-    // Keep a fallback start path for unusual load sequences. "HUD Menu" never
-    // fires MenuOpenCloseEvent (it is always-open), so normal startup begins
-    // from OnPostLoadGame instead.
-    if (chronicle->IsGameLoaded() && !SubtitlePoller::GetSingleton().IsRunning()) {
-        spdlog::info("Chronicle: first post-load menu event '{}' — starting subtitle poller",
-                     menuName);
-        SubtitlePoller::GetSingleton().Start();
-    }
-
-    chronicle->OnMenuOpenClose(menuName, a_event->opening);
-
+    GameThread::Post([menuName = std::string(a_event->menuName.c_str()), opening = a_event->opening] {
+        auto* chronicle = Chronicle::GetSingleton();
+        // Keep a fallback start path for unusual load sequences. "HUD Menu" never
+        // fires MenuOpenCloseEvent (it is always-open), so normal startup begins
+        // from OnPostLoadGame instead.
+        if (chronicle->IsGameLoaded() && !SubtitlePoller::GetSingleton().IsRunning()) {
+            spdlog::info("Chronicle: first post-load menu event '{}' — starting subtitle poller", menuName);
+            SubtitlePoller::GetSingleton().Start();
+        }
+        chronicle->OnMenuOpenClose(menuName, opening);
+    });
     return RE::BSEventNotifyControl::kContinue;
 }
 
-RE::BSEventNotifyControl SkyrimNetEventSink::ProcessEvent(
-    const SKSE::ModCallbackEvent* a_event,
-    RE::BSTEventSource<SKSE::ModCallbackEvent>*)
+namespace
 {
-    GameThread::Check();
-    if (!a_event) {
-        return RE::BSEventNotifyControl::kContinue;
+    // The mod events Chronicle reads; anything else isn't posted at all.
+    bool ChronicleModEvent(std::string_view name)
+    {
+        return name.starts_with("SkyrimNet_") || name.starts_with("MinAI_") || name.starts_with("Mantella_") ||
+               name.starts_with("Chronicle_");
     }
 
-    std::string_view eventName = a_event->eventName.c_str();
-    std::string strArg = a_event->strArg.c_str();
+    // Game thread: one mod event, copied by SkyrimNetEventSink.
+    void HandleModEvent(std::string_view eventName, const std::string& strArg)
+    {
+    GameThread::Check();
 
     const bool isDialogueLine =
         eventName == "SkyrimNet_DialogueLine" ||
@@ -315,28 +316,34 @@ RE::BSEventNotifyControl SkyrimNetEventSink::ProcessEvent(
         // Same speaker as OnPlayerInput, so the echo of our own event is deduplicated.
         Chronicle::GetSingleton()->SendMessage("player", PlayerDisplayName(), strArg);
     }
+    }
+}
 
+// Mod events come on Papyrus's threads: the two strings are copied here and
+// handled on the game thread.
+RE::BSEventNotifyControl SkyrimNetEventSink::ProcessEvent(
+    const SKSE::ModCallbackEvent* a_event,
+    RE::BSTEventSource<SKSE::ModCallbackEvent>*)
+{
+    if (!a_event || !ChronicleModEvent(a_event->eventName.c_str())) {
+        return RE::BSEventNotifyControl::kContinue;
+    }
+    GameThread::Post([name = std::string(a_event->eventName.c_str()), arg = std::string(a_event->strArg.c_str())] {
+        HandleModEvent(name, arg);
+    });
     return RE::BSEventNotifyControl::kContinue;
 }
 
-RE::BSEventNotifyControl CombatEventSink::ProcessEvent(
-    const RE::TESHitEvent* a_event,
-    RE::BSTEventSource<RE::TESHitEvent>*)
+namespace
 {
+    // Game thread: a hit the player gave or took (CombatEventSink).
+    void HandleHit(RE::TESObjectREFR* target, RE::TESObjectREFR* cause)
+    {
     GameThread::Check();
-    if (!a_event) {
-        return RE::BSEventNotifyControl::kContinue;
-    }
-
     using ChronicleRuntime::Phrase;
     auto* chronicle = Chronicle::GetSingleton();
     auto* player = RE::PlayerCharacter::GetSingleton();
-    if (!player || !chronicle->ShowCombatHits()) {
-        return RE::BSEventNotifyControl::kContinue;
-    }
-
-    auto* target = a_event->target.get();
-    auto* cause = a_event->cause.get();
+    if (!player || !chronicle->ShowCombatHits()) return;
 
     // Hits stay player-only; follower hits would flood the channel.
     if (target == player && cause != player) {
@@ -348,29 +355,35 @@ RE::BSEventNotifyControl CombatEventSink::ProcessEvent(
             "combat", DisplayName(player, chronicle->Text(Phrase::Player)),
             chronicle->Text(Phrase::Hit, DisplayName(target, chronicle->Text(Phrase::Target))));
     }
+    }
+}
 
+// Hit events come on worker threads. Only the player's hits are posted: the
+// references are compared as pointers here (nothing of them is read) and held
+// by NiPointer until the game thread has handled them.
+RE::BSEventNotifyControl CombatEventSink::ProcessEvent(
+    const RE::TESHitEvent* a_event,
+    RE::BSTEventSource<RE::TESHitEvent>*)
+{
+    if (!a_event || !Chronicle::GetSingleton()->ShowCombatHits()) {
+        return RE::BSEventNotifyControl::kContinue;
+    }
+    const RE::TESObjectREFR* player = RE::PlayerCharacter::GetSingleton();  // a pointer conversion; nothing is read
+    if (!player || (a_event->target.get() != player && a_event->cause.get() != player)) {
+        return RE::BSEventNotifyControl::kContinue;
+    }
+    GameThread::Post([target = a_event->target, cause = a_event->cause] { HandleHit(target.get(), cause.get()); });
     return RE::BSEventNotifyControl::kContinue;
 }
 
-RE::BSEventNotifyControl DeathEventSink::ProcessEvent(
-    const RE::TESDeathEvent* a_event,
-    RE::BSTEventSource<RE::TESDeathEvent>*)
+namespace
 {
+    // Game thread: someone died (DeathEventSink).
+    void HandleDeath(RE::TESObjectREFR* dying, RE::TESObjectREFR* killer)
+    {
     GameThread::Check();
-    if (!a_event || !a_event->dead) {
-        return RE::BSEventNotifyControl::kContinue;
-    }
-
     auto* player = RE::PlayerCharacter::GetSingleton();
-    if (!player) {
-        return RE::BSEventNotifyControl::kContinue;
-    }
-
-    auto* dying = a_event->actorDying.get();
-    auto* killer = a_event->actorKiller.get();
-    if (!dying) {
-        return RE::BSEventNotifyControl::kContinue;
-    }
+    if (!player || !dying) return;
 
     const auto side = [player](RE::TESObjectREFR* a_ref) {
         using ChronicleRuntime::Side;
@@ -381,9 +394,7 @@ RE::BSEventNotifyControl DeathEventSink::ProcessEvent(
         if (actor->IsCommandedActor() && actor->GetCommandingActor().get() == player) return Side::Ally;
         return Side::Other;
     };
-    if (!ChronicleRuntime::ReportDeath(side(dying), side(killer))) {
-        return RE::BSEventNotifyControl::kContinue;
-    }
+    if (!ChronicleRuntime::ReportDeath(side(dying), side(killer))) return;
 
     using ChronicleRuntime::Phrase;
     auto* chronicle = Chronicle::GetSingleton();
@@ -396,15 +407,27 @@ RE::BSEventNotifyControl DeathEventSink::ProcessEvent(
             "combat", chronicle->Text(Phrase::Combat),
             chronicle->Text(Phrase::Died, DisplayName(dying, chronicle->Text(Phrase::Someone))));
     }
+    }
+}
 
+// Death events come on worker threads: the two references are held by
+// NiPointer and handled on the game thread.
+RE::BSEventNotifyControl DeathEventSink::ProcessEvent(
+    const RE::TESDeathEvent* a_event,
+    RE::BSTEventSource<RE::TESDeathEvent>*)
+{
+    if (!a_event || !a_event->dead || !a_event->actorDying) {
+        return RE::BSEventNotifyControl::kContinue;
+    }
+    GameThread::Post([dying = a_event->actorDying, killer = a_event->actorKiller] { HandleDeath(dying.get(), killer.get()); });
     return RE::BSEventNotifyControl::kContinue;
 }
 
+// ANY_THREAD: only the event's level is read, and SendMessage takes any thread.
 RE::BSEventNotifyControl LevelUpEventSink::ProcessEvent(
     const RE::LevelIncrease::Event* a_event,
     RE::BSTEventSource<RE::LevelIncrease::Event>*)
 {
-    GameThread::Check();
     if (a_event) {
         Chronicle::GetSingleton()->SendMessage(
             "system", "", Chronicle::GetSingleton()->Text(ChronicleRuntime::Phrase::ReachedLevel, std::to_string(a_event->newLevel)));

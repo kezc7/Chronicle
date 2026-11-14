@@ -158,6 +158,7 @@ history files and removes it again. It never runs on its own.
 | Step | What it checks |
 |---|---|
 | `pump` | Work posted to the game thread runs on the frame's thread, and which pump ran it (DovahHub's or Chronicle's own hook) |
+| `threads` | No game work has run off the game thread this session; fails naming each place that did |
 | `commands.dispatch` | A throwaway command registered through `Chronicle_RequestApi`, as another mod would, is parsed and dispatched with its arguments; plain text, unknown and built-in commands aren't; reserved and duplicate prefixes are refused; it unregisters |
 | `commands.mods`, `commands.mod.<prefix>` | Other mods' commands are listed with a handler. They aren't called: commands have no dry run |
 | `journal.write`, `journal.read`, `journal.remove` | Three lines (one in several scripts) go through the history writer to `history/selftest.json`, come back from disk unchanged, and the file is removed |

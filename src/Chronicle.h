@@ -64,14 +64,20 @@ public:
     void Bootstrap();
     void Diagnostics();
     void ExportHistory(std::string_view text);
-    // Returns true when the keyboard event belongs to Chronicle and should not
-    // continue into Skyrim's gameplay/menu input pipeline.
+    // ANY thread (input arrives on Magelight's present thread in some load
+    // orders). Returns true when the keyboard event belongs to Chronicle and
+    // should not continue into Skyrim's input pipeline. Reads only atomics and
+    // the UI host's focus (any-thread calls); acts through the pump.
     bool OnHotkey(std::uint32_t scanCode, bool shift);
-    // A gamepad button event (game thread). True for the controller combo's
-    // press, which opens the chat window and is kept from the game.
+    // ANY thread, as OnHotkey. True for the controller combo's press, which
+    // opens the chat window and is kept from the game.
     bool OnPadButton(std::uint32_t code, bool pressed, bool down);
     // The combo from the settings ("LB+Y", or "off"), for the self-test.
-    std::string PadComboName() const { return ChronicleRuntime::PadComboName(m_padGate.Combo()); }
+    std::string PadComboName()
+    {
+        std::lock_guard lock(m_padMutex);
+        return ChronicleRuntime::PadComboName(m_padGate.Combo());
+    }
     bool ShouldConsumeKeyboardInput() const { return m_keyboardCapture.load(); }
     bool ShowCombatHits() const { return m_combatHits.load(); }
     float DialogueRadius() const { return m_dialogueRadius.load(); }
@@ -156,6 +162,7 @@ private:
     void RequestUnfocus();
     void ToggleUserHidden();
     void UpdateVisibility();
+    void PublishInputGate();    // game thread: the snapshot OnHotkey and OnPadButton read
     void PublishRuntime();
     void ApplyNativeSettings(const nlohmann::json& settings);
     void LoadHistory();
@@ -193,11 +200,18 @@ private:
     bool m_hadFocus{ false };   // Focus() succeeded for the current interaction
     bool m_focusSeen{ false };  // HasFocus() has reported it since then
     std::chrono::steady_clock::time_point m_focusGrantedAt;
-    bool m_bootstrapped{ false };
-    std::uint32_t m_interactKey{ VK_F8 };
-    std::uint32_t m_settingsKey{ '0' };
-    std::uint32_t m_inputKey{ VK_RETURN };
-    std::uint32_t m_toggleKey{ 0 };              // show/hide hotkey; 0 = none
+    std::atomic<bool> m_bootstrapped{ false };
+    // Read by the input sink on whatever thread input arrives on, so atomic.
+    std::atomic<std::uint32_t> m_interactKey{ VK_F8 };
+    std::atomic<std::uint32_t> m_settingsKey{ '0' };
+    std::atomic<std::uint32_t> m_inputKey{ VK_RETURN };
+    std::atomic<std::uint32_t> m_toggleKey{ 0 };  // show/hide hotkey; 0 = none
+    // What the input sink may know of the game thread's state: published by
+    // PublishInputGate on the game thread, read from any thread. The menu set
+    // and the game's UI are never read from the input thread.
+    std::atomic<bool> m_gateMenusClear{ false };  // no menu that hides Chronicle, no console
+    std::atomic<bool> m_gateUserHidden{ false };
+    std::mutex m_padMutex;                         // m_padGate: the input thread and the game thread
     std::string m_launcherHotkey{ "Shift+0" };   // game thread
     ChronicleRuntime::PadComboGate m_padGate;    // game thread
     bool m_padComboLogged{ false };

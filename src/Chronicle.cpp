@@ -102,7 +102,10 @@ void Chronicle::OnDataLoaded()
     }
     m_language = static_cast<int>(ChronicleRuntime::ResolveLanguage("auto", m_gameLanguage));
     spdlog::info("Chronicle: game language '{}'", m_gameLanguage);
-    m_padGate.Set(ChronicleRuntime::ParsePadCombo("lb+y"));  // until the settings file says otherwise
+    {
+        std::lock_guard lock(m_padMutex);
+        m_padGate.Set(ChronicleRuntime::ParsePadCombo("lb+y"));  // until the settings file says otherwise
+    }
     DovahMenuModule::SetDescription(Text(ChronicleRuntime::Phrase::MenuDescription));
     RegisterEventSinks();
     InitUiHost();
@@ -132,7 +135,10 @@ void Chronicle::OnPreLoadGame()
     }
     m_lastSubtitle.clear();
     m_messageCount = 0;
-    m_padGate.Reset();
+    {
+        std::lock_guard lock(m_padMutex);
+        m_padGate.Reset();
+    }
     DropHistory();
     UpdateVisibility();
 }
@@ -217,8 +223,9 @@ void Chronicle::OnViewReady()
     host.RegisterListener("historyCleared", [](const char* text) {
         if (text) MainTask([payload = std::string(text)] { GetSingleton()->OnHistoryCleared(payload); });
     });
-    host.RegisterListener("focusAcquired", [](const char*) { GetSingleton()->RequestFocus(); });
-    host.RegisterListener("focusReleased", [](const char*) { GetSingleton()->RequestUnfocus(); });
+    // Listeners run on the host's thread; focus changes touch game state, so they go to the pump too.
+    host.RegisterListener("focusAcquired", [](const char*) { MainTask([] { GetSingleton()->RequestFocus(); }); });
+    host.RegisterListener("focusReleased", [](const char*) { MainTask([] { GetSingleton()->RequestUnfocus(); }); });
     host.RegisterListener("uiReady", [](const char*) { MainTask([] { GetSingleton()->Bootstrap(); }); });
     host.RegisterListener("diagnostics", [](const char*) { MainTask([] { GetSingleton()->Diagnostics(); }); });
     host.RegisterListener("selfTestReply", [](const char* text) {
@@ -322,6 +329,16 @@ void Chronicle::UpdateVisibility()
             InvokeUI("nativeHotkey(\"settings\")");
         }
     }
+    PublishInputGate();
+}
+
+void Chronicle::PublishInputGate()
+{
+    GameThread::Check();
+    bool console = false;
+    if (auto* ui = RE::UI::GetSingleton()) console = ui->IsMenuOpen("Console");
+    m_gateMenusClear = m_state.menus.empty() && !console;
+    m_gateUserHidden = m_state.userHidden;
 }
 
 void Chronicle::OpenFromLauncher()
@@ -424,6 +441,7 @@ void Chronicle::Tick()
     m_state.ownFocusMenu = UiHost().FocusMenu();
     m_state.ownsFocus = m_hadFocus || focused;
     if (m_state.Visible() == m_hidden.load()) UpdateVisibility();
+    PublishInputGate();
 }
 
 void Chronicle::PollMenuFramework()
@@ -450,6 +468,7 @@ void Chronicle::OnDovahHubOpen(bool open)
 
 void Chronicle::OnMenuOpenClose(std::string_view name, bool opening)
 {
+    GameThread::Check();  // MenuEventSink posts here from whatever thread the event came on
     if (opening && name == "Main Menu") {
         OnPreLoadGame();
         // Only SKSE's Revert clears the character id. A session started from
@@ -470,6 +489,7 @@ void Chronicle::OnMenuOpenClose(std::string_view name, bool opening)
         }
     }
     m_state.Menu(name, opening, flags);
+    PublishInputGate();
     // One deferred reconciliation lets Skyrim finish updating its menu stack.
     MainTask([this, menu = std::string(name), opening] {
         if (!opening && (menu == "Loading Menu" || menu == "Fader Menu") && !m_gameLoaded) {
@@ -750,10 +770,12 @@ void Chronicle::ApplyNativeSettings(const nlohmann::json& settings)
     m_launcherHotkey = ChronicleRuntime::LauncherHotkey(general.value("config_hotkey", std::string("0")));
     DovahMenuModule::SetHotkey(m_launcherHotkey);
     m_toggleKey = key(general.value("toggle_hotkey", std::string()), 0);  // 0 = no key
-    if (const auto combo = ChronicleRuntime::ParsePadCombo(general.value("controller_combo", std::string("lb+y")));
-        !(combo == m_padGate.Combo())) {
-        m_padGate.Set(combo);
-        spdlog::info("Chronicle: controller combo {}", ChronicleRuntime::PadComboName(combo));
+    if (const auto combo = ChronicleRuntime::ParsePadCombo(general.value("controller_combo", std::string("lb+y"))); true) {
+        std::lock_guard lock(m_padMutex);
+        if (!(combo == m_padGate.Combo())) {
+            m_padGate.Set(combo);
+            spdlog::info("Chronicle: controller combo {}", ChronicleRuntime::PadComboName(combo));
+        }
     }
     // Remembered hidden state is restored from the settings file; otherwise
     // the current session's state is left as it is.
@@ -780,19 +802,23 @@ bool Chronicle::OnHotkey(std::uint32_t scanCode, bool shift)
     // The host routes keys to JS once focused. Native keys acquire the focus
     // in the first place; otherwise a passive overlay cannot receive a hotkey.
     const auto key = MapVirtualKeyW(scanCode, MAPVK_VSC_TO_VK_EX);
+    // Any thread: only atomics (m_gate*, published on the game thread) and the
+    // UI host's focus calls are read here; everything else goes to the pump.
     auto& host = UiHost();
     // The show/hide key must work while Chronicle is hidden by it, but never
     // while typing (any focused view), in menus or in Skyrim's console.
     const bool canToggle = m_bootstrapped && m_gameLoaded && host.Available() &&
-        !host.AnyFocus() && m_state.menus.empty();
-    if (canToggle && m_toggleKey && key == m_toggleKey && !shift) {
+        !host.AnyFocus() && m_gateMenusClear;
+    const auto toggleKey = m_toggleKey.load();
+    const auto settingsKey = m_settingsKey.load();
+    if (canToggle && toggleKey && key == toggleKey && !shift) {
         MainTask([this] { ToggleUserHidden(); });
         return true;
     }
     // The settings hotkey also brings a hidden Chronicle back (and opens
     // settings), so a forgotten show/hide key cannot leave it lost. Tasks run
     // in order: the view is visible again before the settings request.
-    if (canToggle && m_state.userHidden && shift && key == m_settingsKey) {
+    if (canToggle && m_gateUserHidden && shift && key == settingsKey) {
         m_keyboardCapture = true;
         MainTask([this] { if (m_state.userHidden) ToggleUserHidden(); });
         MainTask([this] { if (!m_hidden && m_gameLoaded) InvokeUI("nativeHotkey(\"settings\")"); });
@@ -805,12 +831,11 @@ bool Chronicle::OnHotkey(std::uint32_t scanCode, bool shift)
         // hotkey/Escape must still return control to Skyrim. Letter/Enter
         // hotkeys are left to JS so typing in the input bar cannot close it.
         const bool functionKey = key >= VK_F1 && key <= VK_F12;
-        if (key == VK_ESCAPE || (functionKey && key == m_interactKey)) RequestUnfocus();
+        if (key == VK_ESCAPE || (functionKey && key == m_interactKey)) MainTask([this] { RequestUnfocus(); });
         return true;
     }
-    if (!m_state.menus.empty()) return false;
-    if (auto* ui = RE::UI::GetSingleton(); ui && ui->IsMenuOpen("Console")) return false;
-    const std::string action = shift && key == m_settingsKey ? "settings" :
+    if (!m_gateMenusClear) return false;
+    const std::string action = shift && key == settingsKey ? "settings" :
         key == m_interactKey ? "interact" : key == m_inputKey ? "input" : "";
     if (action.empty()) return false;
 
@@ -827,14 +852,15 @@ bool Chronicle::OnHotkey(std::uint32_t scanCode, bool shift)
 bool Chronicle::OnPadButton(std::uint32_t code, bool pressed, bool down)
 {
     using Step = ChronicleRuntime::PadComboGate::Step;
+    std::lock_guard lock(m_padMutex);  // Set and Reset come from the game thread
     const auto step = m_padGate.OnButton(code, pressed, down);
     if (step == Step::Swallow) return true;
     if (step != Step::Fire) return false;
     // The interact key's rules: a loaded game, Chronicle shown, no view holding
     // input (an open Chronicle closes with B), no game menu, not the console.
+    // Any thread: atomics and the UI host's focus only, as OnHotkey.
     auto& host = UiHost();
-    if (!m_bootstrapped || m_hidden || !m_gameLoaded || !host.Available() || host.AnyFocus() || !m_state.menus.empty()) return false;
-    if (auto* ui = RE::UI::GetSingleton(); ui && ui->IsMenuOpen("Console")) return false;
+    if (!m_bootstrapped || m_hidden || !m_gameLoaded || !host.Available() || host.AnyFocus() || !m_gateMenusClear) return false;
     m_padGate.Swallow();
     if (!m_padComboLogged) {
         m_padComboLogged = true;
@@ -988,7 +1014,7 @@ void Chronicle::ExportHistory(std::string_view text)
 void Chronicle::Diagnostics()
 {
     InvokeUI("diagnosticsResult(" + Json({
-        {"version", CHRONICLE_VERSION}, {"bridge", m_bootstrapped}, {"gameLoaded", m_gameLoaded.load()},
+        {"version", CHRONICLE_VERSION}, {"bridge", m_bootstrapped.load()}, {"gameLoaded", m_gameLoaded.load()},
         {"visible", !m_hidden}, {"focus", UiHost().HasFocus()},
         {"poller", SubtitlePoller::GetSingleton().IsRunning()}, {"messages", m_messageCount},
         {"lastSubtitle", m_lastSubtitle}, {"api", UiHost().ApiVersion()}, {"host", UiHost().Name()},
@@ -1030,7 +1056,14 @@ bool Chronicle::IsDuplicate(std::string_view channel, std::string_view speaker, 
 
 void Chronicle::InvokeUI(std::string_view script)
 {
-    GameThread::Check();
+    // The page is driven from the game thread, so calls reach it in order.
+    // A caller on another thread hands the script to the pump instead.
+    if (!GameThread::IsCurrent()) {
+        static std::atomic<bool> told{ false };
+        if (!told.exchange(true)) spdlog::info("Chronicle: a page update came from thread {}; it goes through the pump", GetCurrentThreadId());
+        GameThread::Post([copy = std::string(script)] { GetSingleton()->InvokeUI(copy); });
+        return;
+    }
     if (UiHost().ViewValid() && m_viewReady) {
         const std::string terminated(script);
         UiHost().Invoke(terminated.c_str());
