@@ -1,4 +1,4 @@
-# Chronicle 1.4.21
+# Chronicle 1.4.22
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -290,6 +290,19 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.4.22-beta
+
+Twenty-third beta, PrismaUI and Magelight builds.
+
+- A mod line in Windows-1252 shows its apostrophes, quotes, dashes and accented
+  letters: "I’m ready" no longer shows a replacement mark where the apostrophe is.
+  Bytes that aren't valid UTF-8 are read as Windows-1252; only the five bytes that
+  mean nothing there (0x81, 0x8D, 0x8F, 0x90, 0x9D) still show the replacement mark.
+  Valid UTF-8 is left as it is. Lines already in the history keep the mark they were
+  saved with.
+- `Chronicle.log` warns about such text once per speaker, not on every line, and says
+  it was read as Windows-1252.
 
 ## 1.4.21-beta
 
