@@ -82,7 +82,8 @@ namespace
         const auto detail = Detail(std::string(199, 'a') + "é" + "tail");
         Require(detail.size() == 199, "a long detail is cut before a split character");
         Require(Detail(std::string(300, 'b')).size() == kMaxDetail, "a long detail is cut to 200");
-        Require(Detail("bad \xFF byte") == "bad \xEF\xBF\xBD byte", "invalid UTF-8 is replaced");
+        Require(Detail("bad \x81 byte") == "bad \xEF\xBF\xBD byte", "a byte with no meaning is replaced");
+        Require(Detail("it\x92s") == "it\xE2\x80\x99s", "Windows-1252 text is decoded");
         Require(Word(Result::Pass) == "PASS" && Word(Result::Fail) == "FAIL" && Word(Result::Skip) == "SKIP", "the log words");
 
         const auto json = nlohmann::json::parse(StepJson("dovahhub.module", Result::Skip, "DovahHub is not installed"));

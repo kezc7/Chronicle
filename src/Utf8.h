@@ -33,15 +33,56 @@ namespace ChronicleUtf8
         bool changed{ false };
         std::size_t firstInvalidOffset{ std::string_view::npos };
         std::uint8_t firstInvalidByte{ 0 };
+        // Bytes read as Windows-1252, and bytes that have no meaning there
+        // either and became U+FFFD.
+        std::size_t fromWindows1252{ 0 };
+        std::size_t replaced{ 0 };
     };
+
+    inline constexpr std::string_view kFallbackDecoding = "Windows-1252";
 
     inline bool IsContinuation(std::uint8_t a_byte)
     {
         return (a_byte & 0xC0u) == 0x80u;
     }
 
-    // Replace malformed UTF-8 with U+FFFD. Invalid bytes are consumed one at
-    // a time so a bad subtitle can never make the returned string invalid.
+    // The character a byte stands for in Windows-1252, the code page of
+    // English and other Western European plugins. 0 for the five bytes it
+    // leaves undefined: 0x81, 0x8D, 0x8F, 0x90 and 0x9D.
+    inline char32_t Windows1252(std::uint8_t a_byte)
+    {
+        static constexpr char16_t kHigh[32] = {
+            0x20AC, 0,      0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021,
+            0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0,      0x017D, 0,
+            0,      0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014,
+            0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0,      0x017E, 0x0178
+        };
+        if (a_byte < 0x80u || a_byte >= 0xA0u) return a_byte;
+        return kHigh[a_byte - 0x80u];
+    }
+
+    // UTF-8 for a character of the Basic Multilingual Plane.
+    inline void Append(std::string& a_out, char32_t a_char)
+    {
+        if (a_char < 0x80u) {
+            a_out.push_back(static_cast<char>(a_char));
+        } else if (a_char < 0x800u) {
+            a_out.push_back(static_cast<char>(0xC0u | (a_char >> 6u)));
+            a_out.push_back(static_cast<char>(0x80u | (a_char & 0x3Fu)));
+        } else {
+            a_out.push_back(static_cast<char>(0xE0u | (a_char >> 12u)));
+            a_out.push_back(static_cast<char>(0x80u | ((a_char >> 6u) & 0x3Fu)));
+            a_out.push_back(static_cast<char>(0x80u | (a_char & 0x3Fu)));
+        }
+    }
+
+    // Make text valid UTF-8. Mods hand over plugin strings as the game stores
+    // them, in Windows-1252, so a byte that isn't part of a valid UTF-8
+    // sequence is read as Windows-1252: 0x92 is a curly apostrophe, 0xE9 is
+    // an e acute. Only the five bytes with no meaning there become U+FFFD.
+    // Valid sequences are kept as they are, so a UTF-8 line cut in the middle
+    // of a character keeps the rest of its text. Bytes are consumed one at a
+    // time, so no input can make the returned string invalid.
     inline Sanitized ReplaceInvalid(std::string_view a_input)
     {
         Sanitized result;
@@ -55,7 +96,13 @@ namespace ChronicleUtf8
                 result.firstInvalidByte = byte;
             }
             result.changed = true;
-            result.value += "\xEF\xBF\xBD";
+            if (const auto character = Windows1252(byte)) {
+                Append(result.value, character);
+                ++result.fromWindows1252;
+            } else {
+                result.value += "\xEF\xBF\xBD";
+                ++result.replaced;
+            }
         };
 
         std::size_t i = 0;

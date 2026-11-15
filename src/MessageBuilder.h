@@ -23,8 +23,11 @@
 #include "Utf8.h"
 #include <algorithm>
 #include <chrono>
+#include <mutex>
 #include <nlohmann/json.hpp>
 #include <spdlog/spdlog.h>
+#include <string>
+#include <unordered_set>
 
 namespace MessageBuilder
 {
@@ -51,19 +54,64 @@ namespace MessageBuilder
         return escaped;
     }
 
+    // A mod that writes Windows-1252 does it on every line, so the log names
+    // each speaker once.
+    class OncePerSpeaker
+    {
+    public:
+        bool First(std::string_view a_speaker)
+        {
+            std::scoped_lock lock(m_mutex);
+            if (m_seen.size() >= kMax) return false;
+            return m_seen.emplace(a_speaker).second;
+        }
+
+    private:
+        static constexpr std::size_t kMax = 512;
+        std::mutex m_mutex;
+        std::unordered_set<std::string> m_seen;
+    };
+
+    inline OncePerSpeaker& Warned()
+    {
+        static OncePerSpeaker instance;
+        return instance;
+    }
+
+    // Valid UTF-8 for the log, cut on a whole character.
+    inline std::string ShownForLog(std::string_view a_value, std::size_t a_limit = 160)
+    {
+        if (a_value.size() <= a_limit) return std::string(a_value);
+        std::size_t cut = a_limit;
+        while (cut > 0 && ChronicleUtf8::IsContinuation(static_cast<std::uint8_t>(a_value[cut]))) --cut;
+        return std::string(a_value.substr(0, cut)) + "...";
+    }
+
+    // The warning for text that wasn't valid UTF-8: where, how it was read
+    // and what is shown.
+    inline std::string DecodingNotice(const ChronicleUtf8::Sanitized& a_result, std::string_view a_value,
+                                      std::string_view a_field, std::string_view a_speaker, std::string_view a_text)
+    {
+        auto notice = fmt::format(
+            "Chronicle: {} from '{}' is not valid UTF-8 (first bad byte 0x{:02X} at {}); read as {}: {} byte(s) decoded",
+            a_field, EscapeForLog(a_speaker), a_result.firstInvalidByte, a_result.firstInvalidOffset,
+            ChronicleUtf8::kFallbackDecoding, a_result.fromWindows1252);
+        if (a_result.replaced) {
+            notice += fmt::format(", {} with no meaning there shown as U+FFFD", a_result.replaced);
+        }
+        notice += fmt::format("; original='{}'; shown='{}'; text='{}'. Later lines from this speaker are decoded "
+                              "the same way without a warning.",
+            EscapeForLog(a_value), ShownForLog(a_result.value), EscapeForLog(a_text));
+        return notice;
+    }
+
+    // a_who is the speaker, or the channel for a line without one.
     inline std::string Sanitize(std::string_view a_value, std::string_view a_field,
-                                std::string_view a_speaker, std::string_view a_text)
+                                std::string_view a_speaker, std::string_view a_text, std::string_view a_who)
     {
         auto sanitized = ChronicleUtf8::ReplaceInvalid(a_value);
-        if (sanitized.changed) {
-            spdlog::warn(
-                "Chronicle: invalid UTF-8 sanitized in {} at byte {} (0x{:02X}); "
-                "original='{}'; replacement='{}'; speaker='{}'; text='{}'",
-                a_field,
-                sanitized.firstInvalidOffset,
-                sanitized.firstInvalidByte,
-                EscapeForLog(a_value),
-                EscapeForLog(sanitized.value), EscapeForLog(a_speaker), EscapeForLog(a_text));
+        if (sanitized.changed && Warned().First(a_who)) {
+            spdlog::warn("{}", DecodingNotice(sanitized, a_value, a_field, a_speaker, a_text));
         }
         return std::move(sanitized.value);
     }
@@ -87,9 +135,10 @@ namespace MessageBuilder
                              std::string_view a_speaker,
                              std::string_view a_message)
     {
-        const auto channel = Sanitize(a_channel, "channel", a_speaker, a_message);
-        const auto speaker = Sanitize(a_speaker, "speaker", a_speaker, a_message);
-        const auto message = Sanitize(StripTrailingRefMarker(a_message), "message/text", a_speaker, a_message);
+        const auto who = a_speaker.empty() ? a_channel : a_speaker;
+        const auto channel = Sanitize(a_channel, "channel", a_speaker, a_message, who);
+        const auto speaker = Sanitize(a_speaker, "speaker", a_speaker, a_message, who);
+        const auto message = Sanitize(StripTrailingRefMarker(a_message), "message/text", a_speaker, a_message, who);
 
         nlohmann::json j;
         j["channel"] = channel;

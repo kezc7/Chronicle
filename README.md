@@ -11,6 +11,11 @@ hidden so they only appear in Chronicle. SkyrimNet/narrator/player/combat/consol
 channels are optional and hidden by default on a fresh install. Existing preferences
 are preserved.
 
+Some mods hand over their lines in Windows-1252, the code page of English and other
+Western European plugins, not in UTF-8. Chronicle reads the bytes that aren't valid
+UTF-8 as Windows-1252, so curly apostrophes, quotes, dashes and accented letters from
+those mods show as written. `Chronicle.log` names each such speaker once.
+
 ## Controls
 
 - **The interact key** (F8 by default) activates mouse interaction: click tabs, scroll, search, filter by speaker,

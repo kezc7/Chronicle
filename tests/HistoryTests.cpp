@@ -98,7 +98,9 @@ int main()
     Require(parsed.size() == 2 && parsed[0].timestamp == 5 && parsed[1].speaker.empty() && parsed[1].timestamp == 0, "file lines");
     nlohmann::json bad = { {"channel", "dialogue"}, {"message", std::string("caf\xC3", 4)} };
     const auto repaired = FromJson(bad);
-    Require(repaired && repaired->message.find('\xC3') == std::string::npos, "invalid UTF-8 is replaced");
+    // The stray 0xC3 is read as Windows-1252 (A tilde), which is valid UTF-8.
+    Require(repaired && repaired->message == "caf\xC3\x83" && !ChronicleUtf8::ReplaceInvalid(repaired->message).changed,
+        "invalid UTF-8 is made valid");
     Require(LinesToJson({ Make(7) }).dump() == R"([{"channel":"dialogue","message":"line","speaker":"Lydia","timestamp":7}])", "round trip");
 
     // Ids: each added line gets the next one; lines read back keep theirs, and
