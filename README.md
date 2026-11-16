@@ -247,7 +247,11 @@ slightly. Diagnostics shows which host the DLL was built for.
 
 ## Build
 
-The project expects Visual Studio 18 with CMake, Ninja, and vcpkg installed.
+Chronicle is compiled with Visual Studio 2022's C++ compiler (MSVC 14.4x, toolset v143);
+its Build Tools are enough. `build.ps1` finds it, stops if another compiler would be
+used, and vcpkg builds the dependencies with the same toolset (`triplets/`). CMake,
+Ninja and vcpkg themselves are taken from a Visual Studio 18 install. A build folder
+made with another compiler has to be deleted first; the script says so.
 Run `build.ps1` from PowerShell:
 
 ```powershell
@@ -289,7 +293,8 @@ this file's title repeat it, and `set-version.ps1` writes all of them:
 
 `tests/version.test.cjs` fails on every build while any of them, or the newest release
 notes below, says something else. `package.ps1` runs that test before it builds, checks
-the built DLL's FileVersion before it packs, and afterwards reads every archive entry
+the built DLL's FileVersion and that its linker is 14.4x before it packs, and afterwards
+reads every archive entry
 with `tools/zip-user-scan.py` (Python required) so no archive holds a user-folder path
 or the name of the user who built it.
 

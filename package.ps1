@@ -37,6 +37,12 @@ if ($Label) { $name = "Chronicle-$version-$Label-$UiHost" }
 # The DLL about to be packed must be this version's build.
 $dllVersion = (Get-Item -LiteralPath "$buildDir\Chronicle.dll").VersionInfo.FileVersion
 if ($dllVersion -ne "$version.0") { throw "Chronicle.dll says $dllVersion, not $version.0; package not created" }
+# One compiler across the suite: the DLL must come from Visual Studio 2022's linker (14.4x).
+# The linker's version is in the DLL's own header.
+$dllBytes = [System.IO.File]::ReadAllBytes("$buildDir\Chronicle.dll")
+$peHeader = [System.BitConverter]::ToInt32($dllBytes, 0x3C)
+$linker = '{0}.{1:00}' -f $dllBytes[$peHeader + 26], $dllBytes[$peHeader + 27]
+if ($linker -notmatch '^14\.4\d$') { throw "Chronicle.dll was linked by $linker, not Visual Studio 2022's 14.4x; package not created" }
 $stage = Join-Path $projectRoot "out\staging\$name"
 # A labelled name repeats between runs: never pack an earlier run's files.
 if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force }

@@ -6,6 +6,9 @@
 cmake_minimum_required(VERSION 3.23)
 
 set(VCPKG_TARGET_TRIPLET x64-windows-static)
+# This repository's x64-windows-static builds the dependencies with the v143 toolset
+# (Visual Studio 2022), the compiler build.ps1 loads for Chronicle itself.
+set(VCPKG_OVERLAY_TRIPLETS "${CMAKE_CURRENT_LIST_DIR}/triplets" CACHE STRING "")
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE FILEPATH "")
 

@@ -11,15 +11,50 @@ param(
     [ValidateSet('PrismaUI','Magelight')][string]$UiHost = 'PrismaUI'
 )
 
-$vsBase    = "C:\Program Files\Microsoft Visual Studio\18\Community"
-$cmake     = "$vsBase\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"
-$ninja     = "$vsBase\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe"
-$vcpkgRoot = "$vsBase\VC\vcpkg"
+# CMake, Ninja and vcpkg are tools, taken from the Visual Studio that has them.
+$toolsBase = "C:\Program Files\Microsoft Visual Studio\18\Community"
+$cmake     = "$toolsBase\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"
+$ninja     = "$toolsBase\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja\ninja.exe"
+$vcpkgRoot = "$toolsBase\VC\vcpkg"
 $toolchain = "$vcpkgRoot\scripts\buildsystems\vcpkg.cmake"
-$devCmd    = "$vsBase\Common7\Tools\VsDevCmd.bat"
 $src       = Split-Path -Parent $MyInvocation.MyCommand.Path
 $build     = "$src\out\build\x64-$Config"
 if ($UiHost -ne 'PrismaUI') { $build += "-$UiHost" }
+
+# The compiler is Visual Studio 2022's (MSVC 14.4x), whatever newer Visual Studio is also
+# installed: the whole suite is built with one compiler. Its Build Tools are enough.
+# vcpkg picks its own compiler for the dependencies, from the newest Visual Studio that
+# has the toolset, so it is told which install (VCPKG_VISUAL_STUDIO_PATH below) and
+# which toolset (triplets\x64-windows-static.cmake), and what it used is checked.
+$compilerPattern = '^14\.4\d\.'
+$vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+$msvcBase = & $vswhere -products * -version '[17.0,18.0)' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -latest -property installationPath
+if (!$msvcBase) { throw '[Chronicle] Visual Studio 2022 (or its Build Tools) with the C++ tools was not found' }
+$devCmd = "$msvcBase\Common7\Tools\VsDevCmd.bat"
+
+# A build folder remembers the compiler it was first configured with and keeps using it,
+# whatever environment is loaded later. One made with another compiler has to go.
+function Assert-BuildFolderCompiler {
+    if (!(Test-Path -LiteralPath "$build\CMakeCache.txt")) { return }
+    $line = Select-String -LiteralPath "$build\CMakeCache.txt" -Pattern '^CMAKE_CXX_COMPILER:[A-Z]+=(.*)$' | Select-Object -First 1
+    if (!$line) { return }
+    $compiler = $line.Matches[0].Groups[1].Value
+    if ($compiler -notmatch '[\\/]MSVC[\\/]14\.4\d\.') {
+        throw "[Chronicle] $build was configured with another compiler ($compiler). Delete that folder and build again."
+    }
+}
+# vcpkg names the compiler it found for each triplet every time it runs.
+function Assert-DependencyCompiler {
+    $found = @(Select-String -LiteralPath "$build\vcpkg-manifest-install.log" -Pattern '^Compiler found: (.*)$')
+    if (!$found) { throw "[Chronicle] vcpkg didn't say which compiler it built the dependencies with" }
+    foreach ($line in $found) {
+        $compiler = $line.Matches[0].Groups[1].Value
+        if ($compiler -notmatch '[\\/]MSVC[\\/]14\.4\d\.') {
+            throw "[Chronicle] vcpkg built the dependencies with another compiler ($compiler). Delete $build and build again."
+        }
+    }
+}
+Assert-BuildFolderCompiler
 
 Write-Host "[Chronicle] Loading MSVC environment..."
 
@@ -31,7 +66,13 @@ foreach ($line in $envLines) {
     }
 }
 
+if ($env:VCToolsVersion -notmatch $compilerPattern) {
+    throw "[Chronicle] The loaded compiler is MSVC $($env:VCToolsVersion), not Visual Studio 2022's 14.4x"
+}
+Write-Host "[Chronicle] Compiler: MSVC $($env:VCToolsVersion)"
+
 $env:VCPKG_ROOT = $vcpkgRoot
+$env:VCPKG_VISUAL_STUDIO_PATH = $msvcBase
 
 # Nothing the build reads or writes may sit in a user folder: a path the compiler, the
 # linker or vcpkg worked in can end up inside a binary. Temporary files and vcpkg's
@@ -70,6 +111,8 @@ if ($LASTEXITCODE -ne 0) {
     Write-Error "[Chronicle] Configure FAILED (exit $LASTEXITCODE)"
     exit $LASTEXITCODE
 }
+Assert-BuildFolderCompiler
+Assert-DependencyCompiler
 
 Write-Host "[Chronicle] Building..."
 & $cmake --build $build --parallel
@@ -80,7 +123,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $dll = "$build\Chronicle.dll"
-& "$vsBase\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\ctest.exe" --test-dir $build --output-on-failure
+& "$toolsBase\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\ctest.exe" --test-dir $build --output-on-failure
 if ($LASTEXITCODE -ne 0) { throw "Chronicle native tests failed" }
 $uiTests = Get-ChildItem -LiteralPath "$src\tests" -Filter '*.test.cjs' |
     Select-Object -ExpandProperty FullName
