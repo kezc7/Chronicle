@@ -45,6 +45,12 @@ $dllBytes = [System.IO.File]::ReadAllBytes("$buildDir\Chronicle.dll")
 $peHeader = [System.BitConverter]::ToInt32($dllBytes, 0x3C)
 $linker = '{0}.{1:00}' -f $dllBytes[$peHeader + 26], $dllBytes[$peHeader + 27]
 if ($linker -notmatch '^14\.4\d$') { throw "Chronicle.dll was linked by $linker, not Visual Studio 2022's 14.4x; package not created" }
+# The linker can be 2022's while objects inside the DLL (a dependency vcpkg built) come from a
+# newer compiler. The Rich header names the build of every tool that made an object: VS 2022
+# is below 35700. No header, or one that can't be read, fails too (tools\rich-header.py,
+# copied unchanged from DovahCamp ebd7d9b).
+& python -I "$projectRoot\tools\rich-header.py" "$buildDir\Chronicle.dll" --below 35700
+if ($LASTEXITCODE -ne 0) { throw "Chronicle.dll holds an object from a compiler newer than Visual Studio 2022's, or has no readable Rich header; package not created" }
 $stage = Join-Path $projectRoot "out\staging\$name"
 # A labelled name repeats between runs: never pack an earlier run's files. A clean never
 # deletes a git worktree.

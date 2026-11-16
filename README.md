@@ -295,7 +295,9 @@ this file's title repeat it, and `set-version.ps1` writes all of them:
 
 `tests/version.test.cjs` fails on every build while any of them, or the newest release
 notes below, says something else. `package.ps1` runs that test before it builds, checks
-the built DLL's FileVersion and that its linker is 14.4x before it packs, and afterwards
+the built DLL's FileVersion and that its linker is 14.4x before it packs, reads the DLL's
+Rich header with `tools/rich-header.py` and stops if any object in it comes from a
+compiler newer than Visual Studio 2022's (build 35700 or higher), and afterwards
 reads every archive entry
 with `tools/zip-user-scan.py` (Python required) so no archive holds a user-folder path
 or the name of the user who built it.
