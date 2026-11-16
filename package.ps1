@@ -14,10 +14,15 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = $PSScriptRoot
+# One version: the project VERSION in CMakeLists.txt. Every other place that states it
+# (package.json, vcpkg.json, the README's title and newest notes) must agree before
+# anything is built; set-version.ps1 writes them.
+& node --test "$projectRoot\tests\version.test.cjs"
+if ($LASTEXITCODE -ne 0) { throw 'A version field disagrees with CMakeLists.txt; package not created' }
 & "$projectRoot\build.ps1" -Config $Config -UiHost $UiHost
 if ($LASTEXITCODE -ne 0) { throw 'Build failed; package not created' }
 $cmakeText = Get-Content -LiteralPath "$projectRoot\CMakeLists.txt" -Raw
-if ($cmakeText -notmatch 'VERSION\s+(\d+\.\d+\.\d+)') { throw 'Cannot find project version' }
+if ($cmakeText -notmatch '\bproject\s*\(\s*Chronicle\s+VERSION\s+(\d+\.\d+\.\d+)\b') { throw 'Cannot find project version' }
 $version = $Matches[1]
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $buildDir = "$projectRoot\out\build\x64-$Config"
@@ -29,6 +34,9 @@ if ($UiHost -eq 'Magelight') {
     $name = "Chronicle-Magelight-$version-$Config-$stamp"
 }
 if ($Label) { $name = "Chronicle-$version-$Label-$UiHost" }
+# The DLL about to be packed must be this version's build.
+$dllVersion = (Get-Item -LiteralPath "$buildDir\Chronicle.dll").VersionInfo.FileVersion
+if ($dllVersion -ne "$version.0") { throw "Chronicle.dll says $dllVersion, not $version.0; package not created" }
 $stage = Join-Path $projectRoot "out\staging\$name"
 # A labelled name repeats between runs: never pack an earlier run's files.
 if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force }

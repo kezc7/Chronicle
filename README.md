@@ -274,6 +274,18 @@ an earlier archive of that name. Every archive entry
 is compared by SHA-256 with the staged build. The obsolete standalone settings
 page and development preview files are excluded.
 
+The version is the `VERSION` of `project()` in `CMakeLists.txt`: the DLL, its
+FileVersion and the archive name are built from it. `package.json`, `vcpkg.json` and
+this file's title repeat it, and `set-version.ps1` writes all of them:
+
+```powershell
+.\set-version.ps1 -Version 1.4.23
+```
+
+`tests/version.test.cjs` fails on every build while any of them, or the newest release
+notes below, says something else. `package.ps1` runs that test before it builds, and
+checks the built DLL's FileVersion before it packs.
+
 ## License
 
 Chronicle's original code, web UI, tests, build scripts, and documentation are
