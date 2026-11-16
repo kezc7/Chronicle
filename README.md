@@ -1,4 +1,4 @@
-# Chronicle 1.4.22
+# Chronicle 1.4.23
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -319,6 +319,23 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.4.23-beta
+
+Twenty-fourth beta, PrismaUI and Magelight builds. Nothing changes in what you see.
+
+- Built with Visual Studio 2022's compiler (MSVC 14.4x) again, dependencies included.
+  1.4.22 was built with a newer compiler by mistake, and a DLL like that needs a newer
+  Visual C++ runtime than some PCs have.
+- Each zip now ships `SKSE/Plugins/Chronicle.pdb` beside the DLL, from the same build,
+  so crash loggers can name Chronicle's functions in a crash log.
+- Game work waits for the game thread when no frame hook is running, instead of running
+  on another thread after a few tries (the suite's game-thread pump, DovahHub 025314d).
+- The release checks are stricter: every zip is checked for build paths and user names
+  (the PDB included), for objects from a newer compiler, and against a list of the files
+  Chronicle ships, so nothing else can slip in.
+- `THIRD_PARTY_NOTICES.md` names the exact CommonLibSSE-NG commit Chronicle is built
+  against (3.6.0) and quotes its MIT licence.
 
 ## 1.4.22-beta
 
