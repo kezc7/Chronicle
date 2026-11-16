@@ -105,6 +105,12 @@ endif()
 if(MSVC)
     add_compile_definitions(_UNICODE)
     target_compile_options(${PROJECT_NAME} PRIVATE /W4 /WX /permissive- /Zc:preprocessor /EHsc)
+    # The release zip ships Chronicle.pdb beside the DLL, so crash logs can name Chronicle's
+    # functions. /Z7 keeps each object's debug information in the object (no shared PDB
+    # server while Ninja compiles in parallel); /DEBUG makes the linker write the PDB, and
+    # /OPT:REF and /OPT:ICF keep the optimisations /DEBUG would otherwise turn off.
+    target_compile_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:Release>:/Z7>)
+    target_link_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:Release>:/DEBUG /OPT:REF /OPT:ICF>)
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE

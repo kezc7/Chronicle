@@ -297,8 +297,9 @@ this file's title repeat it, and `set-version.ps1` writes all of them:
 notes below, says something else. `package.ps1` runs that test before it builds, checks
 the built DLL's FileVersion and that its linker is 14.4x before it packs, reads the DLL's
 Rich header with `tools/rich-header.py` and stops if any object in it comes from a
-compiler newer than Visual Studio 2022's (build 35700 or higher), and afterwards
-reads every archive entry
+compiler newer than Visual Studio 2022's (build 35700 or higher), packs `Chronicle.pdb`
+beside the DLL only when `tools/pdb-match.py` finds it is from the same link (the
+CodeView GUID and age), and afterwards reads every archive entry, the PDB included,
 with `tools/zip-user-scan.py` (Python required) so no archive holds a user-folder path
 or the name of the user who built it.
 

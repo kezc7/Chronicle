@@ -62,6 +62,13 @@ if (Test-Path -LiteralPath $stage) {
 if (Test-Path -LiteralPath "$projectRoot\out\$name.zip") { Remove-Item -LiteralPath "$projectRoot\out\$name.zip" -Force }
 New-Item -ItemType Directory -Path "$stage\SKSE\Plugins", "$stage\$viewDir" -Force | Out-Null
 Copy-Item -LiteralPath "$buildDir\Chronicle.dll" -Destination "$stage\SKSE\Plugins\Chronicle.dll"
+# The PDB ships beside the DLL, so crash logs can name Chronicle's functions. It must come from
+# the same link: tools\pdb-match.py compares the CodeView GUID and age the DLL names with the
+# PDB's own. It holds build paths, so the user-folder scan below reads it like any other entry.
+if (!(Test-Path -LiteralPath "$buildDir\Chronicle.pdb")) { throw "Chronicle.pdb is missing from $buildDir; package not created" }
+Copy-Item -LiteralPath "$buildDir\Chronicle.pdb" -Destination "$stage\SKSE\Plugins\Chronicle.pdb"
+& python -I "$projectRoot\tools\pdb-match.py" "$stage\SKSE\Plugins\Chronicle.dll" "$stage\SKSE\Plugins\Chronicle.pdb"
+if ($LASTEXITCODE -ne 0) { throw 'Chronicle.pdb is not from the link that made Chronicle.dll; package not created' }
 # Explicit file list excludes the obsolete standalone settings page and all preview/test assets.
 foreach ($file in 'index.html','script.js','controls.js','pad.js','bridge.js','i18n.js','styles.css','config.json') {
     Copy-Item -LiteralPath "$projectRoot\Data\PrismaUI\views\Chronicle\$file" -Destination "$stage\$viewDir\$file"
