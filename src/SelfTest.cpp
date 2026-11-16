@@ -264,7 +264,7 @@ namespace
             if (!run.probe->ran) return Outcome::Wait();
             const auto thread = std::to_string(run.probe->thread.load());
             if (!DovahGameThread::Pumping()) {
-                return Outcome::Done(step, Result::Fail, "no frame hook: SKSE's UI tasks ran the work, on thread " + thread);
+                return Outcome::Done(step, Result::Fail, "no frame hook: the pump's fallback ran the work, on thread " + thread);
             }
             const std::string pump = DOVAHHUB_API::HasPump(DOVAHHUB_API::RequestApi()) ? "DovahHub's pump" : "Chronicle's own frame hook";
             if (!run.probe->onGameThread) {

@@ -26,7 +26,8 @@ const path = require('node:path');
 
 const SRC = path.join(__dirname, '../src');
 // Other mods' headers, copied in unchanged. DovahGameThread.h is the pump
-// itself; it falls back to SKSE's UI tasks only when no hook can be installed.
+// itself; without a frame hook it holds the work until a verified game thread
+// runs it, never on another thread (DovahHub 025314d, DHUB-123).
 const VENDORED = new Set(['MagelightUI_API.h', 'PrismaUI_API.h', 'DovahHub_API.h', 'DovahMenu_API.h', 'DovahGameThread.h']);
 
 function stripComments(text) {
