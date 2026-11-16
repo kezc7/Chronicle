@@ -33,6 +33,27 @@ foreach ($line in $envLines) {
 
 $env:VCPKG_ROOT = $vcpkgRoot
 
+# Nothing the build reads or writes may sit in a user folder: a path the compiler, the
+# linker or vcpkg worked in can end up inside a binary. Temporary files and vcpkg's
+# downloads, registries and binary cache go under out\work, beside the build folders
+# (vcpkg already builds its packages inside the build folder). CHRONICLE_BUILD_WORK
+# names another place. This comes after the MSVC environment, which is inherited.
+$work = if ($env:CHRONICLE_BUILD_WORK) { $env:CHRONICLE_BUILD_WORK } else { "$src\out\work" }
+$folders = [ordered]@{
+    TMP                        = "$work\tmp"
+    TEMP                       = "$work\tmp"
+    VCPKG_DOWNLOADS            = "$work\vcpkg\downloads"
+    VCPKG_DEFAULT_BINARY_CACHE = "$work\vcpkg\archives"
+    X_VCPKG_REGISTRIES_CACHE   = "$work\vcpkg\registries"
+}
+foreach ($name in $folders.Keys) {
+    New-Item -ItemType Directory -Path $folders[$name] -Force | Out-Null
+    [System.Environment]::SetEnvironmentVariable($name, $folders[$name], 'Process')
+}
+if ($work -match '^[A-Za-z]:[\\/]Users[\\/]') {
+    Write-Warning "[Chronicle] The build's work folder is inside a user folder; don't cut a release from here."
+}
+
 Write-Host "[Chronicle] Configuring..."
 & $cmake `
     -S $src `

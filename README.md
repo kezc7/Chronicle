@@ -261,6 +261,11 @@ switch on `package.ps1` produces the `Chronicle-Magelight-<version>` archive.
 The host is chosen at build time (CMake `CHRONICLE_UI_HOST`); one DLL talks to
 one host.
 
+The build keeps its temporary files and vcpkg's downloads, registries and binary cache
+under `out/work`, not in the user's folders, so no path from a user folder can reach a
+binary. Set `CHRONICLE_BUILD_WORK` to use another folder. The first build there
+downloads and compiles the dependencies, which takes a while.
+
 Builds run C++ regression tests and Node.js bridge/history tests (Node.js required
 for development only). To build, test, and package matching DLL/UI assets:
 
