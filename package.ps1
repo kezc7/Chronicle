@@ -84,5 +84,12 @@ try {
         if ($actual -ne (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash) { throw "Archive content mismatch: $relative" }
     }
 } finally { $archive.Dispose() }
+# Nothing shipped may hold a user-folder path or the name of the user who built it:
+# every entry is read, the DLL included.
+& python -I "$projectRoot\tools\zip-user-scan.py" $zip
+if ($LASTEXITCODE -ne 0) {
+    Remove-Item -LiteralPath $zip -Force
+    throw 'The archive names a user folder or the building user; package removed'
+}
 Write-Host "[Chronicle] Verified package: $zip"
 Get-FileHash -LiteralPath $zip -Algorithm SHA256
