@@ -8,7 +8,10 @@ param(
     [string]$Config = "Debug",
     # PrismaUI is the release build; Magelight is the beta build. Each host
     # gets its own build directory so the two DLLs never overwrite each other.
-    [ValidateSet('PrismaUI','Magelight')][string]$UiHost = 'PrismaUI'
+    [ValidateSet('PrismaUI','Magelight')][string]$UiHost = 'PrismaUI',
+    # Empty this host's build folder first, so everything in it is built again (a folder
+    # configured with another compiler has to go). vcpkg's cache under out\work stays.
+    [switch]$Clean
 )
 
 # CMake, Ninja and vcpkg are tools, taken from the Visual Studio that has them.
@@ -40,7 +43,7 @@ function Assert-BuildFolderCompiler {
     if (!$line) { return }
     $compiler = $line.Matches[0].Groups[1].Value
     if ($compiler -notmatch '[\\/]MSVC[\\/]14\.4\d\.') {
-        throw "[Chronicle] $build was configured with another compiler ($compiler). Delete that folder and build again."
+        throw "[Chronicle] $build was configured with another compiler ($compiler). Build again with -Clean."
     }
 }
 # vcpkg names the compiler it found for each triplet every time it runs.
@@ -53,6 +56,14 @@ function Assert-DependencyCompiler {
             throw "[Chronicle] vcpkg built the dependencies with another compiler ($compiler). Delete $build and build again."
         }
     }
+}
+
+# A clean never deletes a git worktree: one inside the build folder stops it.
+. "$src\tools\worktree-guard.ps1"
+if ($Clean -and (Test-Path -LiteralPath $build)) {
+    Assert-NoWorktreeInside -Folder $build -Repo $src
+    Write-Host "[Chronicle] Emptying $build..."
+    Remove-Item -LiteralPath $build -Recurse -Force -ErrorAction Stop
 }
 Assert-BuildFolderCompiler
 

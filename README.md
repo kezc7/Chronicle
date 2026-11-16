@@ -251,7 +251,9 @@ Chronicle is compiled with Visual Studio 2022's C++ compiler (MSVC 14.4x, toolse
 its Build Tools are enough. `build.ps1` finds it, stops if another compiler would be
 used, and vcpkg builds the dependencies with the same toolset (`triplets/`). CMake,
 Ninja and vcpkg themselves are taken from a Visual Studio 18 install. A build folder
-made with another compiler has to be deleted first; the script says so.
+made with another compiler has to be emptied first; the script says so. `-Clean`
+(on `build.ps1` or `package.ps1`) empties it and builds everything again, but never
+when a git worktree lies inside it: the script stops and names the worktree.
 Run `build.ps1` from PowerShell:
 
 ```powershell

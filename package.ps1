@@ -10,7 +10,9 @@ param(
     [ValidateSet('PrismaUI','Magelight')][string]$UiHost = 'PrismaUI',
     # A release label ('beta', 'rc1') names the zip Chronicle-<version>-<label>-<host>
     # instead of the timestamped build name; a rerun replaces it.
-    [ValidatePattern('^[a-z0-9][a-z0-9.-]{0,31}$')][string]$Label = ''
+    [ValidatePattern('^[a-z0-9][a-z0-9.-]{0,31}$')][string]$Label = '',
+    # Passed on to the build: empty this host's build folder and build everything again.
+    [switch]$Clean
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = $PSScriptRoot
@@ -19,7 +21,7 @@ $projectRoot = $PSScriptRoot
 # anything is built; set-version.ps1 writes them.
 & node --test "$projectRoot\tests\version.test.cjs"
 if ($LASTEXITCODE -ne 0) { throw 'A version field disagrees with CMakeLists.txt; package not created' }
-& "$projectRoot\build.ps1" -Config $Config -UiHost $UiHost
+& "$projectRoot\build.ps1" -Config $Config -UiHost $UiHost -Clean:$Clean
 if ($LASTEXITCODE -ne 0) { throw 'Build failed; package not created' }
 $cmakeText = Get-Content -LiteralPath "$projectRoot\CMakeLists.txt" -Raw
 if ($cmakeText -notmatch '\bproject\s*\(\s*Chronicle\s+VERSION\s+(\d+\.\d+\.\d+)\b') { throw 'Cannot find project version' }
@@ -44,8 +46,13 @@ $peHeader = [System.BitConverter]::ToInt32($dllBytes, 0x3C)
 $linker = '{0}.{1:00}' -f $dllBytes[$peHeader + 26], $dllBytes[$peHeader + 27]
 if ($linker -notmatch '^14\.4\d$') { throw "Chronicle.dll was linked by $linker, not Visual Studio 2022's 14.4x; package not created" }
 $stage = Join-Path $projectRoot "out\staging\$name"
-# A labelled name repeats between runs: never pack an earlier run's files.
-if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force }
+# A labelled name repeats between runs: never pack an earlier run's files. A clean never
+# deletes a git worktree.
+. "$projectRoot\tools\worktree-guard.ps1"
+if (Test-Path -LiteralPath $stage) {
+    Assert-NoWorktreeInside -Folder $stage -Repo $projectRoot
+    Remove-Item -LiteralPath $stage -Recurse -Force
+}
 if (Test-Path -LiteralPath "$projectRoot\out\$name.zip") { Remove-Item -LiteralPath "$projectRoot\out\$name.zip" -Force }
 New-Item -ItemType Directory -Path "$stage\SKSE\Plugins", "$stage\$viewDir" -Force | Out-Null
 Copy-Item -LiteralPath "$buildDir\Chronicle.dll" -Destination "$stage\SKSE\Plugins\Chronicle.dll"
