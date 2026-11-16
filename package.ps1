@@ -110,6 +110,13 @@ try {
         if ($actual -ne (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash) { throw "Archive content mismatch: $relative" }
     }
 } finally { $archive.Dispose() }
+# Only Chronicle's own files ship: every entry name of the finished archive must be on
+# tools\zip-allowlist.txt for this host.
+& python -I "$projectRoot\tools\zip-allowlist.py" $zip --host $UiHost
+if ($LASTEXITCODE -ne 0) {
+    Remove-Item -LiteralPath $zip -Force
+    throw 'The archive holds an entry that is not on the allowlist; package removed'
+}
 # Nothing shipped may hold a user-folder path or the name of the user who built it:
 # every entry is read, the DLL included.
 & python -I "$projectRoot\tools\zip-user-scan.py" $zip

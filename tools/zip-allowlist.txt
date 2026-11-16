@@ -1,0 +1,25 @@
+# Chronicle's release zips hold only Chronicle's own files. tools/zip-allowlist.py reads
+# every entry name of a finished zip and stops the release, naming the entry, when one
+# matches no line here.
+#
+# A line is an exact entry name, or a folder ending in "/" followed by the file types
+# allowed anywhere under it. "[PrismaUI]" or "[Magelight]" in front limits a line to
+# that host's zip. Entry names use "/" only.
+
+# The plugin and the PDB from the same link (package.ps1 checks they match).
+SKSE/Plugins/Chronicle.dll
+SKSE/Plugins/Chronicle.pdb
+
+# The chat window, in the folder of the zip's own UI host, and its font licence.
+[PrismaUI] PrismaUI/views/Chronicle/ .html .js .css .json .ttf
+[PrismaUI] PrismaUI/views/Chronicle/theme/fonts/OFL-BarlowCondensed.txt
+[Magelight] Magelight/Chronicle/views/ .html .js .css .json .ttf
+[Magelight] Magelight/Chronicle/views/theme/fonts/OFL-BarlowCondensed.txt
+
+# Chronicle's DovahHub tab (DovahHub loads it from here on either host).
+PrismaUI/views/DovahHub/modules/chronicle/ .html .js .css
+
+# Licence and notices, and the player README every Chronicle zip has shipped.
+LICENSE
+THIRD_PARTY_NOTICES.md
+README.md
