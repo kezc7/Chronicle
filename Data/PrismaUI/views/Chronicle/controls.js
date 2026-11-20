@@ -166,6 +166,11 @@ function setRuntime(data) {
   const lineageKey = JSON.stringify(Array.isArray(data.lineage) ? data.lineage : null);
   // Another character, or another save of this one: the log is that save's.
   if (runtime.profile !== data.profile || runtime.lineageKey !== lineageKey) {
+    // A page the host loaded again (CHRON-30) may be handed lines it queued
+    // while the page was gone, before it knows the character: they are this
+    // character's newest and follow the stored ones, unless storage has them.
+    const early = runtime.profile === '' && data.profile
+      ? messages.map(({channel, speaker, message, timestamp}) => ({channel, speaker, message, timestamp})) : [];
     flushHistory();
     messages.length = 0;
     foldedHistory = [];
@@ -185,6 +190,11 @@ function setRuntime(data) {
     document.getElementById('history-search').value = '';
     document.getElementById('speaker-filter').value = '';
     restoreHistory();
+    if (early.length) {
+      const lineKey = entry => [entry.timestamp, entry.channel, entry.speaker, entry.message].join('');
+      const known = new Set(messages.map(lineKey));
+      early.filter(entry => !known.has(lineKey(entry))).forEach(entry => addMessage(entry));
+    }
     refreshSpeakerOptions();
     // History kept only here so far: native takes it once, for this character.
     if (data.historyEmpty === true && runtime.profile && messages.length) {

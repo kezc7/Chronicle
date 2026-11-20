@@ -222,44 +222,46 @@ for (const host of ['PrismaUI', 'Magelight']) {
     assert.equal(page.config().general.controller_combo, 'lb+y');
   });
 
-  test(`${host}: "Hide in conversations" is off by default, set with the pad, saved, and read back after a reload`, () => {
-    // A settings file from 1.4.23 or older has no such key: nothing changes on update.
+  test(`${host}: "Hide in conversations" is on by default, set with the pad, saved, and read back after a reload`, () => {
+    // A settings file from 1.4.23 or older (or one never saved since) has no
+    // such key: it reads as on (CHRON-31).
     const old = setup({host, settings: {general: {hide_in_menus: true}, window: {}, channels: {}}});
-    assert.equal(old.config().general.hide_in_dialogue, false);
+    assert.equal(old.config().general.hide_in_dialogue, true);
     old.openSettings();
     const box = old.document.getElementById('sp-hide-dialogue');
-    assert.equal(box.checked, false);
+    assert.equal(box.checked, true);
+    assert.ok(box.closest('.sp-toggle').classList.contains('is-on'), 'the switch shows it on');
     assert.equal(box.closest('.dv-setting-row').querySelector('b').textContent, 'Hide in conversations');
 
-    // The pad ticks it; the ring sits on the switch, not the hidden checkbox.
+    // The pad turns it off; the ring sits on the switch, not the hidden checkbox.
     old.walkTo('sp-hide-dialogue');
     assert.ok(box.closest('.sp-toggle').classList.contains('dv-focused'));
     old.input(A);
-    assert.equal(box.checked, true);
-    assert.ok(box.closest('.sp-toggle').classList.contains('is-on'), 'the switch shows it');
+    assert.equal(box.checked, false);
+    assert.ok(!box.closest('.sp-toggle').classList.contains('is-on'), 'the switch shows it off');
     assert.equal(old.saves.length, 0, 'nothing is saved before Apply');
     old.walkTo('sp-apply');
     old.input(A);
     assert.equal(old.saves.length, 1, 'Apply saves once');
     const saved = old.saves[0];
-    assert.equal(saved.general.hide_in_dialogue, true);
+    assert.equal(saved.general.hide_in_dialogue, false, 'off is written, not left out');
     assert.equal(saved.general.hide_in_menus, true, 'the other settings are kept');
 
-    // The DLL hands the saved file back at the next load.
+    // The DLL hands the saved file back at the next load: off stays off.
     const reloaded = setup({host, settings: saved});
-    assert.equal(reloaded.config().general.hide_in_dialogue, true);
+    assert.equal(reloaded.config().general.hide_in_dialogue, false);
     reloaded.openSettings();
-    assert.equal(reloaded.document.getElementById('sp-hide-dialogue').checked, true);
+    assert.equal(reloaded.document.getElementById('sp-hide-dialogue').checked, false);
 
-    // And off again.
+    // And on again.
     reloaded.walkTo('sp-hide-dialogue');
     reloaded.input(A);
     reloaded.walkTo('sp-apply');
     reloaded.input(A);
-    assert.equal(reloaded.saves.at(-1).general.hide_in_dialogue, false);
+    assert.equal(reloaded.saves.at(-1).general.hide_in_dialogue, true);
     const again = setup({host, settings: reloaded.saves.at(-1)});
     again.openSettings();
-    assert.equal(again.document.getElementById('sp-hide-dialogue').checked, false);
+    assert.equal(again.document.getElementById('sp-hide-dialogue').checked, true);
   });
 }
 

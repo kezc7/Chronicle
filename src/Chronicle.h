@@ -62,6 +62,7 @@ public:
     void Tick();
     void PollMenuFramework();
     void Bootstrap();
+    void ReplayPage(std::uint64_t page);  // game thread: a page the host loaded again (CHRON-30)
     void Diagnostics();
     void ExportHistory(std::string_view text);
     // ANY thread (input arrives on Magelight's present thread in some load
@@ -168,6 +169,9 @@ private:
     void HoldKeyboard();        // any thread: an opener keeps keys until focus arrives (kCaptureGraceMs)
     void OpenFromKey(const std::string& a_action);  // game thread: the page's nativeHotkey, or the keyboard back
     void PublishRuntime();
+    std::string RuntimeScript() const;
+    nlohmann::json ReadSettingsFile(bool firstRead, std::string& warning);
+    std::string BootstrapScript(const nlohmann::json& settings, const std::string& warning) const;
     void ApplyNativeSettings(const nlohmann::json& settings);
     void LoadHistory();
     void RecordHistory(ChronicleHistory::Line& a_line);  // sets a_line.id when kept

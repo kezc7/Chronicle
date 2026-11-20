@@ -19,6 +19,7 @@
  */
 
 #include "PCH.h"
+#include "RuntimePolicy.h"
 #include "UiHost.h"
 
 // CommonLib already brought in <Windows.h>; the header's own loader would
@@ -44,6 +45,11 @@
 // shown, and takes UI mode, only while the player interacts. Both receive every
 // script; only the panel saves. When an interaction ends the panel's state is
 // handed to the HUD copy before the HUD is shown again.
+//
+// Magelight releases hidden views when the game runs short of video memory and
+// loads each page again when it is shown (or once memory has been back a
+// while). A page loaded again has lost everything Chronicle sent it, so it is
+// sent its role and the whole handshake again (CHRON-30).
 namespace
 {
     using namespace MAGELIGHT_API;
@@ -219,6 +225,14 @@ namespace
             if (!ViewValid()) return;
             m_api->InvokeJS(m_panel, script);
             m_api->InvokeJS(m_hud, script);
+        }
+
+        void SetPageReloadHandler(PageReloadFn fn) override { m_onReload = fn; }
+
+        void InvokePage(std::uint64_t page, const char* script) override
+        {
+            if (!ViewValid() || (page != m_panel && page != m_hud)) return;
+            m_api->InvokeJS(static_cast<ViewId>(page), script);
         }
 
         void Show(bool visible) override
@@ -421,13 +435,20 @@ namespace
                     self->m_onDomReady = nullptr;
                     ready();
                 }
+                // A copy loaded again (released for video memory, then shown)
+                // is handed its settings, character and visibility again.
+                if (self->m_loads.Loaded(ev->view)) {
+                    spdlog::info("Chronicle: Magelight {} page loaded again ({} reload(s) this session); its handshake is sent again",
+                        ev->view == self->m_hud ? "hud" : "panel", self->m_loads.Reloads());
+                    if (self->m_onReload) self->m_onReload(ev->view);
+                }
                 break;
             case Event::ViewLoadFailed:
                 spdlog::error("Chronicle: Magelight page failed to load: {}", detail);
                 break;
             case Event::ViewReloaded:
-                // Not expected: Chronicle never reloads, hibernates or rescales its views.
-                spdlog::warn("Chronicle: Magelight page reloaded; the native handshake is not repeated");
+                // ViewDomReady came first and answered it; a released page
+                // that loads again on show may not send this at all.
                 break;
             case Event::UIModeEntered:
                 spdlog::info("Chronicle: Magelight UI mode entered {}", detail);
@@ -472,10 +493,12 @@ namespace
         std::string m_padDetail{ "the gamepad layer was not set up" };
         std::atomic<bool> m_renderDead{ false };
         DomReadyFn m_onDomReady{ nullptr };
+        PageReloadFn m_onReload{ nullptr };
         std::deque<Listener> m_listeners;
         // Game thread only.
         bool m_hudReady{ false };
         bool m_panelReady{ false };
+        ChronicleRuntime::PageLoads m_loads;
         bool m_visible{ false };
         bool m_gameLoaded{ false };
         bool m_panelActive{ false };

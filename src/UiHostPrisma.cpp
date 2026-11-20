@@ -19,6 +19,7 @@
  */
 
 #include "PCH.h"
+#include "RuntimePolicy.h"
 #include "UiHost.h"
 
 // PrismaUI backend: the page lives in Data/PrismaUI/views/Chronicle and the
@@ -39,7 +40,14 @@ namespace
             }
             s_view = m_api->CreateView("Chronicle/index.html", [](PrismaView view) {
                 s_view = view;
+                // Listeners are registered again on every load, as before; a
+                // page loaded again is also handed the handshake (CHRON-30).
                 if (s_onDomReady) s_onDomReady();
+                if (s_loads.Loaded(view)) {
+                    spdlog::info("Chronicle: PrismaUI page loaded again ({} reload(s) this session); its handshake is sent again",
+                        s_loads.Reloads());
+                    if (s_onReload) s_onReload(view);
+                }
             });
             if (s_view) m_api->Hide(s_view);
             spdlog::info("Chronicle: PrismaUI view {} created, API v{}", s_view.load(), ApiVersion());
@@ -66,6 +74,14 @@ namespace
         void Invoke(const char* script) override
         {
             if (ViewValid()) m_api->Invoke(s_view, script);
+        }
+
+        void SetPageReloadHandler(PageReloadFn fn) override { s_onReload = fn; }
+
+        // One page: the view itself.
+        void InvokePage(std::uint64_t page, const char* script) override
+        {
+            if (ViewValid() && page == s_view) m_api->Invoke(s_view, script);
         }
 
         void Show(bool visible) override
@@ -108,6 +124,9 @@ namespace
         // Captureless PrismaUI callbacks reach these statics.
         static inline std::atomic<PrismaView> s_view{ 0 };
         static inline DomReadyFn s_onDomReady{ nullptr };
+        static inline PageReloadFn s_onReload{ nullptr };
+        // Only PrismaUI's DOM-ready callback touches it.
+        static inline ChronicleRuntime::PageLoads s_loads;
     };
 }
 

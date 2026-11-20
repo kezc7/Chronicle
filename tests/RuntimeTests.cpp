@@ -72,12 +72,13 @@ int main()
     Require(!state.Visible());
     state.Menu("MagelightFocus", false);
     Require(state.Visible());
-    // CHRON-28: a conversation leaves Chronicle on screen unless the player
-    // chose to hide it there; it comes back when the conversation ends.
+    // CHRON-28: a conversation hides Chronicle unless the player turned that
+    // off (CHRON-31); it comes back when the conversation ends.
     {
         ChronicleRuntime::State talk;
         talk.loaded = talk.ready = true;
-        Require(!talk.hideDialogue);              // the default keeps the old behaviour
+        Require(talk.hideDialogue);               // on by default since 1.4.26 (CHRON-31)
+        talk.hideDialogue = false;                // the player turned it off
         talk.Menu("Dialogue Menu", true);
         Require(talk.Visible());
         Require(talk.DialogueOnly());             // and its keys still open the chat bar (CHRON-21)
@@ -97,6 +98,21 @@ int main()
         talk.Menu("InventoryMenu", false);
         talk.Menu("MessageBoxMenu", true);
         Require(talk.Visible());
+    }
+    // CHRON-30: a page's first load is not a reload; any later load of the same
+    // page is, per page, so a Magelight copy loaded again gets the handshake.
+    {
+        ChronicleRuntime::PageLoads loads;
+        Require(!loads.Loaded(0));                // no page
+        Require(!loads.Loaded(0));
+        Require(!loads.Loaded(1));                // the panel's first load
+        Require(!loads.Loaded(2));                // the HUD's first load
+        Require(loads.Reloads() == 0);
+        Require(loads.Loaded(2));                 // the HUD released for video memory, shown again
+        Require(loads.Loaded(2));
+        Require(loads.Loaded(1));                 // and the panel
+        Require(loads.Reloads() == 3);
+        Require(!loads.Loaded(3));                // another page is new
     }
     // DFC's panel and wheel use PrismaUI, including with Chronicle on Magelight.
     for (const std::string_view hostMenu : { "PrismaUI_FocusMenu", "MagelightFocus" }) {
@@ -172,7 +188,12 @@ int main()
     state.Menu("Book Menu", true);
     Require(!state.Visible());
     state.Menu("Book Menu", false);
-    state.Menu("Dialogue Menu", true); // conversations stay visible
+    state.Menu("Dialogue Menu", true); // conversations hide it by default (CHRON-31)
+    Require(!state.Visible());
+    state.Menu("Dialogue Menu", false);
+    Require(state.Visible());
+    state.hideDialogue = false;          // and stay visible with Hide in conversations off
+    state.Menu("Dialogue Menu", true);
     Require(state.Visible());
     state.Menu("Dialogue Menu", false);
     Require(state.Visible());
@@ -434,11 +455,13 @@ int main()
             state.Menu(menu, false);
             Require(state.KeysFree() && !state.DialogueOnly());
         }
-        // Dialogue leaves Chronicle shown, and Chronicle's keys work there as before 1.4.19:
-        // the input key opens the chat bar to speak to that NPC through SkyrimNet.
+        // With Hide in conversations off, dialogue leaves Chronicle shown, and Chronicle's keys
+        // work there as before 1.4.19: the input key opens the chat bar to speak to that NPC
+        // through SkyrimNet.
         {
             State state;
             state.loaded = state.ready = true;
+            state.hideDialogue = false;
             state.Menu("Dialogue Menu", true);
             Require(state.Visible() && !state.KeysFree() && state.DialogueOnly());
             KeyState s = free;

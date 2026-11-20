@@ -1090,15 +1090,39 @@ namespace ChronicleRuntime
         return std::wstring(name);
     }
 
+    // CHRON-30: which pages have loaded once. A page that loads again comes
+    // back with nothing of the handshake in it (Magelight releases hidden
+    // views when the game runs short of video memory and loads them again
+    // when shown), so it is sent the whole handshake again. Pages are the
+    // host's view handles; 0 is no page.
+    class PageLoads
+    {
+    public:
+        // True when this page has loaded before: this load is a reload.
+        bool Loaded(std::uint64_t page)
+        {
+            if (!page) return false;
+            if (m_pages.insert(page).second) return false;
+            ++m_reloads;
+            return true;
+        }
+        std::size_t Reloads() const { return m_reloads; }
+
+    private:
+        std::unordered_set<std::uint64_t> m_pages;
+        std::size_t m_reloads{ 0 };
+    };
+
     struct State
     {
         bool loaded = false;
         bool ready = false;
         bool hideMenus = true;
         bool hidePhoto = true;
-        // The player's choice (CHRON-28): hide while talking to an NPC. Off
-        // keeps the window on screen in conversations, as before.
-        bool hideDialogue = false;
+        // The player's choice (CHRON-28): hide while talking to an NPC. On by
+        // default since 1.4.26 (CHRON-31); off keeps the window on screen in
+        // conversations.
+        bool hideDialogue = true;
         bool userHidden = false;  // hidden with the show/hide hotkey
         // The host's focus menu hides Chronicle only while another mod's view
         // owns input: on the Magelight build Chronicle's own focus opens it too.

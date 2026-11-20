@@ -50,11 +50,12 @@ those mods show as written. `Chronicle.log` names each such speaker once.
 - **Escape** releases interaction and returns control to Skyrim.
 - While a game menu has the keyboard, Chronicle's keys do nothing and reach the menu.
   That covers crafting, barter, containers, inventory, message boxes, the console and
-  another mod's window: Enter confirms there as usual. A conversation is the one
-  exception: Chronicle's keys work there as always, so the input key opens the chat bar
-  to speak to that NPC through SkyrimNet. A message box or another mod's window over the
-  conversation still gets the keys. With **Hide in conversations** on (General), Chronicle
-  hides for the conversation instead, and its keys go to the game until it ends.
+  another mod's window: Enter confirms there as usual. In a conversation Chronicle hides
+  (**Hide in conversations**, General, on by default) and its keys go to the game until
+  it ends. With that setting off, a conversation is the one exception: Chronicle stays
+  on screen and its keys work there as always, so the input key opens the chat bar to
+  speak to that NPC through SkyrimNet. A message box or another mod's window over the
+  conversation still gets the keys.
 - **Position** in settings restores an on-screen window position.
 
 ### Controller
@@ -102,8 +103,8 @@ The overlay is always hidden on the main menu and during loading. Hiding it duri
 other menus is configurable (this includes PrismaUI menus such as DFC, which open
 `PrismaUI_FocusMenu`, Meridian UI menus such as Wayframe, which
 open `MeridianUI_FocusMenu`, and Magelight UI menus, which open `MagelightFocus`);
-captured messages remain in history while hidden. Conversations with NPCs leave it on
-screen unless **Hide in conversations** is on; it comes back when the conversation ends.
+captured messages remain in history while hidden. Conversations with NPCs hide it too
+unless **Hide in conversations** is off; it comes back when the conversation ends.
 
 ## Settings and history
 
@@ -257,7 +258,10 @@ settings file are shared with the PrismaUI build; chat history is not, because
 Magelight keeps page storage in its own folder. Known differences: Magelight
 draws its own cursor while Chronicle has focus, Page Up (Magelight's toggle
 key) also releases Chronicle's focus, and the host's text gamma differs
-slightly. Diagnostics shows which host the DLL was built for.
+slightly. Diagnostics shows which host the DLL was built for. When the game runs
+short of video memory, Magelight frees hidden pages and loads them again when they
+show; Chronicle then hands the page its settings, character and history again, and
+`Chronicle.log` says "page loaded again".
 
 ## Build
 

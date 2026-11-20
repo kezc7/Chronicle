@@ -28,7 +28,7 @@ const DEFAULT_CONFIG = {
     persist_history: true,
     hide_in_menus: true,
     hide_in_photo_mode: true,
-    hide_in_dialogue: false,   // hide while talking to an NPC (CHRON-28); off keeps it shown
+    hide_in_dialogue: true,    // hide while talking to an NPC (CHRON-28); on unless turned off (CHRON-31)
     combat_hits: true,
     dialogue_radius: 0,       // Skyrim world units; 0 = unlimited
     hide_game_notifications: false,
@@ -130,7 +130,7 @@ function normalizeConfig() {
   g.combat_hits = g.combat_hits !== false;
   g.dialogue_radius = clamp(Number(g.dialogue_radius) || 0, 0, 5000);
   g.hide_game_notifications = g.hide_game_notifications === true;
-  g.hide_in_dialogue = g.hide_in_dialogue === true;
+  g.hide_in_dialogue = g.hide_in_dialogue !== false;
   g.language = normalizeLanguage(g.language);
   if (typeof g.toggle_hotkey !== 'string' || !/^(Enter|[a-z0-9]|F([1-9]|1[0-2]))?$/i.test(g.toggle_hotkey)) g.toggle_hotkey = '';
   if (!['lb+y', 'lb+x', 'rb+y', 'rb+x', 'off'].includes(g.controller_combo)) g.controller_combo = 'lb+y';
@@ -672,7 +672,7 @@ function populateSettingsForm() {
   document.getElementById('sp-enabled').checked     = g.enabled;
   document.getElementById('sp-hide-menus').checked  = g.hide_in_menus;
   document.getElementById('sp-hide-photo').checked  = g.hide_in_photo_mode;
-  document.getElementById('sp-hide-dialogue').checked = g.hide_in_dialogue === true;
+  document.getElementById('sp-hide-dialogue').checked = g.hide_in_dialogue !== false;
   document.getElementById('sp-config-hotkey').value = g.config_hotkey || '0';
   document.getElementById('sp-input-hotkey').value  = g.input_hotkey  || 'Enter';
   hotkeyStatus('');

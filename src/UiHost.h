@@ -49,6 +49,14 @@ public:
     virtual void RegisterListener(const char* name, Listener fn) = 0;
     // Native -> page: runs a script in the page.
     virtual void Invoke(const char* script) = 0;
+
+    // CHRON-30: a page the host loaded again after its first load, with none
+    // of the handshake left in it. The handler names the page (its view
+    // handle), may run on a host thread, and posts its work to the main
+    // thread; InvokePage runs a script in that one page.
+    using PageReloadFn = void (*)(std::uint64_t page);
+    virtual void SetPageReloadHandler(PageReloadFn fn) = 0;
+    virtual void InvokePage(std::uint64_t page, const char* script) = 0;
     virtual void Show(bool visible) = 0;
 
     // Input ownership. Focus() asks for keyboard/mouse; it may be granted

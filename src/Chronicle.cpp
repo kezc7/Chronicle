@@ -200,6 +200,9 @@ void Chronicle::RegisterEventSinks()
 
 void Chronicle::InitUiHost()
 {
+    UiHost().SetPageReloadHandler([](std::uint64_t page) {
+        MainTask([page] { Chronicle::GetSingleton()->ReplayPage(page); });
+    });
     const bool created = UiHost().CreateView([] {
         MainTask([] { Chronicle::GetSingleton()->OnViewReady(); });
     });
@@ -243,8 +246,44 @@ void Chronicle::OnViewReady()
 void Chronicle::Bootstrap()
 {
     if (!m_viewReady || m_bootstrapped) return;
-    nlohmann::json settings = nullptr;
     std::string warning;
+    const auto settings = ReadSettingsFile(true, warning);
+    m_bootstrapped = true;
+    m_state.ready = true;
+    InvokeUI(BootstrapScript(settings, warning));
+    PublishRuntime();
+    UpdateVisibility();
+    FlushPendingUI();
+}
+
+// CHRON-30: a page the host loaded again (Magelight releases hidden views when
+// the game runs short of video memory) has lost the handshake, so that page
+// alone is sent it again: the settings file, the character and the save's
+// stretches of play (its history comes back from them), and the visibility.
+// The other copy keeps what it shows, including a settings preview.
+void Chronicle::ReplayPage(std::uint64_t page)
+{
+    GameThread::Check();
+    auto& host = UiHost();
+    if (!m_bootstrapped || !m_viewReady || !host.ViewValid()) {
+        spdlog::info("Chronicle: {} page loaded again before the first handshake; it asks for one itself", host.Name());
+        return;
+    }
+    std::string warning;
+    const auto settings = ReadSettingsFile(false, warning);
+    host.InvokePage(page, BootstrapScript(settings, warning).c_str());
+    host.InvokePage(page, RuntimeScript().c_str());
+    host.InvokePage(page, m_hidden ? "setVisibility(false)" : "setVisibility(true)");
+    spdlog::info("Chronicle: {} page {} handed its settings, character and visibility again{}", host.Name(), page,
+        m_gameLoaded ? "" : " (no game loaded)");
+}
+
+// The settings file as the page gets it. The first read of a session also
+// moves an old Language value to the suite's code and applies the settings
+// natively; a page loaded again only needs to see what native already uses.
+nlohmann::json Chronicle::ReadSettingsFile(bool firstRead, std::string& warning)
+{
+    nlohmann::json settings = nullptr;
     try {
         if (std::filesystem::exists(kSettingsPath)) {
             if (std::filesystem::file_size(kSettingsPath) > 65536) throw std::runtime_error("Settings file exceeds 64 KB");
@@ -253,7 +292,7 @@ void Chronicle::Bootstrap()
             input.close();
             // An older Language value ("zh", "zh-Hans", an English name) is
             // written back once as the suite's code.
-            if (settings.contains("general") && settings["general"].is_object() &&
+            if (firstRead && settings.contains("general") && settings["general"].is_object() &&
                 settings["general"].contains("language") && settings["general"]["language"].is_string()) {
                 const auto stored = settings["general"]["language"].get<std::string>();
                 const auto code = ChronicleRuntime::CanonicalLanguage(stored);
@@ -268,27 +307,27 @@ void Chronicle::Bootstrap()
                     }
                 }
             }
-            ApplyNativeSettings(settings);
+            if (firstRead) ApplyNativeSettings(settings);
         }
     } catch (const std::exception& e) {
         settings = nullptr;
         warning = e.what();
         spdlog::warn("Chronicle: Settings file could not be loaded: {}", warning);
     }
+    return settings;
+}
+
+std::string Chronicle::BootstrapScript(const nlohmann::json& settings, const std::string& warning) const
+{
     // Hosts whose pages cannot fetch config.json hand the first-run defaults over here.
     nlohmann::json defaults = nullptr;
     if (const auto text = UiHost().FirstRunDefaults(); !text.empty()) {
         try { defaults = nlohmann::json::parse(text); }
         catch (const std::exception& e) { spdlog::warn("Chronicle: bundled config.json unreadable: {}", e.what()); }
     }
-    m_bootstrapped = true;
-    m_state.ready = true;
-    InvokeUI("nativeBootstrap(" + Json({{"settings", settings}, {"defaults", defaults}, {"warning", warning},
+    return "nativeBootstrap(" + Json({{"settings", settings}, {"defaults", defaults}, {"warning", warning},
         {"version", CHRONICLE_VERSION}, {"nativeHotkeys", true}, {"gameLanguage", m_gameLanguage},
-        {"host", UiHost().Name()}}) + ")");
-    PublishRuntime();
-    UpdateVisibility();
-    FlushPendingUI();
+        {"host", UiHost().Name()}}) + ")";
 }
 
 void Chronicle::UpdateVisibility()
@@ -379,18 +418,23 @@ void Chronicle::SetApiHidden(bool hidden)
 void Chronicle::PublishRuntime()
 {
     if (!m_bootstrapped) return;
+    InvokeUI(RuntimeScript());
+}
+
+std::string Chronicle::RuntimeScript() const
+{
     std::string name;
     if (m_gameLoaded) {
         if (auto* player = RE::PlayerCharacter::GetSingleton()) name = player->GetName();
     }
-    InvokeUI("setRuntime(" + Json({
+    return "setRuntime(" + Json({
         {"loaded", m_gameLoaded.load()}, {"profile", m_gameLoaded ? std::to_string(profileId.load()) : ""},
         {"character", ChronicleUtf8::ReplaceInvalid(name).value},
         // The page offers its old localStorage lines once when this is true.
         {"historyEmpty", m_historyProfile != 0 && m_history.Empty()},
         // The loaded save's stretches of play; null shows every line (CHRON-18).
         {"lineage", m_gameLoaded && !m_lineage.ShowsAll() ? m_lineage.ToJson() : nlohmann::json(nullptr)}
-    }) + ")");
+    }) + ")";
 }
 
 void Chronicle::OnLineageLoaded(std::optional<std::vector<ChronicleHistory::Lineage::Range>> ranges)
@@ -741,7 +785,8 @@ void Chronicle::ApplyNativeSettings(const nlohmann::json& settings)
     m_state.hideMenus = hideMenus;
     m_state.hidePhoto = hidePhoto;
     // Logged when it changes: once at load when on, then once per save that changes it.
-    if (const bool hideDialogue = general.value("hide_in_dialogue", false); hideDialogue != m_state.hideDialogue) {
+    // On unless the file says off (CHRON-31): a file from before 1.4.24 has no such key.
+    if (const bool hideDialogue = general.value("hide_in_dialogue", true); hideDialogue != m_state.hideDialogue) {
         spdlog::info("Chronicle: hide in conversations {} -> {}", m_state.hideDialogue ? "on" : "off", hideDialogue ? "on" : "off");
         m_state.hideDialogue = hideDialogue;
     }
