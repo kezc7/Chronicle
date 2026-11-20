@@ -1,4 +1,4 @@
-# Chronicle 1.4.24
+# Chronicle 1.4.25
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -333,6 +333,17 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.4.25-beta
+
+Twenty-sixth beta, PrismaUI and Magelight builds.
+
+- Every list in Chronicle (language, controller, theme, anchor, speaker colours, and the
+  speaker filter in the window) is now the Dovah suite's list, the same one DovahHub
+  uses. A, Enter or a click opens it, the d-pad or arrow keys move in it, A or Enter
+  picks, and B or Escape closes it with nothing changed. A list no longer changes when
+  you press left or right on it. Chronicle brings its own copy, so this works without
+  DovahHub.
 
 ## 1.4.24-beta
 
