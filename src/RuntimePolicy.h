@@ -1096,6 +1096,9 @@ namespace ChronicleRuntime
         bool ready = false;
         bool hideMenus = true;
         bool hidePhoto = true;
+        // The player's choice (CHRON-28): hide while talking to an NPC. Off
+        // keeps the window on screen in conversations, as before.
+        bool hideDialogue = false;
         bool userHidden = false;  // hidden with the show/hide hotkey
         // The host's focus menu hides Chronicle only while another mod's view
         // owns input: on the Magelight build Chronicle's own focus opens it too.
@@ -1151,6 +1154,9 @@ namespace ChronicleRuntime
         bool Visible() const
         {
             if (!loaded || !ready || userHidden || apiHidden) return false;
+            // The Dialogue Menu only ever lands in keyboardMenus: it never hides
+            // Chronicle unless the player turned this on.
+            if (hideDialogue && keyboardMenus.count("Dialogue Menu") != 0) return false;
             for (const auto& name : menus) {
                 if (ownsFocus && name == ownFocusMenu) continue;
                 if (IsTransition(name) || (name == "PhotoMenu" ? hidePhoto : hideMenus)) return false;

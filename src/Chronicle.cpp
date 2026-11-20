@@ -304,7 +304,7 @@ void Chronicle::UpdateVisibility()
             "AlchemyMenu", "Alchemy Menu", "EnchantingMenu", "Enchanting Menu",
             "CookingMenu", "Cooking Menu", "PhotoMenu", "PrismaUI_FocusMenu", "MeridianUI_FocusMenu", "MagelightFocus", "Console",
             "RaceSex Menu", "Book Menu", "Lockpicking Menu", "Training Menu", "GiftMenu",
-            "Tutorial Menu", "Credits Menu", "Mod Manager Menu", "CustomMenu"
+            "Tutorial Menu", "Credits Menu", "Mod Manager Menu", "CustomMenu", "Dialogue Menu"
         };
         for (auto name : names) {
             const bool open = ui->IsMenuOpen(name);
@@ -740,6 +740,11 @@ void Chronicle::ApplyNativeSettings(const nlohmann::json& settings)
     const bool hidePhoto = general.value("hide_in_photo_mode", true);
     m_state.hideMenus = hideMenus;
     m_state.hidePhoto = hidePhoto;
+    // Logged when it changes: once at load when on, then once per save that changes it.
+    if (const bool hideDialogue = general.value("hide_in_dialogue", false); hideDialogue != m_state.hideDialogue) {
+        spdlog::info("Chronicle: hide in conversations {} -> {}", m_state.hideDialogue ? "on" : "off", hideDialogue ? "on" : "off");
+        m_state.hideDialogue = hideDialogue;
+    }
     m_combatHits = general.value("combat_hits", true);
     m_dialogueRadius = ChronicleRuntime::NormalizeDialogueRadius(
         general.value("dialogue_radius", 0.0F));

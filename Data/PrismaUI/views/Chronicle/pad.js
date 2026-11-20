@@ -37,7 +37,8 @@ const PAD_BUTTONS = {0: 'accept', 1: 'cancel', 2: 'secondary', 3: 'tertiary', 4:
   12: 'up', 13: 'down', 14: 'left', 15: 'right'};
 const PAD_REPEATS = new Set(['up', 'down', 'left', 'right']);
 
-const padState = {held: new Set(), stale: new Set(), stick: '', repeatAt: 0, repeatAction: '', wasOpen: false};
+const padState = {held: new Set(), stale: new Set(), stick: '', repeatAt: 0, repeatAction: '', wasOpen: false,
+  settingsAt: null};
 
 function setInputDevice(device) {
   const value = device === 'gamepad' ? 'gamepad' : 'keyboardMouse';
@@ -77,11 +78,7 @@ function padNextSpeaker() {
 // One pad action in the chat window. True when Chronicle used it.
 function padAction(action) {
   if (!interactionOpen || !runtime.visible || !runtime.loaded) return false;
-  if (settingsOpen) {
-    if (action !== 'cancel') return false;
-    closeSettings();
-    return true;
-  }
+  if (settingsOpen) return padSettingsAction(action);
   if (inputOpen) {
     if (action === 'up' || action === 'down') { recallInput(action === 'up' ? 1 : -1); return true; }
     if (action === 'previousTab' || action === 'nextTab') {
@@ -106,6 +103,97 @@ function padAction(action) {
   case 'cancel': closeInteraction(); return true;
   case 'secondary': scrollToBottom(); return true;
   case 'tertiary': padNextSpeaker(); return true;
+  default: return false;
+  }
+}
+
+// The settings panel with the pad (CHRON-28; the suite's pad rule of 17 Nov).
+// The d-pad walks every control, from the tabs at the top through the open tab
+// to the buttons at the bottom, and wraps round. Left / right change a slider,
+// a number or a list (on a tab they switch tabs, as LB / RB do); A ticks a box,
+// presses a button or steps a list; B closes. Nothing native opens under the
+// pad: a list steps in place instead of dropping down, colour and text boxes
+// are left to the mouse and keyboard, and a hotkey box is never focused
+// (focusing it starts a key capture).
+const PAD_SETTINGS_CONTROLS = '.sp-tab, .sp-section.active input, .sp-section.active select, ' +
+  '.sp-section.active button, .sp-section.active textarea, #sp-footer button';
+
+function padSettingsControls() {
+  const panel = document.getElementById('settings-panel');
+  if (!panel) return [];
+  return [...panel.querySelectorAll(PAD_SETTINGS_CONTROLS)]
+    .filter(el => !el.disabled && !el.hidden && el.type !== 'hidden' && !el.closest('.hidden, [hidden]'));
+}
+
+// A switch's checkbox is invisible: the ring goes on the switch around it.
+function padSettingsRing(el) {
+  return el.closest('.sp-toggle, .sp-check') || el;
+}
+
+function padSettingsFocus(el) {
+  if (padState.settingsAt) padSettingsRing(padState.settingsAt).classList.remove('dv-focused');
+  padState.settingsAt = el || null;
+  if (!el) return;
+  const ring = padSettingsRing(el);
+  ring.classList.add('dv-focused');
+  if (typeof ring.scrollIntoView === 'function') ring.scrollIntoView({block: 'nearest'});
+}
+
+function padSettingsFire(el, ...types) {
+  for (const type of types) el.dispatchEvent(new Event(type, {bubbles: true}));
+}
+
+function padSettingsAdjust(el, step) {
+  if (el.tagName === 'SELECT') {
+    const values = [...el.options].filter(option => !option.disabled).map(option => option.value);
+    if (values.length < 2) return true;
+    el.value = padStep(values, el.value, step);
+    padSettingsFire(el, 'input', 'change');
+    return true;
+  }
+  if (el.tagName !== 'INPUT' || (el.type !== 'range' && el.type !== 'number')) return false;
+  const size = parseFloat(el.step) > 0 ? parseFloat(el.step) : 1;
+  const min = Number.isFinite(parseFloat(el.min)) ? parseFloat(el.min) : -Infinity;
+  const max = Number.isFinite(parseFloat(el.max)) ? parseFloat(el.max) : Infinity;
+  const decimals = (String(size).split('.')[1] || '').length;
+  const next = Number(Math.min(max, Math.max(min, (parseFloat(el.value) || 0) + step * size)).toFixed(decimals));
+  if (String(next) !== String(el.value)) {
+    el.value = String(next);
+    padSettingsFire(el, 'input', 'change');
+  }
+  return true;
+}
+
+function padSettingsTab(step) {
+  const tabs = [...document.querySelectorAll('.sp-tab')];
+  if (!tabs.length) return;
+  const at = tabs.findIndex(tab => tab.classList.contains('is-active'));
+  const tab = tabs[((at < 0 ? 0 : at + step) % tabs.length + tabs.length) % tabs.length];
+  tab.click();
+  padSettingsFocus(tab);
+}
+
+function padSettingsAction(action) {
+  const controls = padSettingsControls();
+  const el = controls.includes(padState.settingsAt) ? padState.settingsAt : null;
+  if (!el && padState.settingsAt) padSettingsFocus(null);  // its tab was closed
+  switch (action) {
+  case 'cancel': closeSettings(); return true;
+  case 'up': case 'down':
+    if (controls.length) padSettingsFocus(padStep(controls, el, action === 'down' ? 1 : -1));
+    return true;
+  case 'left': case 'right': {
+    const step = action === 'right' ? 1 : -1;
+    if (el && el.classList.contains('sp-tab')) padSettingsTab(step);
+    else if (el) padSettingsAdjust(el, step);
+    return true;
+  }
+  case 'previousTab': case 'nextTab': padSettingsTab(action === 'nextTab' ? 1 : -1); return true;
+  case 'accept':
+    if (!el) { if (controls.length) padSettingsFocus(controls[0]); return true; }
+    if (el.tagName === 'SELECT') padSettingsAdjust(el, 1);
+    else if (el.tagName === 'BUTTON' || (el.tagName === 'INPUT' && el.type === 'checkbox')) el.click();
+    return true;
   default: return false;
   }
 }

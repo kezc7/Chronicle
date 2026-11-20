@@ -72,6 +72,32 @@ int main()
     Require(!state.Visible());
     state.Menu("MagelightFocus", false);
     Require(state.Visible());
+    // CHRON-28: a conversation leaves Chronicle on screen unless the player
+    // chose to hide it there; it comes back when the conversation ends.
+    {
+        ChronicleRuntime::State talk;
+        talk.loaded = talk.ready = true;
+        Require(!talk.hideDialogue);              // the default keeps the old behaviour
+        talk.Menu("Dialogue Menu", true);
+        Require(talk.Visible());
+        Require(talk.DialogueOnly());             // and its keys still open the chat bar (CHRON-21)
+        talk.hideDialogue = true;
+        Require(!talk.Visible());
+        talk.Menu("Dialogue Menu", false);
+        Require(talk.Visible());
+        talk.Menu("Dialogue Menu", true);
+        talk.hideDialogue = false;                // applied without a reload
+        Require(talk.Visible());
+        talk.hideDialogue = true;
+        talk.hideMenus = false;                   // separate from "Hide in menus"
+        Require(!talk.Visible());
+        talk.Menu("Dialogue Menu", false);
+        talk.Menu("InventoryMenu", true);
+        Require(talk.Visible());                  // only the conversation is affected
+        talk.Menu("InventoryMenu", false);
+        talk.Menu("MessageBoxMenu", true);
+        Require(talk.Visible());
+    }
     // DFC's panel and wheel use PrismaUI, including with Chronicle on Magelight.
     for (const std::string_view hostMenu : { "PrismaUI_FocusMenu", "MagelightFocus" }) {
         ChronicleRuntime::State hostState;

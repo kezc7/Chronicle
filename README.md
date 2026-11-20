@@ -53,7 +53,8 @@ those mods show as written. `Chronicle.log` names each such speaker once.
   another mod's window: Enter confirms there as usual. A conversation is the one
   exception: Chronicle's keys work there as always, so the input key opens the chat bar
   to speak to that NPC through SkyrimNet. A message box or another mod's window over the
-  conversation still gets the keys.
+  conversation still gets the keys. With **Hide in conversations** on (General), Chronicle
+  hides for the conversation instead, and its keys go to the game until it ends.
 - **Position** in settings restores an on-screen window position.
 
 ### Controller
@@ -84,12 +85,20 @@ the d-pad and A work as above, B closes the whole window (as Escape does there),
 right stick scrolls under the pointer, and LB, RB, X and Y aren't passed to the window.
 Use left / right for the channel tabs there.
 
+The settings panel works on the controller too. The d-pad walks every setting, from the
+tabs at the top to the buttons at the bottom, and comes round again. Left / right move a
+slider or number, or step through a list's choices (a list never drops down); A ticks a
+switch, presses a button or steps a list; LB / RB change the settings tab (on Magelight,
+go up to the tabs and use left / right); B closes without applying. Settings are saved
+with **Apply**. Hotkey, text and colour boxes need the keyboard and mouse.
+
 Hotkeys can be letters, digits, Enter, or F1–F12. Settings adds Shift to its key.
 The overlay is always hidden on the main menu and during loading. Hiding it during
 other menus is configurable (this includes PrismaUI menus such as DFC, which open
 `PrismaUI_FocusMenu`, Meridian UI menus such as Wayframe, which
 open `MeridianUI_FocusMenu`, and Magelight UI menus, which open `MagelightFocus`);
-captured messages remain in history while hidden.
+captured messages remain in history while hidden. Conversations with NPCs leave it on
+screen unless **Hide in conversations** is on; it comes back when the conversation ends.
 
 ## Settings and history
 

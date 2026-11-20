@@ -10,6 +10,7 @@
     "persist_history": true,
     "hide_in_menus": true,
     "hide_in_photo_mode": true,
+    "hide_in_dialogue": false,
     "combat_hits": true,
     "dialogue_radius": 0,
     "hide_game_notifications": false,

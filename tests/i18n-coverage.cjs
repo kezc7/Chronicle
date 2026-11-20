@@ -52,7 +52,8 @@ const KEEP = new Set([
 // the same way. Each one was checked against the language, not just let through.
 const SAME_WORD = {
   fr: ['message', 'messages', 'notifications', 'session', 'active', 'interaction', 'menus', 'mode', 'photo', 'visible',
-       'corrections', 'max', 'position', 'configuration', 'exact', 'palette', 'distance', 'console', 'code', 'combat'],
+       'corrections', 'max', 'position', 'configuration', 'exact', 'palette', 'distance', 'console', 'code', 'combat',
+       'conversation', 'conversations'],
   de: ['export', 'native', 'quest', 'tabs', 'max', 'position', 'optional', 'palette', 'code', 'info', 'controller'],
   it: ['mouse', 'native', 'file', 'max', 'per', 'console', 'chat', 'controller'],
   es: ['visible', 'cursor', 'real', 'chat'],

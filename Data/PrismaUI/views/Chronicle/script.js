@@ -28,6 +28,7 @@ const DEFAULT_CONFIG = {
     persist_history: true,
     hide_in_menus: true,
     hide_in_photo_mode: true,
+    hide_in_dialogue: false,   // hide while talking to an NPC (CHRON-28); off keeps it shown
     combat_hits: true,
     dialogue_radius: 0,       // Skyrim world units; 0 = unlimited
     hide_game_notifications: false,
@@ -129,6 +130,7 @@ function normalizeConfig() {
   g.combat_hits = g.combat_hits !== false;
   g.dialogue_radius = clamp(Number(g.dialogue_radius) || 0, 0, 5000);
   g.hide_game_notifications = g.hide_game_notifications === true;
+  g.hide_in_dialogue = g.hide_in_dialogue === true;
   g.language = normalizeLanguage(g.language);
   if (typeof g.toggle_hotkey !== 'string' || !/^(Enter|[a-z0-9]|F([1-9]|1[0-2]))?$/i.test(g.toggle_hotkey)) g.toggle_hotkey = '';
   if (!['lb+y', 'lb+x', 'rb+y', 'rb+x', 'off'].includes(g.controller_combo)) g.controller_combo = 'lb+y';
@@ -629,6 +631,7 @@ function openSettings() {
   closeInput();
   settingsSnapshot = deepMerge({}, config);
   settingsOpen = true;
+  padSettingsFocus(null);
 
   populateSettingsForm();
   document.getElementById('settings-overlay').classList.remove('hidden');
@@ -640,6 +643,7 @@ function closeSettings() {
   if (!settingsOpen) return;
   discardSettingsPreview();
   settingsOpen = false;
+  padSettingsFocus(null);
 
   document.getElementById('settings-overlay').classList.add('hidden');
   closeInteraction();
@@ -668,6 +672,7 @@ function populateSettingsForm() {
   document.getElementById('sp-enabled').checked     = g.enabled;
   document.getElementById('sp-hide-menus').checked  = g.hide_in_menus;
   document.getElementById('sp-hide-photo').checked  = g.hide_in_photo_mode;
+  document.getElementById('sp-hide-dialogue').checked = g.hide_in_dialogue === true;
   document.getElementById('sp-config-hotkey').value = g.config_hotkey || '0';
   document.getElementById('sp-input-hotkey').value  = g.input_hotkey  || 'Enter';
   hotkeyStatus('');
@@ -752,7 +757,7 @@ function buildChannelRows() {
     row.innerHTML = `
       <span class="sp-ch-name" data-i18n="channel.${ch}">${label}</span>
       <label class="dv-toggle sp-toggle">
-        <input type="checkbox" class="ch-enabled" ${cfg.enabled ? 'checked' : ''} />
+        <input type="checkbox" class="ch-enabled" ${cfg.enabled ? 'checked' : ''} ${ch === 'all' ? 'disabled' : ''} />
         <span class="dv-toggle__track"><i></i></span>
       </label>
       <input type="text" class="sp-field ch-prefix" value="${escapeHtml(cfg.prefix || '')}"
@@ -874,6 +879,7 @@ function collectSettingsFromForm() {
       persist_history:    document.getElementById('sp-persist-history').checked,
       hide_in_menus:      document.getElementById('sp-hide-menus').checked,
       hide_in_photo_mode: document.getElementById('sp-hide-photo').checked,
+      hide_in_dialogue:   document.getElementById('sp-hide-dialogue').checked,
       combat_hits:        document.getElementById('sp-combat-hits').checked,
       dialogue_radius:    clamp(Number(document.getElementById('sp-dialogue-radius-val').value) || 0, 0, 5000),
       hide_game_notifications: document.getElementById('sp-hide-game-notifications').checked,
@@ -1229,6 +1235,15 @@ document.addEventListener('keydown', e => {
   if (settingsOpen) {
     if (e.key === 'Escape') {
       closeSettings();
+      e.preventDefault();
+      return;
+    }
+    // Magelight's pad layer types the d-pad as arrows and A as Enter: the
+    // panel takes them as the pad (CHRON-28). PrismaUI reads the pad itself.
+    const typed = {38: 'up', 40: 'down', 37: 'left', 39: 'right', 13: 'accept'}[e.keyCode] ||
+      {ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', Enter: 'accept'}[e.key];
+    if (runtime.host === 'Magelight' && typed && !e.shiftKey && !e.ctrlKey && !e.altKey) {
+      padFire(typed);
       e.preventDefault();
     }
     return;
