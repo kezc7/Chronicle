@@ -1,4 +1,4 @@
-# Chronicle 1.4.23
+# Chronicle 1.4.24
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -328,6 +328,19 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.4.24-beta
+
+Twenty-fifth beta, PrismaUI and Magelight builds.
+
+- New setting, General → **Hide in conversations**: Chronicle hides while you talk to an
+  NPC and comes back when the conversation ends. It is off unless you turn it on, so
+  nothing changes on update. While it hides Chronicle, Chronicle's keys go to the game.
+- The settings panel works on the controller: the d-pad walks every setting, left / right
+  change sliders and lists in place, A ticks switches and presses buttons, LB / RB change
+  the tab, B closes. See Controller above.
+- The "All" channel's switch in Channels is greyed out. All is always shown, and the
+  switch used to turn itself back on after Apply.
 
 ## 1.4.23-beta
 
