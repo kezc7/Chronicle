@@ -1,4 +1,4 @@
-# Chronicle 1.4.25
+# Chronicle 1.4.26
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -337,6 +337,21 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.4.26-beta
+
+Twenty-seventh beta, PrismaUI and Magelight builds.
+
+- Magelight: after a long pause or a busy scene, the chat window could come back empty,
+  and the settings window could show the defaults instead of your settings. When the
+  game runs short of video memory, Magelight frees Chronicle's hidden window and loads it
+  again later, and Chronicle didn't fill it in again. Now it does: your history,
+  settings and the window's visibility come back. Lines that arrive while it reloads
+  show once.
+- **Hide in conversations** (General) is now on by default: Chronicle hides while you
+  talk to an NPC and comes back when the conversation ends. If you had already turned it
+  off and pressed Apply, it stays off. To keep the window up in conversations (to type to
+  the NPC through SkyrimNet, say), turn it off.
 
 ## 1.4.25-beta
 
