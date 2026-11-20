@@ -29,6 +29,13 @@ not redistribute the Magelight runtime.
 (`src/api/DovahHub_API.h`), by the same author and under the same GNU GPL, version 3.
 Chronicle reaches DovahHub.dll through it at runtime only when DovahHub is installed.
 
+## DovahHub list control
+
+`dropdowns.js` and `dropdowns.css` in the chat window's folder are copied unchanged from
+[DovahHub](https://github.com/kezc7/DovahHub) (`web/dropdowns.js` and `web/dropdowns.css`
+at commit 8210744), by the same author and under the same GNU GPL, version 3. They draw
+the settings' lists and the speaker filter, with or without DovahHub installed.
+
 ## DovahMenu API header
 
 `src/DovahMenu_API.h` is copied unchanged from [DovahMenu](https://github.com/kezc7/DovahMenu)

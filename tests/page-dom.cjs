@@ -18,8 +18,10 @@
 // in a test: index.html parsed into elements with ids, classes, attributes and
 // parents; simple CSS selectors (tag, .class, #id, [attr], [attr=value],
 // descendants, comma lists); events with a capture and a bubble phase; and the
-// form controls' values. No layout. A selector it can't read throws, so a test
-// never passes on a query that silently matched nothing. Tests only.
+// form controls' values; a window that events reach after the document. No
+// layout, and a MutationObserver that never reports. A selector it can't read
+// throws, so a test never passes on a query that silently matched nothing.
+// Tests only.
 
 const VOID = new Set(['input', 'br', 'img', 'meta', 'link', 'hr', 'source', 'col', 'wbr']);
 const RAW = new Set(['script', 'style']);
@@ -125,7 +127,22 @@ class Event {
   }
   preventDefault() { this.defaultPrevented = true; }
   stopPropagation() { this.stopped = true; }
-  stopImmediatePropagation() { this.stopped = true; }
+  stopImmediatePropagation() { this.stopped = true; this.immediate = true; }
+}
+class KeyboardEvent extends Event {
+  constructor(type, init = {}) {
+    super(type, init);
+    for (const key of ['key', 'code', 'keyCode', 'repeat', 'shiftKey', 'ctrlKey', 'altKey', 'metaKey']) {
+      this[key] = init[key] ?? (key === 'key' || key === 'code' ? '' : key === 'keyCode' ? 0 : false);
+    }
+  }
+}
+class FocusEvent extends Event {}
+class MutationObserver {
+  constructor(callback) { this.callback = callback; }
+  observe() {}
+  disconnect() {}
+  takeRecords() { return []; }
 }
 
 class Node {
@@ -145,10 +162,11 @@ class Node {
   dispatchEvent(event) {
     event.target = this;
     const path = [];
-    for (let node = this; node; node = node.parentNode) path.push(node);
+    for (let node = this; node; node = node.parentNode || (node instanceof Document ? node.defaultView : null)) path.push(node);
     const run = (node, capture) => {
       event.currentTarget = node;
       for (const l of [...node.listeners]) {
+        if (event.immediate) return;
         if (l.type === event.type && (node === this || l.capture === capture)) l.listener.call(node, event);
       }
     };
@@ -197,6 +215,7 @@ class Node {
   }
   removeChild(child) { child.remove(); return child; }
   contains(node) { for (; node; node = node.parentNode) if (node === this) return true; return false; }
+  get childNodes() { return [...this.children]; }
   get firstChild() { return this.children[0] || null; }
   get lastChild() { return this.children[this.children.length - 1] || null; }
   get firstElementChild() { return this.firstChild; }
@@ -223,6 +242,7 @@ function makeClassList(element) {
 class Element extends Node {
   constructor(doc, tag, attributes = {}) {
     super(doc);
+    this.nodeType = 1;
     this.tagName = tag.toUpperCase();
     this.attributes = {...attributes};
     this.classList = makeClassList(this);
@@ -262,6 +282,8 @@ class Element extends Node {
   get title() { return this.attributes.title ?? ''; }
   set title(value) { this.attributes.title = String(value); }
   get options() { return this.tagName === 'SELECT' ? this.querySelectorAll('option') : []; }
+  get defaultSelected() { return 'selected' in this.attributes; }
+  get label() { return this.attributes.label ?? this.textContent; }
   get selectedIndex() { return this.options.findIndex(option => option.value === this.value); }
   set selectedIndex(index) { const option = this.options[index]; this._selected = option ? option.value : ''; }
   get value() {
@@ -278,6 +300,8 @@ class Element extends Node {
     value = value === null || value === undefined ? '' : String(value);
     if (this.tagName === 'SELECT') {
       this._selected = this.options.some(option => option.value === value) ? value : '';
+    } else if (this.tagName === 'OPTION') {
+      this.attributes.value = value;
     } else {
       this._value = value;
     }
@@ -360,9 +384,21 @@ class Element extends Node {
   getClientRects() { return []; }
 }
 
-class Document extends Node {
-  constructor(html) {
+// Events that bubble past the document reach it, as in a browser.
+class Window extends Node {
+  constructor() {
     super(null);
+    this.innerWidth = 1920;
+    this.innerHeight = 1080;
+    this.devicePixelRatio = 1;
+    this.location = {search: '', href: ''};
+  }
+}
+
+class Document extends Node {
+  constructor(html, defaultView = null) {
+    super(null);
+    this.defaultView = defaultView;
     this.ownerDocument = this;
     parseInto(this, this, html);
     this.documentElement = this.children.find(child => child.tagName === 'HTML') || this.appendChild(new Element(this, 'html'));
@@ -375,4 +411,4 @@ class Document extends Node {
   createDocumentFragment() { return new Element(this, '#fragment'); }
 }
 
-module.exports = {Document, Element, Event};
+module.exports = {Document, Element, Event, KeyboardEvent, FocusEvent, MutationObserver, Window};

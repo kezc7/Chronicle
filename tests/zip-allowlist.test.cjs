@@ -28,7 +28,8 @@ const path = require('node:path');
 const ROOT = path.join(__dirname, '..');
 const TOOL = path.join(ROOT, 'tools', 'zip-allowlist.py');
 
-const VIEW = ['bridge.js', 'config.json', 'controls.js', 'i18n.js', 'index.html', 'pad.js', 'script.js', 'styles.css',
+const VIEW = ['bridge.js', 'config.json', 'controls.js', 'dropdowns.css', 'dropdowns.js', 'i18n.js', 'index.html', 'pad.js',
+  'script.js', 'styles.css',
   'theme/dovah-theme.css', 'theme/fonts/BarlowCondensed-Medium.ttf', 'theme/fonts/BarlowCondensed-Regular.ttf',
   'theme/fonts/BarlowCondensed-SemiBold.ttf', 'theme/fonts/OFL-BarlowCondensed.txt'];
 const COMMON = ['LICENSE', 'README.md', 'THIRD_PARTY_NOTICES.md', 'SKSE/Plugins/Chronicle.dll', 'SKSE/Plugins/Chronicle.pdb',

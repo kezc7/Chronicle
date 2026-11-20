@@ -586,6 +586,19 @@ body[data-anchor="top-right"] #chronicle-window {
 }
 #settings-overlay.hidden { display: none; }
 
+/* DovahHub's list control (dropdowns.css, copied unchanged; CHRON-29) reads
+   DovahHub's own token names: on its elements they are the kit's. Its list
+   opens above the settings overlay. */
+.wf-select-menu, .wf-choice-button {
+  --accent-bright: var(--dv-accent-bright);
+  --accent-rgb: var(--dv-accent-rgb);
+  --ink: var(--dv-ink);
+  --ink-soft: var(--dv-ink-soft);
+  --muted: var(--dv-muted);
+  --font-body: var(--dv-font);
+}
+.wf-select-menu { z-index: 1100; }
+
 #settings-panel {
   display: flex;
   flex-direction: column;

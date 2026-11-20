@@ -87,10 +87,15 @@ Use left / right for the channel tabs there.
 
 The settings panel works on the controller too. The d-pad walks every setting, from the
 tabs at the top to the buttons at the bottom, and comes round again. Left / right move a
-slider or number, or step through a list's choices (a list never drops down); A ticks a
-switch, presses a button or steps a list; LB / RB change the settings tab (on Magelight,
-go up to the tabs and use left / right); B closes without applying. Settings are saved
-with **Apply**. Hotkey, text and colour boxes need the keyboard and mouse.
+slider or number; A ticks a switch or presses a button; LB / RB change the settings tab
+(on Magelight, go up to the tabs and use left / right); B closes without applying.
+Settings are saved with **Apply**. Hotkey, text and colour boxes need the keyboard and
+mouse.
+
+Every list (language, controller, theme, anchor, speaker colours, and the speaker filter
+in the window) is the Dovah suite's list, as in DovahHub: A, Enter or a click opens it,
+the d-pad or arrow keys move in it, A or Enter picks, and B or Escape closes it with
+nothing changed. A closed list changes only by a choice in its open list.
 
 Hotkeys can be letters, digits, Enter, or F1–F12. Settings adds Shift to its key.
 The overlay is always hidden on the main menu and during loading. Hiding it during

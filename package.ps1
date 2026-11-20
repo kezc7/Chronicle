@@ -69,8 +69,9 @@ if (!(Test-Path -LiteralPath "$buildDir\Chronicle.pdb")) { throw "Chronicle.pdb 
 Copy-Item -LiteralPath "$buildDir\Chronicle.pdb" -Destination "$stage\SKSE\Plugins\Chronicle.pdb"
 & python -I "$projectRoot\tools\pdb-match.py" "$stage\SKSE\Plugins\Chronicle.dll" "$stage\SKSE\Plugins\Chronicle.pdb"
 if ($LASTEXITCODE -ne 0) { throw 'Chronicle.pdb is not from the link that made Chronicle.dll; package not created' }
-# Explicit file list excludes the obsolete standalone settings page and all preview/test assets.
-foreach ($file in 'index.html','script.js','controls.js','pad.js','bridge.js','i18n.js','styles.css','config.json') {
+# Explicit file list: the page's own files, never preview or test assets. dropdowns.js and
+# dropdowns.css are DovahHub's list control, copied unchanged (CHRON-29).
+foreach ($file in 'index.html','script.js','controls.js','pad.js','bridge.js','i18n.js','styles.css','config.json','dropdowns.js','dropdowns.css') {
     Copy-Item -LiteralPath "$projectRoot\Data\PrismaUI\views\Chronicle\$file" -Destination "$stage\$viewDir\$file"
 }
 # The suite's theme kit (from DovahHub, unchanged) and its fonts with their licence.

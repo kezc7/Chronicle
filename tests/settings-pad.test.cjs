@@ -15,18 +15,20 @@
 // The settings panel on a controller, run on the real index.html (the suite's
 // pad and settings rule of 17 Nov): the pad walks past every control of every
 // tab without getting stuck, and "Hide in conversations" (CHRON-28) can be set
-// with the pad, is saved, and reads back after a reload, on both hosts.
+// with the pad, is saved, and reads back after a reload, on both hosts. The
+// lists are DovahHub's list control (dropdowns.js, CHRON-29): A opens one, the
+// d-pad moves in it, A picks and B closes it.
 
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
-const {Document, Event} = require('./page-dom.cjs');
+const {Document, Element, Event, KeyboardEvent, FocusEvent, MutationObserver, Window} = require('./page-dom.cjs');
 
 const view = path.join(__dirname, '../Data/PrismaUI/views/Chronicle');
 const html = fs.readFileSync(path.join(view, 'index.html'), 'utf8');
-const sources = ['i18n.js', 'bridge.js', 'controls.js', 'pad.js', 'script.js']
+const sources = ['dropdowns.js', 'i18n.js', 'bridge.js', 'controls.js', 'pad.js', 'script.js']
   .map(name => [name, fs.readFileSync(path.join(view, name), 'utf8')]);
 
 const A = 0, B = 1, LB = 4, RB = 5, UP = 12, DOWN = 13, LEFT = 14, RIGHT = 15;
@@ -34,21 +36,20 @@ const A = 0, B = 1, LB = 4, RB = 5, UP = 12, DOWN = 13, LEFT = 14, RIGHT = 15;
 // One page on one host. `settings` is the saved settings file as the DLL hands
 // it over at load (null: none yet).
 function setup({host = 'PrismaUI', settings = null} = {}) {
-  const document = new Document(html);
   const saves = [];
   const replies = [];
-  const window = {
-    innerWidth: 1920, innerHeight: 1080, devicePixelRatio: 1, location: {search: '', href: ''},
-    addEventListener() {}, removeEventListener() {},
+  const window = Object.assign(new Window(), {
     focusAcquired() {}, focusReleased() {}, uiReady() {}, diagnostics() {},
     // The DLL writes the file and answers each save after the call returns.
     settingsChanged: value => { saves.push(JSON.parse(value)); replies.push(true); },
     playerInput() {}, consoleCommand() {}, exportHistory() {}, historyImport() {}, historyCleared() {},
-  };
+  });
+  const document = new Document(html, window);
   const pads = [];
   const stored = new Map();
   const context = vm.createContext({
-    window, document, Event, console: {error() {}, warn() {}, log() {}},
+    window, document, Element, Event, KeyboardEvent, FocusEvent, MutationObserver,
+    console: {error() {}, warn() {}, log() {}},
     navigator: {getGamepads: () => pads},
     localStorage: {
       getItem: key => stored.has(key) ? stored.get(key) : null,
@@ -83,8 +84,7 @@ function setup({host = 'PrismaUI', settings = null} = {}) {
     [RIGHT]: ['ArrowRight', 39], [A]: ['Enter', 13], [B]: ['Escape', 27]};
   const type = index => {
     const [key, keyCode] = KEYS[index];
-    const event = new Event('keydown', {bubbles: true});
-    Object.assign(event, {key, keyCode, code: key, repeat: false, shiftKey: false, ctrlKey: false, altKey: false});
+    const event = new KeyboardEvent('keydown', {key, keyCode, code: key, bubbles: true, cancelable: true});
     (document.activeElement || document.body).dispatchEvent(event);
     answer();
   };
@@ -112,7 +112,16 @@ function setup({host = 'PrismaUI', settings = null} = {}) {
     assert.equal(name(at()), id, `the pad reached ${id}`);
   };
   const config = () => vm.runInContext('config', context);
-  return {context, document, saves, config, press, type, input, openSettings, at, name, activeTab, walkTo};
+  const listOpen = () => window.DovahHubChoices.isOpen();
+  // A list: A opens it, `steps` downs move in it, A picks.
+  const choose = steps => {
+    input(A);
+    assert.equal(listOpen(), true, `the list on ${name(at())} opened`);
+    for (let i = 0; i < steps; ++i) input(DOWN);
+    input(A);
+    assert.equal(listOpen(), false);
+  };
+  return {context, document, saves, config, press, type, input, openSettings, at, name, activeTab, walkTo, listOpen, choose};
 }
 
 // What a player can reach on the open tab, read from the page itself: every
@@ -121,7 +130,7 @@ function reachable(document) {
   const panel = document.getElementById('settings-panel');
   const section = panel.querySelector('.sp-section.active');
   const footer = document.getElementById('sp-footer');
-  const isControl = el => ['INPUT', 'SELECT', 'BUTTON', 'TEXTAREA'].includes(el.tagName);
+  const isControl = el => ['INPUT', 'BUTTON', 'TEXTAREA'].includes(el.tagName);
   const usable = el => !el.disabled && !el.hidden && el.type !== 'hidden' && !el.closest('.hidden');
   return [...document.querySelectorAll('.sp-tab'), ...section.descendants(), ...footer.descendants()]
     .filter(el => isControl(el) && usable(el));
@@ -161,26 +170,46 @@ for (const host of ['PrismaUI', 'Magelight']) {
     if (host === 'PrismaUI') { page.press(LB); assert.equal(page.activeTab(), 'channels'); }
   });
 
-  test(`${host}: a list steps in place, never drops down, and the d-pad moves on past it`, () => {
+  test(`${host}: a list opens on A, the d-pad moves in it, A picks and B closes it; closed, the d-pad moves past`, () => {
     const page = setup({host});
     page.openSettings();
     page.walkTo('sp-controller-combo');
     const combo = page.document.getElementById('sp-controller-combo');
+    assert.equal(combo.tagName, 'BUTTON');
     assert.equal(combo.value, 'lb+y');
-    page.input(RIGHT);
-    assert.equal(combo.value, 'lb+x');
+    const shown = () => combo.querySelector('.wf-choice-button__label').textContent;
+    assert.equal(shown(), 'LB + Y', 'the button shows the choice');
+    // Left / right never change a closed list.
+    page.input(RIGHT); page.input(LEFT);
+    assert.equal(combo.value, 'lb+y');
+    assert.equal(page.listOpen(), false);
+    // A opens it on the current choice; down moves; A picks the highlighted one.
     page.input(A);
+    assert.equal(page.listOpen(), true);
+    const menu = page.document.querySelector('.wf-select-menu');
+    assert.deepEqual(menu.children.map(option => option.textContent), ['LB + Y', 'LB + X', 'RB + Y', 'RB + X', 'Off']);
+    assert.equal(page.document.activeElement.textContent, 'LB + Y');
+    page.input(DOWN); page.input(DOWN);
+    assert.equal(page.document.activeElement.textContent, 'RB + Y');
+    assert.equal(combo.value, 'lb+y', 'moving in the list changes nothing');
+    page.input(A);
+    assert.equal(page.listOpen(), false);
     assert.equal(combo.value, 'rb+y');
-    page.input(LEFT); page.input(LEFT); page.input(LEFT);
-    assert.equal(combo.value, 'off', 'left from the first entry comes round to the last');
+    assert.equal(shown(), 'RB + Y');
+    assert.equal(page.at(), combo, 'the ring stays on the list');
+    // B closes an open list with nothing changed, and leaves the panel open.
+    page.input(A); page.input(DOWN); page.input(B);
+    assert.equal(page.listOpen(), false);
+    assert.equal(combo.value, 'rb+y');
+    assert.equal(vm.runInContext('settingsOpen', page.context), true);
     page.input(DOWN);
-    assert.notEqual(page.name(page.at()), 'sp-controller-combo', 'down left the list');
+    assert.notEqual(page.at(), combo, 'down moved on past the closed list');
     // A hotkey box is passed over without starting a key capture.
     page.walkTo('sp-config-hotkey');
     page.input(A);
     page.input(DOWN);
     assert.equal(page.document.getElementById('sp-config-hotkey').value, '0');
-    assert.equal(page.document.activeElement, page.document.body, 'nothing took the keyboard');
+    assert.ok(!page.document.activeElement.classList.contains('sp-hotkey'), 'no hotkey box took the keyboard');
     // A slider moves by its own step and stays in its range.
     page.walkTo('sp-auto-hide');
     page.input(RIGHT); page.input(RIGHT);
@@ -241,7 +270,7 @@ test('every setting the pad can change, on every tab, survives a save and a relo
   // Every field's value, by name, whichever tab it is on.
   const values = p => {
     const panel = p.document.getElementById('settings-panel');
-    return Object.fromEntries([...panel.querySelectorAll('input'), ...panel.querySelectorAll('select')]
+    return Object.fromEntries([...panel.querySelectorAll('input'), ...panel.querySelectorAll('button[data-choice]')]
       .map(el => [p.name(el), el.type === 'checkbox' ? el.checked : el.value]));
   };
   const before = values(page);
@@ -249,13 +278,15 @@ test('every setting the pad can change, on every tab, survives a save and a relo
     assert.equal(page.activeTab(), tab);
     const tabs = doc.querySelectorAll('.sp-tab');
     for (const el of reachable(doc).filter(el => !tabs.includes(el) && !doc.getElementById('sp-footer').contains(el))) {
-      const adjustable = el.tagName === 'SELECT' || ['range', 'number', 'checkbox'].includes(el.type);
+      const list = el.matches('[data-choice]');
+      const adjustable = list || ['range', 'number', 'checkbox'].includes(el.type);
       // With a corner anchor the page reads the position from the window's layout,
       // which this test has none of: the anchor stays custom here and is checked below.
       if (!adjustable || el.id === 'sp-anchor') continue;
       for (let i = 0; i < 400 && page.at() !== el; ++i) page.input(DOWN);
       assert.equal(page.at(), el, `the pad reached ${page.name(el)}`);
-      page.input(el.type === 'checkbox' ? A : RIGHT);
+      if (list) page.choose(1);
+      else page.input(el.type === 'checkbox' ? A : RIGHT);
     }
     page.press(RB);
   }
@@ -272,7 +303,7 @@ test('every setting the pad can change, on every tab, survives a save and a relo
 
   reloaded.press(RB);
   reloaded.walkTo('sp-anchor');
-  reloaded.input(RIGHT);
+  reloaded.choose(1);
   const anchor = reloaded.document.getElementById('sp-anchor').value;
   assert.notEqual(anchor, 'custom');
   reloaded.walkTo('sp-apply');

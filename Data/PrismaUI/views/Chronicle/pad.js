@@ -78,6 +78,7 @@ function padNextSpeaker() {
 // One pad action in the chat window. True when Chronicle used it.
 function padAction(action) {
   if (!interactionOpen || !runtime.visible || !runtime.loaded) return false;
+  if (padChoicesOpen()) return padChoiceAction(action);
   if (settingsOpen) return padSettingsAction(action);
   if (inputOpen) {
     if (action === 'up' || action === 'down') { recallInput(action === 'up' ? 1 : -1); return true; }
@@ -107,16 +108,30 @@ function padAction(action) {
   }
 }
 
+// An open list (DovahHub's list control, dropdowns.js; CHRON-29) takes the pad:
+// up and down move in it, A picks, B closes it with nothing changed. The list
+// runs on the keys it already answers, so the pad hands it those. Other buttons
+// do nothing while it is open.
+function padChoicesOpen() {
+  const choices = typeof window !== 'undefined' ? window.DovahHubChoices : null;
+  return !!(choices && choices.isOpen());
+}
+
+function padChoiceAction(action) {
+  const key = {up: 'ArrowUp', down: 'ArrowDown', accept: 'Enter', cancel: 'Escape'}[action];
+  if (key) window.dispatchEvent(new KeyboardEvent('keydown', {key, bubbles: true, cancelable: true}));
+  return true;
+}
+
 // The settings panel with the pad (CHRON-28; the suite's pad rule of 17 Nov).
 // The d-pad walks every control, from the tabs at the top through the open tab
-// to the buttons at the bottom, and wraps round. Left / right change a slider,
-// a number or a list (on a tab they switch tabs, as LB / RB do); A ticks a box,
-// presses a button or steps a list; B closes. Nothing native opens under the
-// pad: a list steps in place instead of dropping down, colour and text boxes
+// to the buttons at the bottom, and wraps round. Left / right change a slider
+// or a number (on a tab they switch tabs, as LB / RB do); A ticks a box,
+// presses a button or opens a list (CHRON-29); B closes. Colour and text boxes
 // are left to the mouse and keyboard, and a hotkey box is never focused
 // (focusing it starts a key capture).
-const PAD_SETTINGS_CONTROLS = '.sp-tab, .sp-section.active input, .sp-section.active select, ' +
-  '.sp-section.active button, .sp-section.active textarea, #sp-footer button';
+const PAD_SETTINGS_CONTROLS = '.sp-tab, .sp-section.active input, .sp-section.active button, ' +
+  '.sp-section.active textarea, #sp-footer button';
 
 function padSettingsControls() {
   const panel = document.getElementById('settings-panel');
@@ -143,14 +158,8 @@ function padSettingsFire(el, ...types) {
   for (const type of types) el.dispatchEvent(new Event(type, {bubbles: true}));
 }
 
+// A list's value changes only by a choice in its open list, never by left / right.
 function padSettingsAdjust(el, step) {
-  if (el.tagName === 'SELECT') {
-    const values = [...el.options].filter(option => !option.disabled).map(option => option.value);
-    if (values.length < 2) return true;
-    el.value = padStep(values, el.value, step);
-    padSettingsFire(el, 'input', 'change');
-    return true;
-  }
   if (el.tagName !== 'INPUT' || (el.type !== 'range' && el.type !== 'number')) return false;
   const size = parseFloat(el.step) > 0 ? parseFloat(el.step) : 1;
   const min = Number.isFinite(parseFloat(el.min)) ? parseFloat(el.min) : -Infinity;
@@ -191,8 +200,7 @@ function padSettingsAction(action) {
   case 'previousTab': case 'nextTab': padSettingsTab(action === 'nextTab' ? 1 : -1); return true;
   case 'accept':
     if (!el) { if (controls.length) padSettingsFocus(controls[0]); return true; }
-    if (el.tagName === 'SELECT') padSettingsAdjust(el, 1);
-    else if (el.tagName === 'BUTTON' || (el.tagName === 'INPUT' && el.type === 'checkbox')) el.click();
+    if (el.tagName === 'BUTTON' || (el.tagName === 'INPUT' && el.type === 'checkbox')) el.click();
     return true;
   default: return false;
   }
