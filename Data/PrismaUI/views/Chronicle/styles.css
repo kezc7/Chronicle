@@ -173,6 +173,15 @@ body.interacting .message.fading { opacity: 1; }
   margin-right: 3px;
 }
 
+/* CHRON-44: how many times the line came in a row. */
+.message .burst-count {
+  color: var(--theme-muted);
+  font-size: 0.85em;
+  font-weight: 600;
+  margin-left: 5px;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Channel colours — applied to speaker labels. System and notification colours
    also apply to their prefixes and message bodies for readability. */
 .message[data-channel="dialogue"]  .speaker { color: #ffffff; }

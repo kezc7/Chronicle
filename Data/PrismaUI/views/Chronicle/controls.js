@@ -182,10 +182,16 @@ function setUserHidden(hidden) {
   persistConfig();
 }
 
-// A line as the page keeps and hands on: no element, its history id if it has one.
-function plainLine({channel, speaker, message, timestamp, id}) {
+// A line as the page keeps and hands on: no element, its history id if it has
+// one, and the repeats counted on its row (CHRON-44).
+function plainLine({channel, speaker, message, timestamp, id, count, last, ids}) {
   const line = {channel, speaker, message, timestamp};
   if (Number(id) > 0) line.id = Number(id);
+  if (Number(count) > 1) {
+    line.count = Number(count);
+    line.last = Number(last) || timestamp;
+    if (Array.isArray(ids) && ids.length > 1) line.ids = ids.slice();
+  }
   return line;
 }
 
@@ -464,7 +470,8 @@ function refreshSpeakerOptions() {
 function visibleHistoryText() {
   return messages.filter(entry => shouldShowMessage(entry.channel) && matchesFilters(entry))
     .map(entry => '[' + formatTimestamp(entry.timestamp) + '] ' +
-      (entry.speaker ? entry.speaker + ': ' : '') + entry.message).join('\n');
+      (entry.speaker ? entry.speaker + ': ' : '') + entry.message +
+      (entry.count > 1 ? ' (\u00d7' + entry.count + ')' : '')).join('\n');
 }
 
 function copyHistory() {

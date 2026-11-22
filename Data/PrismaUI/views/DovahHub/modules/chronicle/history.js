@@ -233,6 +233,23 @@
     return a.timestamp === b.timestamp && a.channel === b.channel && a.speaker === b.speaker && a.message === b.message;
   }
 
+  // CHRON-44, as the chat window counts them: the same line (channel, speaker,
+  // text) within BURST_MS of one of the last BURST_ROWS rows adds to its count.
+  const BURST_MS = 4000;
+  const BURST_ROWS = 3;
+
+  function burstEntry(entries, line) {
+    const at = Number(line.timestamp) || 0;
+    for (let i = entries.length - 1, seen = 0; i >= 0 && seen < BURST_ROWS; --i, ++seen) {
+      const entry = entries[i];
+      if (entry.line.channel !== line.channel || (entry.line.speaker || '') !== (line.speaker || '') ||
+        entry.line.message !== line.message) continue;
+      const gap = at - entry.last;
+      if (gap >= 0 && gap <= BURST_MS) return entry;
+    }
+    return null;
+  }
+
   function validLine(line) {
     return line && typeof line === 'object' && typeof line.message === 'string' && typeof line.channel === 'string' &&
       Object.prototype.hasOwnProperty.call(COLOURS, line.channel);
@@ -328,7 +345,9 @@
       const colour = state.colours[line.channel] || COLOURS[line.channel];
       row.appendChild(el(doc, 'span', 'chronicle-history__time', formatTime(line.timestamp, now(), lang)));
       const speaker = el(doc, 'span', 'chronicle-history__speaker', line.speaker ? line.speaker + ':' : '');
-      const message = el(doc, 'span', 'chronicle-history__message', line.message);
+      // The text in its own span, so a repeat count (CHRON-44) can follow it.
+      const message = el(doc, 'span', 'chronicle-history__message');
+      message.appendChild(el(doc, 'span', 'chronicle-history__text', line.message));
       if (colour) {
         speaker.style.color = colour;
         if (WHOLE_LINE.includes(line.channel)) message.style.color = colour;
@@ -337,6 +356,31 @@
       row.appendChild(message);
       row.hidden = !matches(line);
       return row;
+    }
+
+    function showCount(entry) {
+      const message = entry.row.querySelector('.chronicle-history__message');
+      if (!message) return;
+      let badge = message.querySelector('.chronicle-history__count');
+      if (!badge) {
+        badge = el(doc, 'span', 'chronicle-history__count');
+        message.appendChild(badge);
+      }
+      badge.textContent = '\u00d7' + entry.count;
+    }
+
+    // The line's row, or null when it counts on a row already in `entries`.
+    function collect(entries, line) {
+      const burst = burstEntry(entries, line);
+      if (burst) {
+        burst.count += 1;
+        burst.last = Number(line.timestamp) || burst.last;
+        showCount(burst);
+        return null;
+      }
+      const entry = { line, row: buildRow(line), count: 1, last: Number(line.timestamp) || 0 };
+      entries.push(entry);
+      return entry;
     }
 
     function applyFilters() {
@@ -368,9 +412,8 @@
     function append(line) {
       if (!validLine(line)) return;
       const stick = atBottom();
-      const row = buildRow(line);
-      state.lines.push({ line, row });
-      list.appendChild(row);
+      const entry = collect(state.lines, line);
+      if (entry) list.appendChild(entry.row);
       trim();
       updateChrome();
       if (stick) list.scrollTop = list.scrollHeight;
@@ -414,9 +457,8 @@
         state.lines = [];
         const lines = reply.lines.filter(validLine);
         lines.forEach(line => {
-          const row = buildRow(line);
-          state.lines.push({ line, row });
-          list.appendChild(row);
+          const entry = collect(state.lines, line);
+          if (entry) list.appendChild(entry.row);
         });
         state.more = reply.more === true;
         // Lines pushed while the reply was on its way, unless the reply had them.
@@ -454,7 +496,8 @@
         // Keep the rows on screen where they are while older ones go in above.
         const fromBottom = list.scrollHeight - list.scrollTop;
         const first = state.lines[0].row;
-        const added = reply.lines.filter(validLine).map(line => ({ line, row: buildRow(line) }));
+        const added = [];
+        reply.lines.filter(validLine).forEach(line => collect(added, line));
         added.forEach(entry => list.insertBefore(entry.row, first));
         state.lines = added.concat(state.lines);
         state.more = reply.more === true;

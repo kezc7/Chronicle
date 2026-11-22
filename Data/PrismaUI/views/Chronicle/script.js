@@ -339,9 +339,23 @@ function addMessage(data) {
   const chCfg = config.channels[channel];
   // A kept line has its history id: one the handshake already gave shows once (CHRON-41).
   const id = Number(data.id) > 0 ? Number(data.id) : 0;
-  if (id && messages.some(item => item.id === id)) return;
+  if (id && messages.some(item => item.id === id || (item.ids && item.ids.includes(id)))) return;
 
-  const entry = { channel, speaker, message, timestamp: timestamp || Date.now(), el: null };
+  const at = Number(timestamp) || Date.now();
+  // The same line again within a few seconds counts on its row (CHRON-44).
+  const repeats = Math.max(1, Math.floor(Number(data.count)) || 1);
+  const burst = burstRow(channel, speaker, message, at);
+  if (burst) {
+    burst.count += repeats;
+    burst.last = Math.max(burst.last, Number(data.last) || at);
+    if (id) burst.ids.push(id);
+    showBurstCount(burst);
+    if (persist) wakeWindow();
+    return;
+  }
+
+  const entry = { channel, speaker, message, timestamp: timestamp || at, el: null,
+    count: repeats, last: Number(data.last) || at, ids: id ? [id] : [] };
   if (id) entry.id = id;
   const list = document.getElementById('message-list');
   const shouldStick = !userScrolledUp;
@@ -386,6 +400,35 @@ function wakeWindow() {
   }, seconds * 1000);
 }
 
+// CHRON-44: crafting, looting and a held spell repeat one line many times in a
+// row. A line equal to one of the last BURST_ROWS rows (channel, speaker and
+// text), no more than BURST_MS after that row's last repeat, adds to its count
+// instead of a new row. History keeps every line; the window and the DovahHub
+// tab count them the same way, from the same timestamps.
+const BURST_MS = 4000;
+const BURST_ROWS = 3;
+
+function burstRow(channel, speaker, message, at) {
+  for (let i = messages.length - 1, seen = 0; i >= 0 && seen < BURST_ROWS; --i, ++seen) {
+    const row = messages[i];
+    if (row.channel !== channel || (row.speaker || '') !== (speaker || '') || row.message !== message) continue;
+    const gap = at - (Number(row.last) || Number(row.timestamp) || 0);
+    if (gap >= 0 && gap <= BURST_MS) return row;
+  }
+  return null;
+}
+
+function showBurstCount(entry) {
+  if (!entry.el) return;
+  let badge = entry.el.querySelector('.burst-count');
+  if (!badge) {
+    badge = document.createElement('span');
+    badge.className = 'burst-count';
+    entry.el.appendChild(badge);
+  }
+  badge.textContent = '\u00d7' + entry.count;
+}
+
 function buildMessageEl(entry, chCfg) {
   const { channel, speaker, message, timestamp } = entry;
   const div = document.createElement('div');
@@ -403,6 +446,7 @@ function buildMessageEl(entry, chCfg) {
     html += `<span class="speaker">${escapeHtml(speaker)}: </span>`;
   }
   html += `<span class="text">${escapeHtml(message)}</span>`;
+  if (entry.count > 1) html += `<span class="burst-count">\u00d7${entry.count}</span>`;
 
   div.innerHTML = html;
   const speakerEl = div.querySelector('.speaker');
