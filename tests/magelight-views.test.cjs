@@ -104,7 +104,6 @@ test('the hud copy never asks for focus, releases it, or saves', () => {
   assert.equal(context.nativeHotkey('settings'), false);
   assert.equal(context.focusResult(true, 'focus.active'), false);
   context.addMessage({channel: 'dialogue', speaker: 'Lydia', message: 'I am sworn to carry your burdens.'});
-  context.flushHistory();
   context.persistConfig();
   context.setUserHidden(true);
   assert.deepEqual(calls, []);
@@ -116,10 +115,11 @@ test('the panel copy saves like the single page does', () => {
   const {context, calls, stored} = setup();
   context.setHostRole('panel');
   context.addMessage({channel: 'dialogue', speaker: 'Lydia', message: 'Hello'});
-  context.flushHistory();
-  assert.ok(stored.has('chronicle_history_p'));
+  assert.equal(stored.has('chronicle_history_p'), false, 'history is native\'s (CHRON-41)');
   assert.equal(context.nativeHotkey('input'), true);
   assert.deepEqual(calls, ['focusAcquired']);
+  context.persistConfig();
+  assert.ok(stored.has('chronicle_config'), 'the settings it saves');
 });
 
 test('an interaction ending hands the panel state to the hud copy', () => {

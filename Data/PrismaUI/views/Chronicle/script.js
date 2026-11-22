@@ -337,9 +337,12 @@ function addMessage(data) {
   const { channel, speaker, message, timestamp } = data;
   if (!DEFAULT_CONFIG.channels[channel] || typeof message !== 'string') return;
   const chCfg = config.channels[channel];
-
+  // A kept line has its history id: one the handshake already gave shows once (CHRON-41).
+  const id = Number(data.id) > 0 ? Number(data.id) : 0;
+  if (id && messages.some(item => item.id === id)) return;
 
   const entry = { channel, speaker, message, timestamp: timestamp || Date.now(), el: null };
+  if (id) entry.id = id;
   const list = document.getElementById('message-list');
   const shouldStick = !userScrolledUp;
   messages.push(entry);
@@ -360,8 +363,6 @@ function addMessage(data) {
   }
 
 
-
-  if (persist && config.general.persist_history) persistHistory();
   if (interactionOpen) refreshSpeakerOptions();
   if (persist) wakeWindow(); // restored history does not count as new activity
 }
@@ -461,25 +462,7 @@ function keepListBottom(stick) {
   placeNewMessagesBadge();
 }
 
-function persistHistory() { scheduleHistorySave(); }
-
-function restoreHistory() {
-  if (!config.general.persist_history || !runtime.profile) return;
-  try {
-    const saved = JSON.parse(localStorage.getItem(historyKey()) || '[]');
-    if (Array.isArray(saved)) {
-      // Only the loaded save's lines show; the rest wait, folded, for the save that saw them.
-      const valid = saved.filter(entry => entry && typeof entry === 'object');
-      foldedHistory = valid.filter(entry => !lineageShows(entry.timestamp));
-      valid.filter(entry => lineageShows(entry.timestamp))
-        .slice(-config.general.max_messages).forEach(entry => addMessage(entry, false));
-    }
-  } catch (_) {}
-}
-
 function clearHistory() {
-  clearTimeout(historySaveTimer);
-  historySaveTimer = null;
   messages.length = 0;
   foldedHistory = [];
   historyClearedAt = Date.now();
@@ -939,12 +922,11 @@ function applyAndSaveSettings() {
   applyConfig();
   settingsSnapshot = deepMerge({}, config);
   persistConfig();
-  if (config.general.persist_history) {
-    persistHistory();
-  } else {
+  // History is native's (CHRON-41): Keep history off removes its file there.
+  // An old version's copy in this page's storage goes too.
+  if (!config.general.persist_history) {
     try { localStorage.removeItem(historyKey()); } catch (_) {}
   }
-
 }
 
 // Settings panel tab switching
@@ -1487,7 +1469,6 @@ document.querySelectorAll('.sp-nudge').forEach(button => button.addEventListener
 }));
 document.getElementById('sp-width').addEventListener('input', syncPositionControls);
 document.getElementById('sp-height').addEventListener('input', syncPositionControls);
-window.addEventListener('pagehide', flushHistory);
 window.addEventListener('resize', () => { normalizeConfig(); applyConfig(); });
 setInterval(() => {
   const age = config.general.message_fade_time * 1000;

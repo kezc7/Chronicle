@@ -213,6 +213,17 @@ int main()
         shown = lines.Before(310, 10, fromA);
         Require(shown.lines.size() == 2 && shown.lines[1].timestamp == 20 && !shown.more, "older pages skip the fold too");
         Require(lines.Before(std::nullopt, 10).lines.size() == 6, "without a lineage every line counts");
+
+        // CHRON-41: the chat window's lines are the same ones, each with its id.
+        const auto shownInWindow = ChronicleHistory::WindowLines(lines, fromA);
+        Require(shownInWindow.is_array() && shownInWindow.size() == 4, "the window gets the loaded save's lines only");
+        Require(shownInWindow[0].value("timestamp", 0) == 10 && shownInWindow[3].value("timestamp", 0) == 320, "oldest first");
+        Require(shownInWindow[2].value("id", 0) == 5 && shownInWindow[3].value("id", 0) == 6, "with the ids live lines carry");
+        List crowd;
+        for (std::int64_t t = 1; t <= 700; ++t) crowd.Add(Make(t));
+        const auto windowCapped = ChronicleHistory::WindowLines(crowd, Lineage::All());
+        Require(windowCapped.size() == ChronicleHistory::kWindowLines && windowCapped.back().value("timestamp", 0) == 700,
+            "at most the window's 500, the newest");
     }
     return 0;
 }

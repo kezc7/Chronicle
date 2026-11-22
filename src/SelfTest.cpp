@@ -405,7 +405,8 @@ namespace
             }
             const auto shown = page["lines"].size();
             const auto folded = chronicle->FoldedLines();
-            const auto window = run.page ? "; the chat window agrees, " + std::to_string(run.page->folded) + " folded there"
+            // CHRON-41: the window shows native's lines, so nothing is folded there.
+            const auto window = run.page ? "; the chat window agrees and shows " + std::to_string(run.page->lines) + " of them"
                                          : std::string("; the chat window wasn't asked (see saveleak.page)");
             if (lineage.ShowsAll()) {
                 return Outcome::Done(step, Result::Pass, "a save from before 1.4.17 or a new character: all " + std::to_string(shown) +

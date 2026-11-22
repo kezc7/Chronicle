@@ -436,6 +436,8 @@ std::string Chronicle::RuntimeScript() const
         {"character", ChronicleUtf8::ReplaceInvalid(name).value},
         // The page offers its old localStorage lines once when this is true.
         {"historyEmpty", m_historyProfile != 0 && m_history.Empty()},
+        // CHRON-41: the window's lines are native's, the loaded save's own; none without a character.
+        {"lines", m_gameLoaded && m_historyProfile ? ChronicleHistory::WindowLines(m_history, m_lineage) : nlohmann::json::array()},
         // The loaded save's stretches of play; null shows every line (CHRON-18).
         {"lineage", m_gameLoaded && !m_lineage.ShowsAll() ? m_lineage.ToJson() : nlohmann::json(nullptr)}
     }) + ")";
@@ -703,7 +705,13 @@ void Chronicle::SendMessage(std::string_view channel, std::string_view speaker, 
                 }
             }
             ChronicleApi::Deliver(line, attribution.distance);
-            auto script = "addMessage(" + payload + ")";
+            // With its history id (0 when not kept): a page handed it in the handshake skips it (CHRON-41).
+            std::string script = "addMessage(" + payload + ")";
+            if (line.id) {
+                auto withId = data;
+                withId["id"] = line.id;
+                script = "addMessage(" + Json(withId) + ")";
+            }
             // A hidden view still receives messages, so menus don't erase history.
             if (m_bootstrapped) InvokeUI(script);
             else {

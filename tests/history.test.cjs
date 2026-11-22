@@ -25,22 +25,24 @@ function setup() {
   const ctx=vm.createContext({
     messages:[],inputHistory:[],inputHistoryIndex:-1,unreadCount:0,userScrolledUp:false,config:{general:{persist_history:true,max_messages:100}},
     document:{getElementById(id){if(!nodes.has(id))nodes.set(id,node());return nodes.get(id);},createElement:node},
-    localStorage:{setItem:(key,v)=>saved.set(key,v)},clearTimeout(){},
-    showUnread(){},restoreHistory(){ctx.messages.push(...JSON.parse(saved.get(vm.runInContext('historyKey()',ctx))||'[]'));}
+    localStorage:{setItem:(key,v)=>saved.set(key,v),getItem:key=>saved.has(key)?saved.get(key):null},clearTimeout(){},
+    showUnread(){},addMessage(entry){ctx.messages.push(entry);}
   });
   vm.runInContext(i18nSource,ctx); vm.runInContext(source,ctx);
   return {ctx,saved};
 }
-test('character switches flush pending history and restore the correct profile',()=>{
+// CHRON-41: each character's lines come from native in the handshake.
+test("character switches show each character's lines as native hands them",()=>{
   const {ctx,saved}=setup();
-  ctx.setRuntime({profile:'character-A',loaded:true,character:'Dragonborn'});
-  ctx.messages.push({channel:'dialogue',speaker:'Lydia',message:'A only',timestamp:1});
-  ctx.setRuntime({profile:'character-B',loaded:true,character:'Dragonborn'});
+  const a={channel:'dialogue',speaker:'Lydia',message:'A only',timestamp:1,id:1};
+  ctx.setRuntime({profile:'character-A',loaded:true,character:'Dragonborn',lines:[a]});
+  assert.deepEqual(ctx.messages.map(entry=>entry.message),['A only']);
+  ctx.setRuntime({profile:'character-B',loaded:true,character:'Dragonborn',lines:[]});
   assert.equal(ctx.messages.length,0);
-  ctx.messages.push({channel:'dialogue',speaker:'Lydia',message:'B only',timestamp:2});
-  ctx.setRuntime({profile:'character-A',loaded:true,character:'Dragonborn'});
+  ctx.setRuntime({profile:'character-A',loaded:true,character:'Dragonborn',lines:[a]});
   assert.equal(ctx.messages[0].message,'A only');
-  assert.equal(JSON.parse(saved.get('chronicle_history_character-B'))[0].message,'B only');
+  assert.equal(ctx.messages[0].id,1);
+  assert.equal(saved.size,0,'the page stores no history of its own');
 });
 test('a search or speaker filter does not carry over to another character',()=>{
   const {ctx}=setup();
@@ -54,12 +56,11 @@ test('a search or speaker filter does not carry over to another character',()=>{
   assert.equal(ctx.document.getElementById('history-search').value,'');
   assert.equal(ctx.document.getElementById('speaker-filter').value,'');
 });
-test('disabled persistence does not write history',()=>{
-  const {ctx,saved}=setup();
-  ctx.setRuntime({profile:'A',loaded:true,character:'A'});
-  ctx.config.general.persist_history=false;
-  ctx.messages.push({message:'not saved'}); ctx.flushHistory();
-  assert.equal(saved.size,0);
+test('the page has no history store left to write',()=>{
+  const {ctx}=setup();
+  for (const name of ['flushHistory','scheduleHistorySave','persistHistory','restoreHistory']) {
+    assert.equal(vm.runInContext(`typeof ${name}`,ctx),'undefined',name);
+  }
 });
 test('the self-test learns which character the window shows',()=>{
   const {ctx}=setup();

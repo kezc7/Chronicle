@@ -228,6 +228,9 @@ namespace ChronicleHistory
         bool more{ false };       // older lines remain
     };
 
+    // The chat window shows at most this many lines (its Max messages setting).
+    inline constexpr std::size_t kWindowLines = 500;
+
     // Oldest first, at most kMaxLines. Every line gets the next id; ids never
     // go back while the list is open, so a reader can resume after its last id.
     class List
@@ -310,6 +313,15 @@ namespace ChronicleHistory
         std::deque<Line> m_lines;
         std::uint64_t m_lastId{ 0 };
     };
+
+    // CHRON-41: the chat window's lines come from here, not from its own storage:
+    // the loaded save's newest kWindowLines, oldest first, each with its id, so a
+    // live line the window was already handed is not shown twice.
+    template<class Shown>
+    nlohmann::json WindowLines(const List& list, const Shown& shown)
+    {
+        return LinesToJson(list.Before(std::nullopt, kWindowLines, shown).lines);
+    }
 
     // A page of `limit` lines (timestamps oldest first, as Before returns them) is
     // right when it holds at most `limit`, or more only because older lines share

@@ -33,7 +33,6 @@ function lineageShows(timestamp) {
 const THEMES = ['skyrim', 'daedric', 'dwemer', 'classic-mmo', 'modern', 'minimal', 'transparent', 'high-contrast'];
 function normalizeTheme(theme) { return THEMES.includes(theme) ? theme : 'skyrim'; }
 let interactionOpen = false;
-let historySaveTimer = null;
 let bootstrapTimer = null;
 let searchText = '';
 let speakerFilter = '';
@@ -57,7 +56,7 @@ function exportViewState() {
   const cutoff = messages.reduce((latest, entry) => Math.max(latest, Number(entry.timestamp) || 0), historyClearedAt);
   return JSON.stringify({
     config, activeChannel, search: searchText, speaker: speakerFilter, cutoff,
-    messages: messages.map(({channel, speaker, message, timestamp}) => ({channel, speaker, message, timestamp})),
+    messages: messages.map(plainLine),
   });
 }
 
@@ -72,7 +71,7 @@ function importViewState(state) {
   const cutoff = Number(state.cutoff);
   const later = Number.isFinite(cutoff) ? messages
     .filter(entry => (Number(entry.timestamp) || 0) > cutoff && !known.has(lineKey(entry)))
-    .map(({channel, speaker, message, timestamp}) => ({channel, speaker, message, timestamp})) : [];
+    .map(plainLine) : [];
   config = deepMerge(deepMerge({}, DEFAULT_CONFIG), state.config);
   messages.length = 0;
   document.getElementById('message-list').replaceChildren();
@@ -183,16 +182,37 @@ function setUserHidden(hidden) {
   persistConfig();
 }
 
+// A line as the page keeps and hands on: no element, its history id if it has one.
+function plainLine({channel, speaker, message, timestamp, id}) {
+  const line = {channel, speaker, message, timestamp};
+  if (Number(id) > 0) line.id = Number(id);
+  return line;
+}
+
+// CHRON-41: the log is native's (Chronicle.dll's history, the loaded save's
+// lines), handed over in the handshake; the page keeps no copy of its own.
+// Lines it holds that native doesn't (a line queued for a page loaded again
+// before its handshake, or one no history keeps) stay, in time order.
+function showNativeLines(lines, extra) {
+  const given = lines.filter(entry => entry && typeof entry === 'object' && typeof entry.message === 'string');
+  const ids = new Set(given.map(entry => Number(entry.id) || 0).filter(id => id > 0));
+  const kept = extra.filter(entry => !(Number(entry.id) > 0 && ids.has(Number(entry.id))));
+  const all = given.map(plainLine).concat(kept)
+    .sort((a, b) => (Number(a.timestamp) || 0) - (Number(b.timestamp) || 0));
+  messages.length = 0;
+  document.getElementById('message-list').replaceChildren();
+  all.slice(-config.general.max_messages).forEach(entry => addMessage(entry, false));
+}
+
 function setRuntime(data) {
   const lineageKey = JSON.stringify(Array.isArray(data.lineage) ? data.lineage : null);
+  const nativeLines = Array.isArray(data.lines) ? data.lines : null;
   // Another character, or another save of this one: the log is that save's.
   if (runtime.profile !== data.profile || runtime.lineageKey !== lineageKey) {
     // A page the host loaded again (CHRON-30) may be handed lines it queued
     // while the page was gone, before it knows the character: they are this
-    // character's newest and follow the stored ones, unless storage has them.
-    const early = runtime.profile === '' && data.profile
-      ? messages.map(({channel, speaker, message, timestamp}) => ({channel, speaker, message, timestamp})) : [];
-    flushHistory();
+    // character's newest and follow native's, unless native has them.
+    const early = runtime.profile === '' && data.profile ? messages.map(plainLine) : [];
     messages.length = 0;
     foldedHistory = [];
     document.getElementById('message-list').replaceChildren();
@@ -210,18 +230,22 @@ function setRuntime(data) {
     speakerFilter = '';
     document.getElementById('history-search').value = '';
     document.getElementById('speaker-filter').value = '';
-    restoreHistory();
-    if (early.length) {
-      const lineKey = entry => [entry.timestamp, entry.channel, entry.speaker, entry.message].join('');
-      const known = new Set(messages.map(lineKey));
-      early.filter(entry => !known.has(lineKey(entry))).forEach(entry => addMessage(entry));
+    if (nativeLines) showNativeLines(nativeLines, early);
+    else early.forEach(entry => addMessage(entry, false));
+    // Lines from before native kept history are only in this page's old
+    // storage: shown once and handed to native, which keeps them from then on.
+    if (data.historyEmpty === true && runtime.profile && !messages.length) {
+      const legacy = legacyHistory();
+      if (legacy.length) {
+        legacy.forEach(entry => addMessage(entry, false));
+        sendToGame('historyImport', {profile: runtime.profile, lines: legacy});
+      }
     }
     refreshSpeakerOptions();
-    // History kept only here so far: native takes it once, for this character.
-    if (data.historyEmpty === true && runtime.profile && messages.length) {
-      sendToGame('historyImport', {profile: runtime.profile,
-        lines: messages.map(({channel, speaker, message, timestamp}) => ({channel, speaker, message, timestamp}))});
-    }
+  } else if (nativeLines) {
+    // The same save published again: native's lines are still the log.
+    showNativeLines(nativeLines, messages.map(plainLine).filter(entry => !entry.id));
+    refreshSpeakerOptions();
   }
   runtime.loaded = data.loaded;
   runtime.character = data.character;
@@ -240,24 +264,15 @@ function chronicleSelfTest(token) {
     pad: {api, connected: pads.length, id: pads.length ? String(pads[0].id || '').slice(0, 80) : ''}});
 }
 
-function flushHistory() {
-  if (historySaveTimer) clearTimeout(historySaveTimer);
-  historySaveTimer = null;
-  if (!ownsStorage() || !runtime.profile || !config.general.persist_history) return;
-  // The shown lines first; folded ones fill what room is left, so loading the
-  // save that saw them shows them again.
-  const max = config.general.max_messages;
-  const shown = messages.slice(-max).map(({channel, speaker, message, timestamp}) => ({channel, speaker, message, timestamp}));
-  const room = max - shown.length;
-  const kept = (room > 0 ? foldedHistory.slice(-room) : []).concat(shown)
-    .sort((a, b) => (Number(a.timestamp) || 0) - (Number(b.timestamp) || 0));
+// The lines an old version kept in this page's storage, the loaded save's only.
+function legacyHistory() {
+  if (!ownsStorage() || !runtime.profile) return [];
   try {
-    localStorage.setItem(historyKey(), JSON.stringify(kept));
-  } catch (_) { statusText(t('status.historyNotSaved')); }
-}
-
-function scheduleHistorySave() {
-  if (!historySaveTimer) historySaveTimer = setTimeout(flushHistory, 500);
+    const saved = JSON.parse(localStorage.getItem(historyKey()) || '[]');
+    if (!Array.isArray(saved)) return [];
+    return saved.filter(entry => entry && typeof entry === 'object' && typeof entry.message === 'string' &&
+      lineageShows(entry.timestamp)).map(plainLine).slice(-config.general.max_messages);
+  } catch (_) { return []; }
 }
 
 function nativeBootstrap(data) {

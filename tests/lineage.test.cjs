@@ -13,8 +13,7 @@
 // more details. See LICENSE.
 
 // The chat window's log follows the loaded save (CHRON-18): lines a save
-// never saw are folded away, kept in storage, and come back with the save
-// that saw them.
+// never saw are folded away and come back with the save that saw them.
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -69,55 +68,62 @@ function setup() {
   return {context, stored, line, shown, saved};
 }
 
-test('loading an older save folds away the lines from later play, and the later save brings them back', () => {
-  const {context, stored, line, shown, saved} = setup();
-  stored.set('chronicle_history_42', JSON.stringify([line(50, 'before A'), line(150, 'after A, on to B'), line(250, 'after B')]));
-  // Load save A (saved at 100), now t=300.
-  context.setRuntime({profile: '42', loaded: true, character: 'Dragonborn', lineage: [[0, 100], [300, null]]});
-  assert.deepEqual(shown(), ['before A']);
-  // Play on from A.
-  context.addMessage(line(310, 'new branch'));
-  context.flushHistory();
-  assert.deepEqual(saved(), ['before A', 'after A, on to B', 'after B', 'new branch'], 'folded lines stay stored');
-  // Load save B (saved at 200), now t=400.
-  context.setRuntime({profile: '42', loaded: true, character: 'Dragonborn', lineage: [[0, 200], [400, null]]});
-  assert.deepEqual(shown(), ['before A', 'after A, on to B'], "B's lines are back; the new branch and play after B are folded");
+// CHRON-41: native folds the lines (ChronicleHistory::WindowLines, tested in
+// HistoryTests.cpp) and hands the window the loaded save's own; the page shows
+// exactly those and keeps no copy. A character's lines from before native kept
+// history come from the page's old storage once, folded the same way.
+const RUNTIME = lineage => ({profile: '42', loaded: true, character: 'Dragonborn', lineage});
+
+test("each load shows native's lines for that save, and nothing the page stored itself", () => {
+  const {context, stored, line, shown} = setup();
+  stored.set('chronicle_history_42', JSON.stringify([line(5, 'an old copy')]));
+  context.setRuntime({...RUNTIME([[0, 100], [300, null]]), lines: [{...line(50, 'before A'), id: 1}]});
+  assert.deepEqual(shown(), ['before A'], 'native has lines: the old copy is not read');
+  context.addMessage(JSON.stringify({...line(310, 'new branch'), id: 4}));
+  context.setRuntime({...RUNTIME([[0, 200], [400, null]]),
+    lines: [{...line(50, 'before A'), id: 1}, {...line(150, 'after A, on to B'), id: 2}]});
+  assert.deepEqual(shown(), ['before A', 'after A, on to B'], "B's lines; the branch from A is gone with A");
+  assert.deepEqual(JSON.parse(stored.get('chronicle_history_42')).map(entry => entry.message), ['an old copy'],
+    'the page writes no history');
 });
 
-test('a save from before 1.4.17 (no stretches) shows every line, as before', () => {
-  const {context, stored, line, shown} = setup();
-  stored.set('chronicle_history_42', JSON.stringify([line(50, 'one'), line(150, 'two')]));
-  context.setRuntime({profile: '42', loaded: true, character: 'Dragonborn', lineage: null});
+test('a save from before 1.4.17 (no stretches) shows every line native has, as before', () => {
+  const {context, line, shown} = setup();
+  context.setRuntime({...RUNTIME(null), lines: [{...line(50, 'one'), id: 1}, {...line(150, 'two'), id: 2}]});
   assert.deepEqual(shown(), ['one', 'two']);
 });
 
-test('the same save published again changes nothing; another save of the same character clears the filters', () => {
-  const {context, stored, line, shown} = setup();
-  stored.set('chronicle_history_42', JSON.stringify([line(50, 'one')]));
-  context.setRuntime({profile: '42', loaded: true, character: 'Dragonborn', lineage: [[0, 100], [300, null]]});
-  context.addMessage(line(310, 'two'));
+test('the same save published again keeps the log and filters; another save of the same character clears the filters', () => {
+  const {context, line, shown} = setup();
+  context.setRuntime({...RUNTIME([[0, 100], [300, null]]), lines: [{...line(50, 'one'), id: 1}]});
+  context.addMessage(JSON.stringify({...line(310, 'two'), id: 2}));
   vm.runInContext("searchText = 'two';", context);
-  context.setRuntime({profile: '42', loaded: true, character: 'Dragonborn', lineage: [[0, 100], [300, null]]});
-  assert.deepEqual(shown(), ['one', 'two'], 'a repeat of the same runtime keeps the log');
+  context.setRuntime({...RUNTIME([[0, 100], [300, null]]), lines: [{...line(50, 'one'), id: 1}, {...line(310, 'two'), id: 2}]});
+  assert.deepEqual(shown(), ['one', 'two'], 'a repeat of the same runtime keeps the log, each line once');
   assert.equal(vm.runInContext('searchText', context), 'two');
-  context.setRuntime({profile: '42', loaded: true, character: 'Dragonborn', lineage: [[0, 320], [500, null]]});
+  context.setRuntime({...RUNTIME([[0, 320], [500, null]]), lines: []});
   assert.equal(vm.runInContext('searchText', context), '', "a search belongs to the save's log it was made in");
 });
 
-test('stored lines keep the shown ones first; folded ones fill the room left', () => {
-  const {context, stored, line, saved} = setup();
-  vm.runInContext('config.general.max_messages = 3;', context);
-  stored.set('chronicle_history_42', JSON.stringify([line(10, 'a'), line(150, 'f1'), line(160, 'f2'), line(170, 'f3')]));
-  context.setRuntime({profile: '42', loaded: true, character: 'Dragonborn', lineage: [[0, 100], [300, null]]});
-  context.addMessage(line(310, 'b'));
-  context.flushHistory();
-  assert.deepEqual(saved(), ['a', 'f3', 'b'], 'both shown lines kept, then the newest folded one, in time order');
+test("a character's lines from an old version's storage are shown once, folded, and handed to native", () => {
+  const {context, stored, line, shown} = setup();
+  const imported = [];
+  context.window.historyImport = text => imported.push(JSON.parse(text));
+  stored.set('chronicle_history_42', JSON.stringify([line(10, 'a'), line(150, 'folded'), line(320, 'b')]));
+  context.setRuntime({...RUNTIME([[0, 100], [300, null]]), lines: [], historyEmpty: true});
+  assert.deepEqual(shown(), ['a', 'b'], 'the loaded save sees only its own');
+  assert.equal(imported.length, 1);
+  assert.deepEqual(imported[0].lines.map(entry => entry.message), ['a', 'b']);
 });
 
-test('Clear history clears the folded lines too', () => {
-  const {context, stored, line, saved} = setup();
-  stored.set('chronicle_history_42', JSON.stringify([line(10, 'a'), line(150, 'folded')]));
-  context.setRuntime({profile: '42', loaded: true, character: 'Dragonborn', lineage: [[0, 100], [300, null]]});
-  vm.runInContext('clearHistory(); flushHistory();', context);
-  assert.deepEqual(saved(), []);
+test('Clear history empties the window and tells native', () => {
+  const {context, stored, line, shown} = setup();
+  const cleared = [];
+  context.window.historyCleared = profile => cleared.push(profile);
+  stored.set('chronicle_history_42', JSON.stringify([line(10, 'old')]));
+  context.setRuntime({...RUNTIME([[0, 100], [300, null]]), lines: [{...line(10, 'a'), id: 1}]});
+  vm.runInContext('clearHistory();', context);
+  assert.deepEqual(shown(), []);
+  assert.deepEqual(cleared, ['42']);
+  assert.equal(stored.has('chronicle_history_42'), false, "an old version's copy goes too");
 });
