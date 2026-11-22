@@ -1,4 +1,4 @@
-# Chronicle 1.4.29
+# Chronicle 1.4.30
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -347,6 +347,27 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.4.30-beta
+
+Thirty-first beta, PrismaUI and Magelight builds.
+
+- **Settings** show **Unsaved changes** beside **Apply** while something you changed isn't saved yet.
+- **Commands:** type `/` in the chat bar to see `/help`, `/selftest` and the commands other mods
+  add, with what each does. Up and Down pick one, and Tab (or A) fills it in. With the **Console**
+  target the bar turns green and says Console, so a console command doesn't go to an NPC by mistake.
+- **Who you're talking to (SkyrimNet):** the chat bar shows who your line goes to, such as
+  "→ Lydia, looking at" or "→ Nearby". Ctrl+← / → (or Y on the pad) picks someone else close by,
+  or everyone nearby, and the line goes to them.
+- **Custom tabs:** in Settings > Channels, make up to two tabs of your own (Story, Quests and so
+  on), each showing the channels you pick. They sit after All.
+- **Journal dividers** (Settings > General, off at first): a thin line in the log when you reach a
+  new place or a new day starts, such as "Riverwood · Day 14, 18:30". A run of repeated lines
+  never runs across one.
+- **Speakers:** with the mouse active, click a name in the log to see only that person, and click
+  again to see everyone. Shift+click someone who speaks to start a line to them.
+- **Export** also writes the log as a story (Markdown) beside the text file, headed by day and
+  place.
 
 ## 1.4.29-beta
 
