@@ -1,4 +1,4 @@
-# Chronicle 1.4.28
+# Chronicle 1.4.29
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -347,6 +347,27 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.4.29-beta
+
+Thirtieth beta, PrismaUI and Magelight builds.
+
+- The chat window's lines now come from Chronicle's own history file, the same one
+  DovahHub's History tab reads, so the two always show the same lines. The page no longer
+  keeps a copy of its own. On Magelight, a window the game reloads to save video memory
+  comes back with every line, also with **Keep history** off.
+- The same line repeated within a few seconds (crafting, looting, a held spell, hits in a
+  fight) shows once with a count, such as "Iron Arrow added ×12", in the chat window and in
+  DovahHub's History tab. The history keeps every line, and the export writes the count.
+- Settings show the look as you change it: theme, anchor, opacity, font size, width and
+  height, and the channel colours. **Close** or B puts the window back as it was; only
+  **Apply** saves.
+- Escape and B now go back one step at a time: an open list, then Settings or the chat
+  bar, then the chat window, then the game. The **Close** button still closes everything.
+- On Magelight, LB / RB switch tabs, X jumps to the newest line and Y steps through the
+  speakers, as on PrismaUI. This needs Magelight's gamepad layer (1.6.0 or newer); set
+  `"magelight_pad_navigation": false` under `general` in `Chronicle.json` to go back to
+  the d-pad, A and B only.
 
 ## 1.4.28-beta
 
