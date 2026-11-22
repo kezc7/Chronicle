@@ -1,4 +1,4 @@
-# Chronicle 1.4.26
+# Chronicle 1.4.27
 
 Chronicle is an in-game Skyrim SE chatbox and message log. It uses PrismaUI
 for the overlay and CommonLibSSE-NG for the native SKSE plugin.
@@ -338,6 +338,27 @@ files; obtain those separately under their own licenses.
 For browser development, `node tests/preview.cjs` serves a local preview with mock
 native callbacks at `http://127.0.0.1:47831`. Browser checks cannot validate Skyrim's
 actual cursor routing, menu events, or SKSE serialization; those need an in-game run.
+
+## 1.4.27-beta
+
+Twenty-eighth beta, PrismaUI and Magelight builds.
+
+- A list left open in settings (language, theme, anchor and the others) closes with the
+  window now. Before, on PrismaUI it could stay on screen over the game, and on both
+  builds it kept taking the controller and the arrow keys the next time the window opened.
+- With a list open, Escape or B closes the list and leaves settings open. Before, it closed
+  the whole window and dropped what you hadn't applied.
+- The window's place and size: after you dragged or resized the window, the Position
+  sliders, the anchors, Width and Height and Reset stopped moving it. They work again.
+  Moving an anchored window with the Position sliders now keeps it where you put it on
+  Apply, and **Position** in settings is applied with Apply and undone with Close, like
+  every other setting there.
+- DovahHub's History tab no longer gets stuck when a request to Chronicle fails, and
+  **Load older** past the 1000-line limit doesn't leave old rows behind.
+- Smaller fixes: the newest history lines are kept when a game is loaded straight after a
+  save; NPC subtitles are read more safely; the controller combo can't get stuck after the
+  window closes; a SkyrimNet line typed just before loading a game isn't sent into the new
+  one; and long text is cut on a whole character.
 
 ## 1.4.26-beta
 
