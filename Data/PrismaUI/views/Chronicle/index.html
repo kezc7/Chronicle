@@ -49,13 +49,16 @@
 
     <!-- Input bar (hidden until activated) -->
     <div id="input-bar" class="hidden">
+      <span id="input-console-badge" class="input-console-badge" hidden data-i18n="ui.consoleBadge">Console</span>
       <div id="input-channel-picker">
         <button id="input-channel-label" type="button" aria-haspopup="menu" aria-expanded="false"
                 title="Choose channel (Tab cycles)" data-i18n-title="ui.chooseChannel">[All]</button>
         <div id="input-channel-menu" class="hidden" role="menu"></div>
       </div>
+      <span id="input-addressee" class="input-addressee" hidden></span>
       <input id="chat-input" type="text" autocomplete="off" spellcheck="false"
              placeholder="Type a message… (Escape to cancel)" data-i18n-placeholder="ui.inputPlaceholder" />
+      <div id="input-complete" class="dv-panel input-complete" hidden role="listbox"></div>
     </div>
 
     <!-- Controller prompts (pad.js), shown while the pad is the input in use -->
@@ -133,6 +136,10 @@
             <div class="dv-setting-row">
               <label class="dv-setting-row__label" for="sp-hide-dialogue"><b data-i18n="sp.hideDialogue">Hide in conversations</b><small data-i18n="sp.hideDialogueHint">Hides Chronicle while you talk to an NPC and brings it back when the conversation ends</small></label>
               <label class="dv-toggle sp-toggle"><input type="checkbox" id="sp-hide-dialogue" checked /><span class="dv-toggle__track"><i></i></span><span class="sp-toggle-state"></span></label>
+            </div>
+            <div class="dv-setting-row">
+              <label class="dv-setting-row__label" for="sp-journal"><b data-i18n="sp.journal">Journal dividers</b><small data-i18n="sp.journalHint">A thin line when you reach a new place or a new day starts</small></label>
+              <label class="dv-toggle sp-toggle"><input type="checkbox" id="sp-journal" /><span class="dv-toggle__track"><i></i></span><span class="sp-toggle-state"></span></label>
             </div>
             <div class="dv-setting-row">
               <label class="dv-setting-row__label" for="sp-dialogue-radius"><b data-i18n="sp.dialogueRadius">NPC speech radius</b><small data-i18n="sp.dialogueRadiusHint">Only log NPC speech within this distance. 0 = unlimited.</small></label>
@@ -282,6 +289,12 @@
 
         <!-- Channels -->
         <div id="sp-channels" class="sp-section">
+          <div class="sp-group" id="sp-custom-tabs">
+            <h3 class="dv-kicker" data-i18n="sp.customTabs">Custom tabs</h3>
+            <p class="sp-section-hint" data-i18n="sp.customTabsHint">Up to two tabs of your own, each showing the channels you pick. They sit after All.</p>
+            <div id="sp-custom-tab-list"><!-- CHRON-47: populated by JS --></div>
+            <button type="button" class="dv-button sp-add-tab" id="sp-add-tab" data-i18n="sp.addTab">+ Add a tab</button>
+          </div>
           <div class="sp-group">
             <h3 class="dv-kicker" data-i18n="sp.channelConfig">Channel configuration</h3>
             <div id="sp-channel-list"><!-- populated by JS --></div>
@@ -328,6 +341,7 @@
           <button type="button" class="dv-button" id="sp-position" data-i18n="sp.position">Position</button>
           <button type="button" class="dv-button" id="sp-reset" data-i18n="sp.reset">Reset</button>
           <button type="button" class="dv-button" id="sp-test" data-i18n="sp.diagnostics">Diagnostics</button>
+          <span id="sp-unsaved" class="sp-unsaved" hidden><i></i><span data-i18n="sp.unsaved">Unsaved changes</span></span>
           <button type="button" class="dv-button dv-button--primary" id="sp-apply" data-i18n="sp.apply">Apply</button>
         </div>
       </div>
@@ -337,6 +351,7 @@
     </div><!-- /settings-panel -->
   </div><!-- /settings-overlay -->
 
+  <div id="speaker-tip" class="dv-panel speaker-tip" hidden></div>
   <script src="dropdowns.js"></script>
   <script src="i18n.js"></script>
   <script src="bridge.js"></script>

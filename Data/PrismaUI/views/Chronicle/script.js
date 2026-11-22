@@ -39,6 +39,7 @@ const DEFAULT_CONFIG = {
     user_hidden: false,        // that state, saved when remember_hidden is on
     auto_hide: 0,              // seconds without new messages before the window fades; 0 = never
     magelight_pad_navigation: true,  // Magelight: every pad button reaches the page (CHRON-43); false keeps the keys style
+    journal_dividers: false,   // a divider at each new place or game day (CHRON-48); off unless turned on
   },
   window: {
     position_x: 20,
@@ -140,6 +141,7 @@ function normalizeConfig() {
   g.user_hidden = g.remember_hidden && g.user_hidden === true;
   g.auto_hide = clamp(Math.round(Number(g.auto_hide) || 0), 0, 300);
   g.magelight_pad_navigation = g.magelight_pad_navigation !== false;
+  g.journal_dividers = g.journal_dividers === true;
   for (const key of ['input_hotkey', 'config_hotkey', 'interact_hotkey']) {
     if (typeof g[key] !== 'string' || !g[key].trim()) g[key] = DEFAULT_CONFIG.general[key];
     if (!/^(Enter|[a-z0-9]|F([1-9]|1[0-2]))$/i.test(g[key])) g[key] = DEFAULT_CONFIG.general[key];
@@ -312,6 +314,7 @@ function applyConfig() {
   while (messages.length > config.general.max_messages) {
     const old = messages.shift();
     old.el?.remove();
+    old.divider?.remove();
   }
 
   // Channel tab visibility
@@ -322,7 +325,8 @@ function applyConfig() {
     tab.classList.toggle('hidden-channel', chCfg ? !chCfg.enabled : false);
   });
 
-  if (!config.channels[activeChannel]?.enabled) activeChannel = 'all';
+  renderCustomTabs();
+  if (isCustomTab(activeChannel) ? !customTab(activeChannel) : !config.channels[activeChannel]?.enabled) activeChannel = 'all';
   switchChannel(activeChannel);
   setInputTarget(config.channels[inputTarget]?.enabled ? inputTarget : 'all');
   wakeWindow(); // restart the auto-hide timer with the current setting
@@ -346,6 +350,8 @@ function applyConfig() {
     });
   styleEl.textContent = rules.join('\n');
   applySpeakerColours();
+
+  refreshDividers();
 
   // The resize handle is a fixed-position sibling. Reposition it after
   // applying saved window coordinates, not only after a resize.
@@ -375,7 +381,7 @@ function addMessage(data) {
   const at = Number(timestamp) || Date.now();
   // The same line again within a few seconds counts on its row (CHRON-44).
   const repeats = Math.max(1, Math.floor(Number(data.count)) || 1);
-  const burst = burstRow(channel, speaker, message, at);
+  const burst = burstRow(channel, speaker, message, at, journalKey(data));
   if (burst) {
     burst.count += repeats;
     burst.last = Math.max(burst.last, Number(data.last) || at);
@@ -388,6 +394,8 @@ function addMessage(data) {
   const entry = { channel, speaker, message, timestamp: timestamp || at, el: null,
     count: repeats, last: Number(data.last) || at, ids: id ? [id] : [] };
   if (id) entry.id = id;
+  if (typeof data.place === 'string' && data.place) entry.place = data.place;  // CHRON-48
+  if (Number(data.gameDays) > 0) { entry.gameDays = Number(data.gameDays); entry.gameHour = Number(data.gameHour) || 0; }
   const list = document.getElementById('message-list');
   const shouldStick = !userScrolledUp;
   messages.push(entry);
@@ -395,6 +403,7 @@ function addMessage(data) {
   while (messages.length > config.general.max_messages) {
     const old = messages.shift();
     old.el?.remove();
+    old.divider?.remove();
   }
 
   const el = buildMessageEl(entry, chCfg);
@@ -402,6 +411,7 @@ function addMessage(data) {
   el.classList.toggle('hidden', !shouldShowMessage(channel) || !matchesFilters(entry));
 
   list.appendChild(el);
+  placeJournalDivider(entry);
   if (shouldShowMessage(channel) && matchesFilters(entry)) {
     if (shouldStick) scrollToBottom();
     else showUnread(++unreadCount);
@@ -439,10 +449,12 @@ function wakeWindow() {
 const BURST_MS = 4000;
 const BURST_ROWS = 3;
 
-function burstRow(channel, speaker, message, at) {
+function burstRow(channel, speaker, message, at, journal) {
   for (let i = messages.length - 1, seen = 0; i >= 0 && seen < BURST_ROWS; --i, ++seen) {
     const row = messages[i];
     if (row.channel !== channel || (row.speaker || '') !== (speaker || '') || row.message !== message) continue;
+    // Never across a journal divider (CHRON-48).
+    if (journal && journalKey(row) && journalKey(row) !== journal) continue;
     const gap = at - (Number(row.last) || Number(row.timestamp) || 0);
     if (gap >= 0 && gap <= BURST_MS) return row;
   }
@@ -501,6 +513,8 @@ function shouldShowMessage(channel) {
   // The player's own typed lines always show in All, even with the Player channel off.
   if (channel === 'player' && activeChannel === 'all') return true;
   if (!config.channels[channel]?.enabled) return false;
+  // A custom tab shows its own channels (CHRON-47).
+  if (isCustomTab(activeChannel)) return customTabShows(customTab(activeChannel), channel);
   // Console is off by default, so users who enable it see its lines in All too.
   if (activeChannel === 'all') return true;
   return channel === activeChannel;
@@ -573,10 +587,21 @@ function switchChannel(channel) {
 }
 
 function setInputTarget(channel) {
+  // A custom tab sends on its first chat channel, or All (CHRON-47).
+  if (isCustomTab(channel)) {
+    const tab = customTab(channel);
+    channel = (tab && tab.channels.find(item => ['dialogue', 'skyrimnet', 'player'].includes(item) &&
+      config.channels[item]?.enabled)) || 'all';
+  }
   inputTarget = channel;
   document.getElementById('input-channel-label').textContent =
     '[' + channelLabel(channel) + ']';
   closeChannelMenu();
+  // The Console target looks different from chat (CHRON-45).
+  document.getElementById('input-bar').classList.toggle('console-target', channel === 'console');
+  document.getElementById('input-console-badge').hidden = channel !== 'console';
+  if (channel === 'console') hideComplete();
+  renderAddressee();
 }
 
 // Enabled channels in tab order; shared by Tab cycling and the channel menu.
@@ -629,6 +654,12 @@ function openInput() {
   bar.classList.remove('hidden');
   input.value = '';
   input.focus();
+  // Asked again each time: mods register commands, and NPCs come and go.
+  commandList = null;
+  addressee = null;
+  addresseePick = -1;
+  hideComplete();
+  sendToGame('addresseeQuery', '');
   keepListBottom(stick);
   if (typeof renderPadPrompts === 'function') renderPadPrompts();
   syncEscapeLayer();
@@ -640,6 +671,8 @@ function closeInput() {
   if (!inputOpen) return;
   inputOpen = false;
   closeChannelMenu();
+  hideComplete();
+  renderAddressee();
 
   const stick = !userScrolledUp;
   document.getElementById('input-bar').classList.add('hidden');
@@ -682,8 +715,10 @@ function submitInput() {
   if (inputTarget === 'console') {
     sendToGame('consoleCommand', text);
   } else {
-    // The channel is only logged natively; every other channel is chat.
-    sendToGame('playerInput', {text, channel: inputTarget});
+    // The channel is only logged natively; every other channel is chat. "to" is
+    // the NPC (or everyone nearby) picked in the chat bar (CHRON-46).
+    const to = addresseeTarget();
+    sendToGame('playerInput', to === null ? {text, channel: inputTarget} : {text, channel: inputTarget, to});
   }
 
   closeInput();
@@ -711,6 +746,7 @@ function openSettings() {
 
   populateSettingsForm();
   document.getElementById('settings-overlay').classList.remove('hidden');
+  markSettingsSaved();
 
   return true;
 }
@@ -743,6 +779,7 @@ function backFromSettings() {
 
 function stepBack() {
   if (settingsOpen) backFromSettings();
+  else if (inputOpen && completeOpen()) hideComplete();
   else if (inputOpen) closeInput();
   else closeInteraction();
 }
@@ -770,6 +807,9 @@ function populateSettingsForm() {
   document.getElementById('sp-hide-menus').checked  = g.hide_in_menus;
   document.getElementById('sp-hide-photo').checked  = g.hide_in_photo_mode;
   document.getElementById('sp-hide-dialogue').checked = g.hide_in_dialogue !== false;
+  document.getElementById('sp-journal').checked = g.journal_dividers === true;
+  customTabEditor = (config.custom_tabs || []).map(tab => ({name: tab.name, channels: tab.channels.slice()}));
+  renderTabEditor();
   document.getElementById('sp-config-hotkey').value = g.config_hotkey || '0';
   document.getElementById('sp-input-hotkey').value  = g.input_hotkey  || 'Enter';
   hotkeyStatus('');
@@ -977,6 +1017,7 @@ function collectSettingsFromForm() {
       hide_in_menus:      document.getElementById('sp-hide-menus').checked,
       hide_in_photo_mode: document.getElementById('sp-hide-photo').checked,
       hide_in_dialogue:   document.getElementById('sp-hide-dialogue').checked,
+      journal_dividers:   document.getElementById('sp-journal').checked,
       combat_hits:        document.getElementById('sp-combat-hits').checked,
       dialogue_radius:    clamp(Number(document.getElementById('sp-dialogue-radius-val').value) || 0, 0, 5000),
       hide_game_notifications: document.getElementById('sp-hide-game-notifications').checked,
@@ -1006,6 +1047,7 @@ function collectSettingsFromForm() {
       ? 'automatic' : 'white',
     channels,
     speaker_colours: collectSpeakerColours(),
+    custom_tabs: normalizeCustomTabs(customTabEditor.map(tab => ({name: tab.name, channels: tab.channels.slice()}))),
     hud_subtitle_paths: document.getElementById('sp-hud-subtitle-paths').value
       .split(/\r?\n/).map(path => path.trim())
       .filter(path => path.length > 0 && path.length <= 256)
@@ -1021,6 +1063,7 @@ function applyAndSaveSettings() {
   applyConfig();
   settingsSnapshot = deepMerge({}, config);
   persistConfig();
+  markSettingsSaved();
   // History is native's (CHRON-41): Keep history off removes its file there.
   // An old version's copy in this page's storage goes too.
   if (!config.general.persist_history) {
@@ -1098,6 +1141,7 @@ function previewVisualSettings() {
   paintSliders();
   syncToggles();
   if (isPreviewControl(event && event.target, type)) previewVisualSettings();
+  updateUnsavedCue();
 }));
 
 // Settings Apply / Reset
@@ -1110,6 +1154,7 @@ document.getElementById('sp-reset').addEventListener('click', () => {
   populateSettingsForm();
   normalizeConfig();
   applyConfig();
+  updateUnsavedCue();
   statusText(t('status.defaultsRestored'));
 });
 
@@ -1384,6 +1429,22 @@ document.addEventListener('keydown', e => {
 
   // Input bar
   if (inputOpen) {
+    const input = document.getElementById('chat-input');
+    const atEnd = input.selectionStart === undefined || input.selectionStart >= input.value.length;
+    if (completeOpen() && (e.key === 'Tab' || (e.key === 'ArrowRight' && atEnd && !e.ctrlKey))) {
+      acceptComplete();
+      e.preventDefault();
+      return;
+    }
+    if (completeOpen() && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      moveComplete(e.key === 'ArrowDown' ? 1 : -1);
+      e.preventDefault();
+      return;
+    }
+    if (e.ctrlKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      if (cycleAddressee(e.key === 'ArrowRight' ? 1 : -1)) e.preventDefault();
+      return;
+    }
     if (e.key === 'Enter') {
       submitInput();
       e.preventDefault();
@@ -1602,3 +1663,341 @@ setInterval(() => {
   messages.forEach(entry => entry.el.classList.toggle('fading',
     !interactionOpen && age > 0 && Date.now() - entry.timestamp > age));
 }, 1000);
+
+// ---------------------------------------------------------------------------
+// CHRON-42 to CHRON-48 (approved mockups, 22 Nov). State is var: functions
+// here run from applyConfig before this part of the file has run.
+
+// CHRON-42: Apply says when the form holds changes it hasn't saved.
+var settingsBaseline = '';
+function settingsFormState() {
+  try { return JSON.stringify(collectSettingsFromForm()); } catch (_) { return ''; }
+}
+function markSettingsSaved() {
+  settingsBaseline = settingsFormState();
+  updateUnsavedCue();
+}
+function updateUnsavedCue() {
+  const cue = document.getElementById('sp-unsaved');
+  if (!cue) return;
+  const dirty = settingsOpen && settingsFormState() !== settingsBaseline;
+  cue.hidden = !dirty;
+  document.getElementById('sp-apply').classList.toggle('is-dirty', dirty);
+}
+
+// CHRON-47: the custom tabs in the tab bar, and their editor in Settings.
+var CUSTOM_TAB_NAMES = ['story', 'roleplay', 'quests', 'combat', 'travel', 'trade'];
+var customTabEditor = [];
+function isCustomTab(id) { return typeof id === 'string' && id.indexOf('custom-') === 0; }
+function customTab(id) { return (config.custom_tabs || []).find(tab => tab.id === id) || null; }
+function customTabLabel(name) {
+  const key = 'tabname.' + name;
+  const text = t(key);
+  return text === key ? name : text;
+}
+function renderCustomTabs() {
+  const bar = document.getElementById('channel-tabs');
+  if (!bar) return;
+  bar.querySelectorAll('.tab.custom-tab').forEach(tab => tab.remove());
+  const kids = Array.from(bar.children);
+  const all = bar.querySelector('.tab[data-channel="all"]');
+  let ref = kids[kids.indexOf(all) + 1] || null;
+  (config.custom_tabs || []).forEach(tab => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'tab custom-tab' + (activeChannel === tab.id ? ' active' : '');
+    button.dataset.channel = tab.id;
+    button.textContent = customTabLabel(tab.name);
+    bar.insertBefore(button, ref);
+  });
+}
+function renderTabEditor() {
+  const list = document.getElementById('sp-custom-tab-list');
+  if (!list) return;
+  list.replaceChildren();
+  const changed = () => list.dispatchEvent(new Event('change', {bubbles: true}));
+  customTabEditor.forEach((tab, index) => {
+    const row = document.createElement('div');
+    row.className = 'sp-tab-row';
+    const name = document.createElement('button');
+    name.type = 'button';
+    name.className = 'dv-select sp-tab-name';
+    name.setAttribute('data-choice', '');
+    const holder = document.createElement('span');
+    holder.hidden = true;
+    holder.setAttribute('data-choice-options', '');
+    const names = CUSTOM_TAB_NAMES.includes(tab.name) ? CUSTOM_TAB_NAMES : CUSTOM_TAB_NAMES.concat([tab.name]);
+    names.forEach(key => {
+      const option = document.createElement('option');
+      option.value = key;
+      option.textContent = customTabLabel(key);
+      holder.appendChild(option);
+    });
+    name.appendChild(holder);
+    if (window.DovahHubChoices) window.DovahHubChoices.upgrade(name);
+    name.value = tab.name;
+    name.addEventListener('change', () => { customTabEditor[index].name = name.value || tab.name; });
+    const chips = document.createElement('div');
+    chips.className = 'sp-tab-chips';
+    CHANNELS.filter(channel => channel !== 'all').forEach(channel => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'dv-chip sp-tab-chip';
+      chip.dataset.channel = channel;
+      chip.textContent = channelLabel(channel);
+      const paint = () => {
+        const on = customTabEditor[index].channels.includes(channel);
+        chip.classList.toggle('is-selected', on);
+        chip.setAttribute('aria-pressed', on ? 'true' : 'false');
+      };
+      paint();
+      chip.addEventListener('click', () => {
+        const picked = customTabEditor[index].channels;
+        const at = picked.indexOf(channel);
+        if (at < 0) picked.push(channel);
+        else if (picked.length > 1) picked.splice(at, 1);  // a tab keeps one channel at least
+        paint();
+        changed();
+      });
+      chips.appendChild(chip);
+    });
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'dv-button sp-tab-remove';
+    remove.textContent = t('sp.removeTab');
+    remove.addEventListener('click', () => {
+      customTabEditor.splice(index, 1);
+      renderTabEditor();
+      changed();
+    });
+    row.append(name, chips, remove);
+    list.appendChild(row);
+  });
+  const add = document.getElementById('sp-add-tab');
+  if (add) add.disabled = customTabEditor.length >= CUSTOM_TABS_MAX;
+}
+document.getElementById('sp-add-tab').addEventListener('click', () => {
+  if (customTabEditor.length >= CUSTOM_TABS_MAX) return;
+  const used = customTabEditor.map(tab => tab.name);
+  const name = CUSTOM_TAB_NAMES.find(key => !used.includes(key)) || 'story';
+  customTabEditor.push({name, channels: ['dialogue', 'skyrimnet', 'narrator', 'player']});
+  renderTabEditor();
+  document.getElementById('sp-custom-tab-list').dispatchEvent(new Event('change', {bubbles: true}));
+});
+
+// CHRON-48: a divider where the place or the game day changes, when turned on.
+function journalKey(entry) {
+  if (!entry) return '';
+  const day = Number(entry.gameDays) > 0 ? Math.floor(Number(entry.gameDays)) + 1 : 0;
+  const place = typeof entry.place === 'string' ? entry.place : '';
+  return day || place ? place + '|' + day : '';
+}
+function journalText(entry) {
+  const parts = [];
+  if (entry.place) parts.push(entry.place);
+  if (Number(entry.gameDays) > 0) {
+    const minutes = Math.round(Math.min(23.99, Math.max(0, Number(entry.gameHour) || 0)) * 60) % 1440;
+    parts.push(t('journal.day', {day: Math.floor(Number(entry.gameDays)) + 1}) + ', ' +
+      String(Math.floor(minutes / 60)).padStart(2, '0') + ':' + String(minutes % 60).padStart(2, '0'));
+  }
+  return parts.join(' \u00b7 ');
+}
+function placeJournalDivider(entry) {
+  if (!config.general.journal_dividers || !entry || !entry.el || !entry.el.parentNode) return;
+  const key = journalKey(entry);
+  if (!key) return;
+  let previous = '';
+  for (let i = messages.indexOf(entry) - 1; i >= 0 && !previous; --i) previous = journalKey(messages[i]);
+  if (key === previous) return;
+  const divider = document.createElement('div');
+  divider.className = 'journal-divider';
+  divider.textContent = journalText(entry);
+  entry.el.parentNode.insertBefore(divider, entry.el);
+  entry.divider = divider;
+}
+function refreshDividers() {
+  messages.forEach(entry => {
+    if (entry.divider) { entry.divider.remove(); entry.divider = null; }
+  });
+  if (config.general.journal_dividers) messages.forEach(placeJournalDivider);
+}
+
+// CHRON-48: click a speaker's name to see only them; Shift+click to talk to them.
+function speakerEntry(target) {
+  const name = target && typeof target.closest === 'function' ? target.closest('.speaker') : null;
+  if (!name) return null;
+  const row = name.closest('.message');
+  const entry = messages.find(item => item.el === row);
+  return entry && entry.speaker ? {entry, name} : null;
+}
+function talkable(entry) { return entry.channel === 'dialogue' || entry.channel === 'skyrimnet'; }
+function hideSpeakerTip() {
+  const tip = document.getElementById('speaker-tip');
+  if (tip) tip.hidden = true;
+}
+function showSpeakerTip(hit) {
+  const tip = document.getElementById('speaker-tip');
+  if (!tip) return;
+  const prompt = (keys, text) => {
+    const span = document.createElement('span');
+    span.className = 'dv-prompt';
+    keys.forEach(key => { const cap = document.createElement('span'); cap.className = 'dv-keycap'; cap.textContent = key; span.appendChild(cap); });
+    const label = document.createElement('span');
+    label.textContent = text;
+    span.appendChild(label);
+    return span;
+  };
+  const who = hit.entry.speaker;
+  tip.replaceChildren(prompt([t('tip.click')], t('tip.showOnly', {name: who})));
+  if (talkable(hit.entry)) tip.appendChild(prompt(['Shift', t('tip.click')], t('tip.talkTo', {name: who})));
+  const box = typeof hit.name.getBoundingClientRect === 'function' ? hit.name.getBoundingClientRect() : {right: 0, top: 0};
+  tip.style.left = Math.round(Math.min(box.right + 10, window.innerWidth - 360)) + 'px';
+  tip.style.top = Math.round(Math.max(0, box.top - 8)) + 'px';
+  tip.hidden = false;
+}
+function talkTo(name) {
+  hideSpeakerTip();
+  if (!inputOpen && !openInput()) return false;
+  const input = document.getElementById('chat-input');
+  input.value = name + ', ';  // SkyrimNet's own rule: a line that opens with a name is said to them
+  input.focus();
+  return true;
+}
+(() => {
+  const list = document.getElementById('message-list');
+  list.addEventListener('click', event => {
+    const hit = interactionOpen ? speakerEntry(event.target) : null;
+    if (!hit) return;
+    if (event.shiftKey && talkable(hit.entry)) { talkTo(hit.entry.speaker); return; }
+    refreshSpeakerOptions();
+    const select = document.getElementById('speaker-filter');
+    select.value = speakerFilter === hit.entry.speaker ? '' : hit.entry.speaker;
+    refreshFilters();
+  });
+  list.addEventListener('mouseover', event => {
+    const hit = interactionOpen ? speakerEntry(event.target) : null;
+    if (hit) showSpeakerTip(hit);
+    else hideSpeakerTip();
+  });
+  list.addEventListener('mouseout', hideSpeakerTip);
+})();
+
+// CHRON-45: "/" in the chat bar offers the commands, with their help.
+var commandList = null;  // the commands mods registered, from native; null until asked
+var completeItems = [];
+var completeIndex = 0;
+function setCommands(list) {
+  commandList = Array.isArray(list) ? list.filter(item => item && typeof item.prefix === 'string' && item.prefix) : [];
+  updateComplete();
+}
+function allCommands() {
+  return [{prefix: 'help', help: t('cmd.help')}, {prefix: 'selftest', help: t('cmd.selftest')}]
+    .concat((commandList || []).map(item => ({prefix: item.prefix, help: typeof item.help === 'string' ? item.help : ''})));
+}
+function completeOpen() {
+  const box = document.getElementById('input-complete');
+  return !!box && !box.hidden;
+}
+function hideComplete() {
+  const box = document.getElementById('input-complete');
+  if (box) { box.hidden = true; box.replaceChildren(); }
+  completeItems = [];
+  completeIndex = 0;
+}
+function updateComplete() {
+  const box = document.getElementById('input-complete');
+  if (!box) return;
+  const match = inputOpen && inputTarget !== 'console' ? /^\/(\S*)$/.exec(document.getElementById('chat-input').value) : null;
+  if (!match) { hideComplete(); return; }
+  if (commandList === null) { commandList = []; sendToGame('commandsQuery', ''); }
+  const typed = match[1].toLowerCase();
+  completeItems = allCommands().filter(item => item.prefix.toLowerCase().startsWith(typed)).slice(0, 6);
+  if (!completeItems.length || (completeItems.length === 1 && completeItems[0].prefix.toLowerCase() === typed)) {
+    hideComplete();
+    return;
+  }
+  completeIndex = Math.min(completeIndex, completeItems.length - 1);
+  box.replaceChildren(...completeItems.map((item, index) => {
+    const row = document.createElement('div');
+    row.className = 'dv-row input-complete__row' + (index === completeIndex ? ' is-selected' : '');
+    row.setAttribute('role', 'option');
+    const prefix = document.createElement('b');
+    prefix.textContent = '/' + item.prefix;
+    const help = document.createElement('span');
+    help.textContent = item.help;
+    row.append(prefix, help);
+    const cap = document.createElement('span');
+    if (index === completeIndex) { cap.className = 'dv-keycap'; cap.textContent = 'Tab'; }
+    row.appendChild(cap);
+    row.addEventListener('mousedown', event => { event.preventDefault(); completeIndex = index; acceptComplete(); });
+    return row;
+  }));
+  box.hidden = false;
+}
+function moveComplete(step) {
+  if (!completeItems.length) return;
+  completeIndex = ((completeIndex + step) % completeItems.length + completeItems.length) % completeItems.length;
+  updateComplete();
+}
+function acceptComplete() {
+  const item = completeOpen() ? completeItems[completeIndex] : null;
+  if (!item) return false;
+  const input = document.getElementById('chat-input');
+  input.value = '/' + item.prefix + ' ';
+  hideComplete();
+  input.focus();
+  return true;
+}
+document.getElementById('chat-input').addEventListener('input', () => { completeIndex = 0; updateComplete(); });
+
+// CHRON-46: who a typed line goes to, from native's choice; Ctrl+arrows or Y pick another.
+var addressee = null;    // {loaded, auto: {id, name, why}, nearby: [{id, name}]}
+var addresseePick = -1;  // -1: Chronicle chooses; 0..n-1: a nearby NPC; n: everyone nearby
+function setAddressee(data) {
+  addressee = data && typeof data === 'object' ? data : null;
+  addresseePick = -1;
+  renderAddressee();
+}
+function addresseeChoices() {
+  if (!addressee || !Array.isArray(addressee.nearby)) return [];
+  const autoId = addressee.auto && addressee.auto.id;
+  return addressee.nearby.filter(item => item && item.id && item.name && item.id !== autoId);
+}
+function cycleAddressee(step) {
+  if (!inputOpen || !addressee || !addressee.loaded || inputTarget === 'console') return false;
+  const states = addresseeChoices().length + 2;
+  addresseePick = ((addresseePick + 1 + step) % states + states) % states - 1;
+  renderAddressee();
+  return true;
+}
+function addresseeTarget() {
+  if (!addressee || !addressee.loaded || addresseePick < 0) return null;
+  const choices = addresseeChoices();
+  if (addresseePick < choices.length) return choices[addresseePick].id;
+  return 'nearby';
+}
+function renderAddressee() {
+  const pill = document.getElementById('input-addressee');
+  if (!pill) return;
+  if (!inputOpen || !addressee || !addressee.loaded || inputTarget === 'console') { pill.hidden = true; return; }
+  const choices = addresseeChoices();
+  const auto = addressee.auto || {};
+  let name = t('to.nearby');
+  let why = t('to.nearbyHint');
+  let nearby = true;
+  if (addresseePick >= 0 && addresseePick < choices.length) {
+    name = choices[addresseePick].name; why = t('to.picked'); nearby = false;
+  } else if (addresseePick < 0 && auto.name && (auto.why === 'conversation' || auto.why === 'looking')) {
+    name = auto.name; why = t(auto.why === 'conversation' ? 'to.conversation' : 'to.looking'); nearby = false;
+  }
+  const label = document.createElement('b');
+  label.textContent = '\u2192 ' + name;
+  const small = document.createElement('small');
+  small.textContent = why;
+  const cap = document.createElement('span');
+  cap.className = 'dv-keycap';
+  cap.textContent = document.documentElement.dataset.meridianInput === 'gamepad' ? 'Y' : 'Ctrl \u2190 \u2192';
+  pill.replaceChildren(label, small, cap);
+  pill.classList.toggle('is-nearby', nearby);
+  pill.hidden = false;
+}

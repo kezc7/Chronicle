@@ -82,6 +82,11 @@ function padAction(action) {
   if (padChoicesOpen()) return padChoiceAction(action);
   if (settingsOpen) return padSettingsAction(action);
   if (inputOpen) {
+    // The commands under "/" take up, down and A first (CHRON-45); Y picks who to talk to (CHRON-46).
+    if ((action === 'up' || action === 'down') && completeOpen()) { moveComplete(action === 'down' ? 1 : -1); return true; }
+    if (action === 'accept' && acceptComplete()) return true;
+    if (action === 'cancel' && completeOpen()) { hideComplete(); return true; }
+    if (action === 'tertiary') { cycleAddressee(1); return true; }
     if (action === 'up' || action === 'down') { recallInput(action === 'up' ? 1 : -1); return true; }
     if (action === 'previousTab' || action === 'nextTab') {
       setInputTarget(padStep(enabledChannels(), inputTarget, action === 'nextTab' ? 1 : -1));

@@ -782,3 +782,59 @@ textarea.sp-field { width: 100%; height: auto; padding: .55rem .75rem; resize: v
 #chronicle-window:hover #resize-handle {
   opacity: 1;
 }
+
+/* CHRON-42: Apply says when the form holds changes it hasn't saved. */
+.sp-unsaved { display: inline-flex; align-items: center; gap: .45rem; margin-right: .4rem;
+  color: var(--dv-accent-bright); font: 600 .9rem var(--dv-font); letter-spacing: .06em; text-transform: uppercase; }
+.sp-unsaved[hidden] { display: none; }
+.sp-unsaved i { width: .55rem; height: .55rem; border-radius: 50%; background: var(--dv-accent-bright);
+  box-shadow: 0 0 .5rem rgba(var(--dv-accent-rgb), .9); }
+#sp-apply.is-dirty { box-shadow: 0 0 0 1px var(--dv-accent-bright), 0 0 .9rem rgba(var(--dv-accent-rgb), .55); }
+
+/* CHRON-45: the commands under "/", and the Console target. */
+#input-bar { position: relative; }
+.input-complete { position: absolute; left: 0; right: 0; bottom: 100%; margin-bottom: 4px; padding: .3rem 0; z-index: 5;
+  background: rgba(12, 13, 16, .97); }
+.input-complete[hidden] { display: none; }
+.input-complete__row { display: grid; grid-template-columns: 8.5rem 1fr auto; gap: .7rem; align-items: baseline;
+  width: 100%; padding: .38rem .8rem; font-size: .95em; cursor: pointer; }
+.input-complete__row b { color: var(--dv-ink-bright); }
+.input-complete__row span { color: var(--dv-muted); }
+.input-complete__row .dv-keycap { font-size: .7rem; }
+#input-bar.console-target { box-shadow: inset 0 0 0 1px #8fd18f, 0 0 .8rem rgba(143, 209, 143, .35); }
+#input-bar.console-target #chat-input { caret-color: #8fd18f; color: #cfe9cf; font-family: Consolas, 'Courier New', monospace; }
+.input-console-badge { flex: 0 0 auto; margin-right: .3rem; padding: .1rem .5rem; font: 700 .8em var(--dv-font);
+  letter-spacing: .08em; text-transform: uppercase; color: #0d140d; background: #8fd18f; }
+.input-console-badge[hidden] { display: none; }
+
+/* CHRON-46: who a typed line goes to. */
+.input-addressee { display: inline-flex; align-items: center; gap: .4rem; flex: 0 0 auto; margin: 0 .35rem;
+  padding: .12rem .55rem; border: 1px solid rgba(var(--dv-accent-rgb), .7); background: rgba(var(--dv-accent-rgb), .14);
+  color: var(--dv-ink-bright); font: 600 .82em var(--dv-font); letter-spacing: .03em; white-space: nowrap; }
+.input-addressee[hidden] { display: none; }
+.input-addressee small { color: var(--dv-muted); font-weight: 400; }
+.input-addressee .dv-keycap { font-size: .72em; }
+.input-addressee.is-nearby { border-color: var(--dv-line-strong); background: rgba(255, 255, 255, .05); }
+
+/* CHRON-47: custom tabs. */
+.tab.custom-tab { color: var(--dv-accent-bright); }
+.tab.custom-tab::before { content: '\25C6  '; font-size: .7em; }
+.sp-tab-row { display: grid; grid-template-columns: 10rem 1fr auto; gap: .8rem; align-items: center; padding: .55rem 0;
+  border-bottom: 1px solid var(--dv-line-soft); }
+.sp-tab-chips { display: flex; flex-wrap: wrap; gap: .35rem; }
+.sp-tab-chips .dv-chip { padding: .22rem .6rem; font-size: .8rem; }
+.sp-tab-chips .dv-chip.is-selected { color: #1b1408; background: var(--dv-accent); border-color: var(--dv-accent-bright); }
+.sp-add-tab { margin-top: .6rem; }
+
+/* CHRON-48: journal dividers and the speaker click. */
+.journal-divider { display: flex; align-items: center; gap: .6rem; margin: .45rem 0 .25rem; color: var(--dv-accent);
+  font: 600 calc(var(--font-size, 13px) * .78) var(--dv-font); letter-spacing: .14em; text-transform: uppercase; }
+.journal-divider::before, .journal-divider::after { content: ''; flex: 1; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(var(--dv-accent-rgb), .6), transparent); }
+body.interacting .message .speaker { cursor: pointer; }
+body.interacting .message .speaker:hover { text-decoration: underline; text-underline-offset: 3px;
+  background: rgba(var(--dv-accent-rgb), .18); outline: 1px solid rgba(var(--dv-accent-rgb), .5); }
+.speaker-tip { position: fixed; z-index: 99; padding: .35rem .6rem; display: flex; gap: .9rem; align-items: center;
+  font-size: .85rem; white-space: nowrap; background: rgba(12, 13, 16, .97); pointer-events: none; }
+.speaker-tip[hidden] { display: none; }
+.speaker-tip .dv-prompt { font-size: .82rem; }

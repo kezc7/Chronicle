@@ -24,6 +24,7 @@
 #include "RuntimePolicy.h"
 #include "UiHost.h"
 #include "History.h"
+#include "SkyrimNet.h"
 
 // Documents\My Games\Skyrim Special Edition\SKSE. SKSE::log::log_directory()
 // alone resolves to My Games\Skyrim.INI\SKSE on 1.6.1170 (see MyGamesFolder).
@@ -105,7 +106,7 @@ public:
                      std::string_view a_message,
                      ChronicleHistory::Attribution a_attribution = {});
     // Game thread. The line goes to the box and on to SkyrimNet, as typing it would.
-    void SubmitChat(std::string_view a_text);
+    void SubmitChat(std::string_view a_text, ChronicleSkyrimNet::Pick a_pick = {});
 
     void OnMenuOpenClose(std::string_view a_menuName, bool a_opening);
     // Game thread. DovahHub's open/close messages and the tick's IsOpen check.

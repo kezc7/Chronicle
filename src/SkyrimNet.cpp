@@ -24,9 +24,13 @@
 #include "GameThread.h"
 #include "Utf8.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <memory>
+#include <nlohmann/json.hpp>
+#include <utility>
+#include <vector>
 
 namespace
 {
@@ -212,8 +216,51 @@ namespace
     }
 }
 
+namespace
+{
+    // CHRON-46: the living, loaded NPCs within earshot, nearest first.
+    std::vector<std::pair<float, RE::Actor*>> NearbyActors(float a_range, std::size_t a_max)
+    {
+        std::vector<std::pair<float, RE::Actor*>> found;
+        auto* lists = RE::ProcessLists::GetSingleton();
+        auto* player = RE::PlayerCharacter::GetSingleton();
+        if (!lists || !player) return found;
+        lists->ForEachHighActor([&](RE::Actor& actor) {
+            if (&actor != player && !actor.IsDead() && actor.Is3DLoaded()) {
+                const auto distance = DistanceToPlayer(&actor);
+                if (distance >= 0.0F && distance <= a_range && !NameOf(&actor).empty()) found.emplace_back(distance, &actor);
+            }
+            return RE::BSContainer::ForEachResult::kContinue;
+        });
+        std::sort(found.begin(), found.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+        if (found.size() > a_max) found.resize(a_max);
+        return found;
+    }
+}
+
 namespace ChronicleSkyrimNet
 {
+    std::string PreviewJson()
+    {
+        GameThread::Check();
+        nlohmann::json out = { { "loaded", Loaded() }, { "nearby", nlohmann::json::array() } };
+        if (!Loaded() || !RE::PlayerCharacter::GetSingleton()) return out.dump();
+        const auto entry = [](RE::Actor* a_actor) {
+            return nlohmann::json{ { "id", a_actor->GetFormID() }, { "name", NameOf(a_actor) } };
+        };
+        if (auto* partner = ConversationPartner()) {
+            out["auto"] = entry(partner);
+            out["auto"]["why"] = "conversation";
+        } else if (auto* looked = Listener(CrosshairSink::GetSingleton().Recent(), kCrosshairRange)) {
+            out["auto"] = entry(looked);
+            out["auto"]["why"] = "looking";
+        } else {
+            out["auto"] = { { "why", "nearby" } };
+        }
+        for (const auto& [distance, actor] : NearbyActors(kCrosshairRange, 8)) out["nearby"].push_back(entry(actor));
+        return out.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+    }
+
     bool Loaded()
     {
         return GetModuleHandleW(L"SkyrimNet.dll") != nullptr;
@@ -229,7 +276,7 @@ namespace ChronicleSkyrimNet
         CrosshairSink::GetSingleton().Clear();
     }
 
-    void Send(std::string_view a_text, ChronicleRuntime::SkyrimNetSend a_mode)
+    void Send(std::string_view a_text, ChronicleRuntime::SkyrimNetSend a_mode, Pick a_pick)
     {
         if (a_mode == ChronicleRuntime::SkyrimNetSend::Off) {
             spdlog::info("Chronicle: SkyrimNet handoff off (skyrimnet_send)");
@@ -255,6 +302,18 @@ namespace ChronicleSkyrimNet
                 spdlog::warn("Chronicle: SkyrimNet handoff failed: SkyrimNetApi.TransformDialogue could not be called");
             }
             return;
+        }
+        // The player's pick in the chat bar comes first (CHRON-46).
+        if (a_pick.nearby) {
+            Deliver(text, nullptr, nullptr);
+            return;
+        }
+        if (a_pick.actor) {
+            if (auto* picked = Listener(a_pick.actor, kNamedRange)) {
+                Deliver(text, picked, "picked in the chat bar");
+                return;
+            }
+            spdlog::info("Chronicle: the NPC picked in the chat bar [{:08X}] is gone; Chronicle chooses", a_pick.actor);
         }
         // Who the line is said to: the NPC in conversation, else one the line
         // names ("sally, ..."), else the NPC last under the crosshair, else no one.

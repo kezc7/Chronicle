@@ -474,3 +474,22 @@ test('settings that are not about the look still wait for Apply', () => {
   max.dispatchEvent(new Event('change', {bubbles: true}));
   assert.equal(page.config().general.max_messages, 100);
 });
+
+// CHRON-42 part 2: Apply says when the form holds changes it hasn't saved.
+test('the Unsaved changes cue shows while the form differs from what is saved', () => {
+  const p = require('./page-harness.cjs').page();
+  p.open('settings');
+  const cue = p.document.getElementById('sp-unsaved');
+  const apply = p.document.getElementById('sp-apply');
+  assert.equal(cue.hidden, true, 'nothing changed yet');
+  const box = p.document.getElementById('sp-hide-menus');
+  box.click();
+  assert.equal(cue.hidden, false);
+  assert.equal(apply.classList.contains('is-dirty'), true);
+  box.click();
+  assert.equal(cue.hidden, true, 'put back as it was');
+  box.click();
+  apply.click();
+  assert.equal(cue.hidden, true, 'Apply saved it');
+  assert.equal(apply.classList.contains('is-dirty'), false);
+});

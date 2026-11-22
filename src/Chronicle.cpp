@@ -239,6 +239,13 @@ void Chronicle::OnViewReady()
         const bool open = text && std::string_view(text) == "1";
         MainTask([open] { GetSingleton()->SetEscapeLayer(open); });
     });
+    // CHRON-45 and CHRON-46: the chat bar asks; the answers go back as scripts.
+    host.RegisterListener("commandsQuery", [](const char*) {
+        MainTask([] { GetSingleton()->InvokeUI("setCommands(" + ChronicleApi::CommandsJson() + ")"); });
+    });
+    host.RegisterListener("addresseeQuery", [](const char*) {
+        MainTask([] { GetSingleton()->InvokeUI("setAddressee(" + ChronicleSkyrimNet::PreviewJson() + ")"); });
+    });
     host.RegisterListener("padStyle", [](const char* text) {
         const bool navigation = text && std::string_view(text) == "navigation";
         MainTask([navigation] { GetSingleton()->SetPadStyle(navigation); });
@@ -716,10 +723,17 @@ void Chronicle::SendMessage(std::string_view channel, std::string_view speaker, 
             }
             ChronicleApi::Deliver(line, attribution.distance);
             // With its history id (0 when not kept): a page handed it in the handshake skips it (CHRON-41).
+            // With its history id (CHRON-41) and its place and game time, for the
+            // journal dividers (CHRON-48), when it has them.
             std::string script = "addMessage(" + payload + ")";
-            if (line.id) {
+            if (line.id || !line.place.empty() || line.gameDays > 0.0) {
                 auto withId = data;
-                withId["id"] = line.id;
+                if (line.id) withId["id"] = line.id;
+                if (!line.place.empty()) withId["place"] = line.place;
+                if (line.gameDays > 0.0) {
+                    withId["gameDays"] = line.gameDays;
+                    withId["gameHour"] = line.gameHour;
+                }
                 script = "addMessage(" + Json(withId) + ")";
             }
             // A hidden view still receives messages, so menus don't erase history.
@@ -742,11 +756,17 @@ void Chronicle::OnPlayerInput(std::string_view payload)
     // The page sends {"text", "channel"}; older pages sent the bare text.
     std::string text(payload);
     std::string channel = "all";
+    ChronicleSkyrimNet::Pick pick;
     if (!payload.empty() && payload.front() == '{') {
         const auto data = nlohmann::json::parse(payload, nullptr, false);
         if (data.is_object() && data.contains("text") && data["text"].is_string()) {
             text = data["text"].get<std::string>();
             if (data.contains("channel") && data["channel"].is_string()) channel = data["channel"].get<std::string>().substr(0, 32);
+            // CHRON-46: "nearby", or the form id of the NPC picked in the chat bar.
+            if (const auto it = data.find("to"); it != data.end()) {
+                if (it->is_string() && it->get<std::string>() == "nearby") pick.nearby = true;
+                else if (it->is_number_unsigned()) pick.actor = it->get<RE::FormID>();
+            }
         }
     }
     if (!m_gameLoaded || m_hidden || text.empty() || text.size() > 8192) {
@@ -760,10 +780,10 @@ void Chronicle::OnPlayerInput(std::string_view payload)
         return;
     }
     spdlog::info("Chronicle: chat submit (channel {}, {} chars)", channel, text.size());
-    SubmitChat(text);
+    SubmitChat(text, pick);
 }
 
-void Chronicle::SubmitChat(std::string_view text)
+void Chronicle::SubmitChat(std::string_view text, ChronicleSkyrimNet::Pick pick)
 {
     if (!m_gameLoaded || text.empty() || text.size() > 8192) return;
     SendMessage("player", PlayerDisplayName(), text);
@@ -773,7 +793,7 @@ void Chronicle::SubmitChat(std::string_view text)
             RE::BSFixedString("SkyrimNet_PlayerInput"), RE::BSFixedString(std::string(text).c_str()), 0.0f, nullptr};
         events->SendEvent(&event);
     }
-    ChronicleSkyrimNet::Send(text, m_skyrimNetSend);
+    ChronicleSkyrimNet::Send(text, m_skyrimNetSend, pick);
 }
 
 void Chronicle::OnConsoleCommand(std::string_view text)
@@ -1152,6 +1172,13 @@ void Chronicle::ExportHistory(std::string_view text)
         const auto stamp = std::chrono::system_clock::now().time_since_epoch().count();
         const auto path = base / "Chronicle-exports" / ("history-" + std::to_string(stamp) + ".txt");
         AtomicWrite(path, ChronicleUtf8::ReplaceInvalid(text).value);
+        // CHRON-48: the loaded save's kept lines as a story, beside the plain text.
+        if (m_historyProfile) {
+            auto story = path;
+            story.replace_extension(".md");
+            const auto lines = m_history.Before(std::nullopt, ChronicleHistory::kMaxLines, m_lineage).lines;
+            AtomicWrite(story, ChronicleHistory::MarkdownStory(lines, PlayerDisplayName()));
+        }
         InvokeUI("saveResult(true, 'export.done', " + Json(path.string()) + ")");
     } catch (const std::exception& e) {
         InvokeUI("saveResult(false, 'export.failed', " + Json(e.what()) + ")");

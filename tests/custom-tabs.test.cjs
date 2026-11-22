@@ -96,3 +96,50 @@ test('the tabs survive a save and a reload', () => {
   assert.deepEqual(saved.custom_tabs, [{id: 'custom-1', name: 'Story', channels: ['narrator']}]);
   assert.deepEqual(page(saved).tabs(), saved.custom_tabs);
 });
+
+// The tab bar and the editor, from the approved mockup.
+const harness = require('./page-harness.cjs');
+const STORY = {general: {language: 'en'}, window: {}, channels: {narrator: {enabled: true}},
+  custom_tabs: [{name: 'story', channels: ['dialogue', 'narrator']}]};
+
+test('a custom tab sits after All, named in the page language, and shows only its channels', () => {
+  const p = harness.page({settings: STORY, lines: [
+    {channel: 'dialogue', speaker: 'Lydia', message: 'said', timestamp: 1763800000000, id: 1},
+    {channel: 'system', speaker: '', message: 'Game saved', timestamp: 1763800001000, id: 2},
+    {channel: 'narrator', speaker: 'Narrator', message: 'The wind rises.', timestamp: 1763800002000, id: 3}]});
+  const tabs = Array.from(p.document.querySelectorAll('#channel-tabs .tab'), tab => tab.dataset.channel);
+  assert.deepEqual(tabs.slice(0, 3), ['all', 'custom-1', 'dialogue']);
+  assert.equal(p.document.querySelector('.tab[data-channel="custom-1"]').textContent, 'Story');
+  p.document.querySelector('.tab[data-channel="custom-1"]').click();
+  const shown = Array.from(p.run('messages'), entry => entry.el.classList.contains('hidden') ? null : entry.message).filter(Boolean);
+  assert.deepEqual(shown, ['said', 'The wind rises.']);
+  assert.equal(p.run('inputTarget'), 'dialogue', 'it sends on its first chat channel');
+  assert.ok(p.run('padVisibleTabs()').includes('custom-1'), 'LB / RB step through it');
+});
+
+test('the editor adds, changes and removes tabs, and Apply saves them', () => {
+  const p = harness.page({settings: STORY});
+  p.open('settings');
+  p.document.querySelector('.sp-tab[data-sp="channels"]').click();
+  const rows = () => p.document.querySelectorAll('#sp-custom-tab-list .sp-tab-row');
+  assert.equal(rows().length, 1);
+  p.document.getElementById('sp-add-tab').click();
+  assert.equal(rows().length, 2);
+  assert.equal(p.document.getElementById('sp-add-tab').disabled, true, 'two at most');
+  const chip = rows()[0].querySelector('.sp-tab-chip[data-channel="system"]');
+  chip.click();
+  assert.equal(chip.getAttribute('aria-pressed'), 'true');
+  rows()[1].querySelector('.sp-tab-remove').click();
+  assert.equal(rows().length, 1);
+  p.document.getElementById('sp-apply').click();
+  const saved = JSON.parse(p.calls('settingsChanged').at(-1));
+  assert.deepEqual(saved.custom_tabs, [{id: 'custom-1', name: 'story', channels: ['dialogue', 'narrator', 'system']}]);
+});
+
+test('the last channel of a tab stays on', () => {
+  const p = harness.page({settings: {...STORY, custom_tabs: [{name: 'quests', channels: ['notification']}]}});
+  p.open('settings');
+  const chip = p.document.querySelector('.sp-tab-chip[data-channel="notification"]');
+  chip.click();
+  assert.equal(chip.getAttribute('aria-pressed'), 'true');
+});

@@ -188,9 +188,11 @@ function setUserHidden(hidden) {
 
 // A line as the page keeps and hands on: no element, its history id if it has
 // one, and the repeats counted on its row (CHRON-44).
-function plainLine({channel, speaker, message, timestamp, id, count, last, ids}) {
+function plainLine({channel, speaker, message, timestamp, id, count, last, ids, place, gameDays, gameHour}) {
   const line = {channel, speaker, message, timestamp};
   if (Number(id) > 0) line.id = Number(id);
+  if (typeof place === 'string' && place) line.place = place;  // CHRON-48
+  if (Number(gameDays) > 0) { line.gameDays = Number(gameDays); line.gameHour = Number(gameHour) || 0; }
   if (Number(count) > 1) {
     line.count = Number(count);
     line.last = Number(last) || timestamp;
@@ -212,6 +214,7 @@ function showNativeLines(lines, extra) {
   messages.length = 0;
   document.getElementById('message-list').replaceChildren();
   all.slice(-config.general.max_messages).forEach(entry => addMessage(entry, false));
+  if (typeof refreshDividers === 'function') refreshDividers();
 }
 
 function setRuntime(data) {

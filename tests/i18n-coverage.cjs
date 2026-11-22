@@ -53,7 +53,7 @@ const KEEP = new Set([
 const SAME_WORD = {
   fr: ['message', 'messages', 'notifications', 'session', 'active', 'interaction', 'menus', 'mode', 'photo', 'visible',
        'corrections', 'max', 'position', 'configuration', 'exact', 'palette', 'distance', 'console', 'code', 'combat',
-       'conversation', 'conversations'],
+       'conversation', 'conversations', 'journal'],
   de: ['export', 'native', 'quest', 'tabs', 'max', 'position', 'optional', 'palette', 'code', 'info', 'controller'],
   it: ['mouse', 'native', 'file', 'max', 'per', 'console', 'chat', 'controller'],
   es: ['visible', 'cursor', 'real', 'chat'],
@@ -96,6 +96,8 @@ const SAME_VALUE_IN = {
   'es:sp.tabGeneral': 'Spanish "general"', 'es:diag.no': 'Spanish "no"',
   'pl:channel.system': 'Polish "system"', 'pl:channel.narrator': 'Polish "narrator"', 'pl:Narrator': 'Polish "narrator"',
   'tr:theme.modern': 'Turkish "modern"', 'tr:theme.minimal': 'Turkish "minimal"',
+  'fr:ui.consoleBadge': 'French "console"', 'it:ui.consoleBadge': 'Italian "console"',
+  'de:tabname.quests': 'German Skyrim calls quests "Quests"',
 };
 
 const words = text => (text.match(/[\p{L}][\p{L}\p{N}'’-]*/gu) || []).map(w => w.toLowerCase().replace(/['’-]+$/, ''));

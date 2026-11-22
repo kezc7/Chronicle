@@ -36,6 +36,19 @@ namespace ChronicleSkyrimNet
     void RegisterSinks();
     void Clear();  // load boundary
 
+    // CHRON-46: who the player picked in the chat bar. Neither set: Chronicle
+    // chooses, as before (conversation, a name in the line, the crosshair).
+    struct Pick
+    {
+        bool nearby{ false };   // said to no one in particular
+        RE::FormID actor{ 0 };  // said to this NPC
+    };
+
     // Game thread.
-    void Send(std::string_view a_text, ChronicleRuntime::SkyrimNetSend a_mode);
+    void Send(std::string_view a_text, ChronicleRuntime::SkyrimNetSend a_mode, Pick a_pick = {});
+
+    // Game thread. What the chat bar shows: {"loaded", "auto": {"id", "name",
+    // "why"}, "nearby": [{"id", "name"}]}. Native data only, never Papyrus, so a
+    // script backlog can't make it late. A name typed in the line isn't known here.
+    std::string PreviewJson();
 }

@@ -367,4 +367,13 @@ namespace ChronicleApi
         for (const auto& command : g_commands) prefixes.push_back(command.prefix);
         return prefixes;
     }
+
+    std::string CommandsJson()
+    {
+        auto list = nlohmann::json::array();
+        for (const auto& command : CopyCommands()) {
+            list.push_back({ { "prefix", command.prefix }, { "help", ChronicleUtf8::Cut(command.help, 160) } });
+        }
+        return list.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+    }
 }

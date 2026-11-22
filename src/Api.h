@@ -42,6 +42,9 @@ namespace ChronicleApi
     // For Diagnostics.
     std::size_t SubscriberCount();
     std::vector<std::string> CommandPrefixes();
+    // CHRON-45: [{"prefix", "help"}] of the commands other mods registered, for
+    // the chat bar's autocomplete. /help and /selftest are the page's own.
+    std::string CommandsJson();
 
     // For the self-test: the dispatch RunCommand does, without its echo or
     // "unknown command" line in the box. Built-ins (/help, /selftest) are

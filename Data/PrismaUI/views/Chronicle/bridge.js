@@ -18,7 +18,7 @@
 function sendToGame(eventName, data) {
   const allowed = ['focusAcquired', 'focusReleased', 'playerInput', 'consoleCommand',
     'settingsChanged', 'uiReady', 'diagnostics', 'exportHistory', 'historyImport', 'historyCleared', 'selfTestReply',
-    'escapeLayer', 'padStyle'];
+    'escapeLayer', 'padStyle', 'commandsQuery', 'addresseeQuery'];
   if (!allowed.includes(eventName) || typeof window[eventName] !== 'function') return false;
   // Magelight's display-only copy of the page (controls.js hostRole) only answers the handshake.
   if (eventName !== 'uiReady' && typeof hostRole === 'string' && hostRole === 'hud') return false;
