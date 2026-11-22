@@ -26,6 +26,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <deque>
 #include <nlohmann/json.hpp>
 #include <optional>
@@ -213,6 +214,88 @@ namespace ChronicleHistory
             if (auto line = FromJson(value)) lines.push_back(std::move(*line));
         }
         return lines;
+    }
+
+    // CHRON-48: the lines as a story in Markdown, for the export beside the plain
+    // text. A heading when the in-game day or the place changes; speech as
+    // "**18:30 Lydia:** text", narration as a quote, notices in italics; combat
+    // and console lines left out. A burst of the same line (CHRON-44's rule:
+    // within 4 s of the last repeat) is one entry with its count. Text that
+    // Markdown would read as markup is escaped.
+    inline std::string MarkdownEscape(std::string_view text)
+    {
+        std::string out;
+        out.reserve(text.size() + 8);
+        for (const char c : text) {
+            if (c == '\r' || c == '\n') { out += ' '; continue; }
+            if (std::string_view("\\`*_[]<>#|~").find(c) != std::string_view::npos) out += '\\';
+            out += c;
+        }
+        // A line that starts like a list item stays text.
+        std::size_t digits = 0;
+        while (digits < out.size() && std::isdigit(static_cast<unsigned char>(out[digits]))) ++digits;
+        if (!out.empty() && (out[0] == '-' || out[0] == '+' || (digits > 0 && digits < out.size() && out[digits] == '.'))) {
+            out.insert(out.begin(), '\\');
+        }
+        return out;
+    }
+
+    inline std::string MarkdownStory(const std::vector<Line>& lines, std::string_view character)
+    {
+        constexpr std::int64_t kBurstMs = 4000;
+        std::string out = "# " + MarkdownEscape(character.empty() ? std::string_view("Chronicle") : character) + "\n";
+        long long lastDay = -1;
+        std::string lastPlace;
+        std::string pending;   // the entry waiting for its repeats
+        const Line* burst = nullptr;
+        std::int64_t burstLast = 0;
+        int count = 0;
+        const auto flush = [&] {
+            if (!burst) return;
+            out += "\n" + pending + (count > 1 ? " \u00d7" + std::to_string(count) : std::string()) + "\n";
+            burst = nullptr;
+        };
+        for (const auto& line : lines) {
+            if (line.channel == "combat" || line.channel == "console" || !KnownChannel(line.channel)) continue;
+            if (burst && burst->channel == line.channel && burst->speaker == line.speaker && burst->message == line.message &&
+                line.timestamp >= burstLast && line.timestamp - burstLast <= kBurstMs) {
+                ++count;
+                burstLast = line.timestamp;
+                continue;
+            }
+            flush();
+            const bool dated = line.gameDays > 0.0;
+            const long long day = dated ? static_cast<long long>(std::floor(line.gameDays)) + 1 : -1;
+            if ((dated && day != lastDay) || (!line.place.empty() && line.place != lastPlace)) {
+                std::string heading = dated ? "Day " + std::to_string(day) : std::string();
+                if (!line.place.empty()) heading += (heading.empty() ? "" : " \u00b7 ") + MarkdownEscape(line.place);
+                out += "\n## " + heading + "\n";
+                if (dated) lastDay = day;
+                if (!line.place.empty()) lastPlace = line.place;
+            }
+            std::string time;
+            if (dated) {
+                const int minutes = static_cast<int>(std::lround(std::clamp(line.gameHour, 0.0F, 23.99F) * 60.0F)) % (24 * 60);
+                char buffer[8];
+                std::snprintf(buffer, sizeof(buffer), "%02d:%02d", minutes / 60, minutes % 60);
+                time = buffer;
+            }
+            const auto text = MarkdownEscape(line.message);
+            if (line.channel == "narrator") {
+                pending = "> *" + text + "*";
+            } else if (line.channel == "notification" || line.channel == "system") {
+                pending = "*" + text + "*";
+            } else {
+                std::string who = MarkdownEscape(line.speaker);
+                std::string lead = time.empty() ? who : (who.empty() ? time : time + " " + who);
+                pending = lead.empty() ? text : "**" + lead + ":** " + text;
+            }
+            burst = &line;
+            burstLast = line.timestamp;
+            count = 1;
+        }
+        flush();
+        return out;
     }
 
     inline nlohmann::json LinesToJson(const std::vector<Line>& lines)

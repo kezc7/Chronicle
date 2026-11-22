@@ -225,5 +225,40 @@ int main()
         Require(windowCapped.size() == ChronicleHistory::kWindowLines && windowCapped.back().value("timestamp", 0) == 700,
             "at most the window's 500, the newest");
     }
+    {
+        // CHRON-48: the story export.
+        const auto at = [](std::int64_t timestamp, std::string channel, std::string speaker, std::string message,
+                            double days, float hour, std::string place) {
+            Line line = Make(timestamp, std::move(channel), std::move(message));
+            line.speaker = std::move(speaker);
+            line.gameDays = days;
+            line.gameHour = hour;
+            line.place = std::move(place);
+            return line;
+        };
+        const std::vector<Line> story{
+            at(1000, "dialogue", "Lydia", "I am sworn to carry your burdens.", 13.2, 18.5F, "Whiterun"),
+            at(2000, "notification", "", "Iron Arrow added", 13.2, 18.6F, "Whiterun"),
+            at(2500, "notification", "", "Iron Arrow added", 13.2, 18.6F, "Whiterun"),
+            at(3000, "notification", "", "Iron Arrow added", 13.2, 18.6F, "Whiterun"),
+            at(4000, "combat", "", "You hit Bandit", 13.2, 18.7F, "Whiterun"),
+            at(5000, "narrator", "Narrator", "The wind picks up.", 13.3, 19.0F, "Whiterun"),
+            at(6000, "player", "Dragonborn", "*Let's go* #north - now", 14.1, 6.25F, "Riverwood"),
+            at(7000, "console", "", "tgm", 14.1, 6.3F, "Riverwood"),
+        };
+        const auto md = ChronicleHistory::MarkdownStory(story, "Dragonborn");
+        const std::string expected =
+            "# Dragonborn\n"
+            "\n## Day 14 · Whiterun\n"
+            "\n**18:30 Lydia:** I am sworn to carry your burdens.\n"
+            "\n*Iron Arrow added* ×3\n"
+            "\n> *The wind picks up.*\n"
+            "\n## Day 15 · Riverwood\n"
+            "\n**06:15 Dragonborn:** \\*Let's go\\* \\#north - now\n";
+        Require(md == expected, "the story: headings by day and place, a burst counted, combat and console left out");
+        Require(ChronicleHistory::MarkdownEscape("- list") == "\\- list" && ChronicleHistory::MarkdownEscape("12. x") == "\\12. x",
+            "a line that looks like a list item stays text");
+        Require(ChronicleHistory::MarkdownStory({}, "").rfind("# Chronicle\n", 0) == 0, "an empty log still has its title");
+    }
     return 0;
 }
