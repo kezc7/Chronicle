@@ -231,14 +231,33 @@ async function loadConfig() {
       const res = await fetch('config.json?_=' + Date.now());
       if (res.ok) {
         const saved = await res.json();
-        config = deepMerge(config, saved);
+        // A page loaded again may already have its handshake: the settings
+        // file it brought wins over the bundled defaults (CHRON-33).
+        if (!runtime.connected) config = deepMerge(config, saved);
       }
     }
   } catch (_) {
     // First run or file missing — defaults apply
   }
+  if (runtime.connected) return;
   normalizeConfig();
   applyConfig();
+}
+
+// The window's place and size come from config through the CSS variables (and
+// the anchor). A drag or resize moves the window with inline styles while it
+// runs; they go here, or they would beat every setting after it (CHRON-34).
+function applyWindowGeometry() {
+  const win = config.window;
+  const root = document.documentElement;
+  const box = document.getElementById('chronicle-window');
+  box.style.left = ''; box.style.top = ''; box.style.width = ''; box.style.height = '';
+  if (win.position_x != null) root.style.setProperty('--win-x', win.position_x + 'px');
+  if (win.position_y != null) root.style.setProperty('--win-y', win.position_y + 'px');
+  else root.style.removeProperty('--win-y');
+  root.style.setProperty('--win-width',  win.width  + 'px');
+  root.style.setProperty('--win-height', win.height + 'px');
+  if (typeof updateResizeHandlePosition === 'function') updateResizeHandlePosition();
 }
 
 function applyConfig() {
@@ -255,11 +274,7 @@ function applyConfig() {
   document.getElementById('chronicle-window')
     .classList.toggle('hidden', !config.general.enabled);
 
-  if (win.position_x != null) root.style.setProperty('--win-x', win.position_x + 'px');
-  if (win.position_y != null) root.style.setProperty('--win-y', win.position_y + 'px');
-  else root.style.removeProperty('--win-y');
-  root.style.setProperty('--win-width',  win.width  + 'px');
-  root.style.setProperty('--win-height', win.height + 'px');
+  applyWindowGeometry();
   root.style.setProperty('--opacity',    win.opacity);
   root.style.setProperty('--font-size',  win.font_size + 'px');
 
@@ -1083,8 +1098,10 @@ function syncPositionControls() {
 
   const win = document.getElementById('chronicle-window');
   const rect = win.getBoundingClientRect();
-  const width = Number(config.window.width) || 520;
-  const height = Number(config.window.height) || 240;
+  // In settings, the size typed counts before it is applied (CHRON-34).
+  const typed = id => settingsOpen ? parseInt(document.getElementById(id).value, 10) : NaN;
+  const width = typed('sp-width') || Number(config.window.width) || 520;
+  const height = typed('sp-height') || Number(config.window.height) || 240;
   const maxX = Math.max(0, window.innerWidth - width);
   const maxY = Math.max(0, window.innerHeight - height);
   const useSavedPosition = config.window.anchor === 'custom';
@@ -1115,6 +1132,10 @@ function previewPosition(axis, value) {
   config.window.anchor = 'custom';
   config.window[axis] = numeric;
   document.body.dataset.anchor = 'custom';
+  // The Anchor list shows it too, or Apply would put the old anchor back (CHRON-34).
+  document.getElementById('sp-anchor').value = 'custom';
+  const box = document.getElementById('chronicle-window');
+  box.style.left = ''; box.style.top = '';
   document.documentElement.style.setProperty(axis === 'position_x' ? '--win-x' : '--win-y', numeric + 'px');
   slider.value = numeric;
   document.getElementById(axis === 'position_x' ? 'sp-position-x-val' : 'sp-position-y-val').value = numeric;
@@ -1160,6 +1181,8 @@ function previewPosition(axis, value) {
       parseInt(style.left, 10), parseInt(style.top, 10),
       parseInt(style.width, 10), parseInt(style.height, 10),
     );
+    applyWindowGeometry();
+    if (settingsOpen) document.getElementById('sp-anchor').value = 'custom';
   });
 })();
 
@@ -1204,6 +1227,11 @@ function previewPosition(axis, value) {
       parseInt(style.left, 10), parseInt(style.top, 10),
       parseInt(style.width, 10), parseInt(style.height, 10),
     );
+    applyWindowGeometry();
+    if (settingsOpen) {
+      document.getElementById('sp-width').value = config.window.width;
+      document.getElementById('sp-height').value = config.window.height;
+    }
   });
 })();
 
@@ -1233,11 +1261,7 @@ document.addEventListener('keydown', e => {
   if (typing && !inputOpen) return;
   // Settings panel takes priority when open
   if (settingsOpen) {
-    if (e.key === 'Escape') {
-      closeSettings();
-      e.preventDefault();
-      return;
-    }
+    // Escape closed the interaction above, settings and all.
     // Magelight's pad layer types the d-pad as arrows and A as Enter: the
     // panel takes them as the pad (CHRON-28). PrismaUI reads the pad itself.
     const typed = {38: 'up', 40: 'down', 37: 'left', 39: 'right', 13: 'accept'}[e.keyCode] ||
@@ -1251,10 +1275,7 @@ document.addEventListener('keydown', e => {
 
   // Input bar
   if (inputOpen) {
-    if (e.key === 'Escape') {
-      closeInput();
-      e.preventDefault();
-    } else if (e.key === 'Enter') {
+    if (e.key === 'Enter') {
       submitInput();
       e.preventDefault();
     } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
@@ -1330,15 +1351,20 @@ channelPicker.addEventListener('click', e => {
 // Init
 
 loadConfig().then(() => {
-  let saved = null;
-  try { saved = localStorage.getItem('chronicle_config'); } catch (_) {}
-  if (saved) {
-    try { config = deepMerge(config, JSON.parse(saved)); } catch (_) {}
-  }
+  // The native handshake can come first on a page the host loaded again
+  // (CHRON-30): it brought the settings, so nothing here replaces them and no
+  // second handshake starts (CHRON-33).
+  if (!runtime.connected) {
+    let saved = null;
+    try { saved = localStorage.getItem('chronicle_config'); } catch (_) {}
+    if (saved) {
+      try { config = deepMerge(config, JSON.parse(saved)); } catch (_) {}
+    }
 
-  normalizeConfig();
-  applyConfig();
-  startHandshake();
+    normalizeConfig();
+    applyConfig();
+    startHandshake();
+  }
   startPad();
 
   // The native handshake supplies the authoritative settings file and profile.

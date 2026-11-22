@@ -116,6 +116,11 @@ function beginInteraction() {
 }
 
 function closeInteraction(release = true) {
+  // An open list or channel menu goes with the window, so the next open
+  // doesn't find the pad and the keys still driving it (CHRON-32).
+  if (typeof window !== 'undefined' && typeof window.dovahhubCloseDropdown === 'function') window.dovahhubCloseDropdown();
+  if (typeof closeChannelMenu === 'function') closeChannelMenu();
+  syncEscapeLayer();
   if (settingsOpen && typeof discardSettingsPreview === 'function') discardSettingsPreview();
   focusPending = false;
   interactionOpen = false;
@@ -130,6 +135,22 @@ function closeInteraction(release = true) {
   if (typeof keepListBottom === 'function') keepListBottom(!userScrolledUp); // the bars just closed
   if (typeof wakeWindow === 'function') wakeWindow(); // auto-hide counts from now
   if (release) sendToGame('focusReleased', '');
+}
+
+// While a list is open, Escape (and B, which Magelight types as Escape) closes
+// the list alone: the page tells native, which then leaves Escape to the page
+// and, on Magelight, has the panel take Escape from the host (CHRON-32).
+let escapeLayer = false;
+function syncEscapeLayer() {
+  const open = typeof window !== 'undefined' && !!(window.DovahHubChoices && window.DovahHubChoices.isOpen());
+  if (open === escapeLayer) return open;
+  escapeLayer = open;
+  sendToGame('escapeLayer', open ? '1' : '0');
+  return open;
+}
+// The list is added to and removed from the body.
+if (typeof MutationObserver === 'function' && typeof document !== 'undefined' && document.body) {
+  new MutationObserver(syncEscapeLayer).observe(document.body, {childList: true});
 }
 
 function focusResult(success, reason) {
@@ -441,11 +462,16 @@ function copyHistory() {
 }
 
 function resetWindowPosition() {
-  const win = document.getElementById('chronicle-window');
-  win.style.left = ''; win.style.top = ''; win.style.width = ''; win.style.height = '';
   config.window.position_x = 20;
   config.window.position_y = Math.max(20, window.innerHeight - config.window.height - 40);
   config.window.anchor = 'custom';
   applyConfig();
+  // In settings it's a preview like every other field there: Apply saves it,
+  // B or Close puts the window back (CHRON-34).
+  if (settingsOpen) {
+    document.getElementById('sp-anchor').value = 'custom';
+    if (typeof syncPositionControls === 'function') syncPositionControls();
+    return;
+  }
   persistConfig();
 }

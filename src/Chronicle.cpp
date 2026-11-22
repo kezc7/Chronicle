@@ -235,6 +235,10 @@ void Chronicle::OnViewReady()
     host.RegisterListener("focusAcquired", [](const char*) { MainTask([] { GetSingleton()->RequestFocus(); }); });
     host.RegisterListener("focusReleased", [](const char*) { MainTask([] { GetSingleton()->RequestUnfocus(); }); });
     host.RegisterListener("uiReady", [](const char*) { MainTask([] { GetSingleton()->Bootstrap(); }); });
+    host.RegisterListener("escapeLayer", [](const char* text) {
+        const bool open = text && std::string_view(text) == "1";
+        MainTask([open] { GetSingleton()->SetEscapeLayer(open); });
+    });
     host.RegisterListener("diagnostics", [](const char*) { MainTask([] { GetSingleton()->Diagnostics(); }); });
     host.RegisterListener("selfTestReply", [](const char* text) {
         if (text) MainTask([payload = std::string(text)] { ChronicleSelfTestRun::OnPageReply(payload); });
@@ -564,9 +568,24 @@ void Chronicle::ForceCloseInput()
     m_hadFocus = false;
     m_focusSeen = false;
     m_keyboardCapture = false;
+    SetEscapeLayer(false);  // the page's list closes with the interaction
+    {
+        // A host may keep a combo button's release from the game while
+        // Chronicle has the pad: nothing counts as held after an interaction (CHRON-36).
+        std::lock_guard lock(m_padMutex);
+        m_padGate.Reset();
+    }
     if (!UiHost().ViewValid() || !m_viewReady) return;
     UiHost().Unfocus();
     InvokeUI("closeInteraction(false)");
+}
+
+// Game thread. While the page has a list open, Escape (and B on Magelight)
+// closes the list there instead of the whole interaction (CHRON-32).
+void Chronicle::SetEscapeLayer(bool open)
+{
+    if (m_escapeLayer.exchange(open) == open) return;
+    UiHost().CaptureEscape(open);
 }
 
 void Chronicle::RequestFocus()
@@ -742,7 +761,7 @@ void Chronicle::SubmitChat(std::string_view text)
 void Chronicle::OnConsoleCommand(std::string_view text)
 {
     // Each outcome is logged so user logs show why a command did nothing.
-    const auto shown = std::string(text.substr(0, 200));
+    const auto shown = std::string(ChronicleUtf8::Cut(text, 200));
     if (!m_gameLoaded || m_hidden || text.empty() || text.size() > 8192) {
         spdlog::info("Chronicle: console command '{}' ignored (loaded={}, hidden={}, length={})",
             shown, m_gameLoaded.load(), m_hidden.load(), text.size());
@@ -884,6 +903,7 @@ bool Chronicle::OnHotkey(std::uint32_t scanCode, bool shift)
     state.settingsKey = m_settingsKey;
     state.interactKey = m_interactKey;
     state.inputKey = m_inputKey;
+    state.pageLayer = m_escapeLayer;
     using Action = ChronicleRuntime::KeyAction;
     const auto decision = ChronicleRuntime::DecideKey(key, shift, state);
     switch (decision) {

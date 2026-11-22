@@ -19,6 +19,7 @@
  */
 
 #include "PCH.h"
+#include "GameThread.h"
 #include "RuntimePolicy.h"
 #include "UiHost.h"
 
@@ -229,6 +230,16 @@ namespace
 
         void SetPageReloadHandler(PageReloadFn fn) override { m_onReload = fn; }
 
+        // Magelight leaves UI mode on Escape, and the gamepad layer types B as
+        // Escape, unless the view takes it (0.28.0; Chronicle needs 0.30.1).
+        void CaptureEscape(bool capture) override
+        {
+            if (!ViewValid()) return;
+            if (const auto result = m_api->SetEscapeCapture(m_panel, capture); result != Result::Ok) {
+                spdlog::warn("Chronicle: Magelight escape capture {} refused: {} {}", capture ? "on" : "off", ResultName(result), LastError());
+            }
+        }
+
         void InvokePage(std::uint64_t page, const char* script) override
         {
             if (!ViewValid() || (page != m_panel && page != m_hud)) return;
@@ -366,25 +377,31 @@ namespace
             }
         }
 
-        // Callback thread (the game thread).
+        // Magelight's callback thread: an SKSE task, which some load orders run
+        // off the frame thread. The answer is copied and handled on the pump
+        // with the rest of the host's state (CHRON-37).
         static void OnExported(ViewId, const char* result, const char* exception, void* user)
         {
-            std::unique_ptr<Handover> handover(static_cast<Handover*>(user));
-            auto* self = handover ? handover->self : nullptr;
-            if (!self || handover->generation != self->m_handover || !self->ViewValid()) return;
-            if (exception && *exception) {
-                spdlog::warn("Chronicle: Magelight panel state unreadable: {}", exception);
-            } else if (result) {
-                // Only well-formed JSON reaches the HUD page, re-serialised.
-                const auto state = nlohmann::json::parse(result, nullptr, false);
-                if (state.is_object()) {
-                    const auto script = "importViewState(" + state.dump(-1, ' ', false,
-                        nlohmann::json::error_handler_t::replace) + ")";
-                    self->m_api->InvokeJS(self->m_hud, script.c_str());
+            auto* handover = static_cast<Handover*>(user);
+            if (!handover) return;
+            GameThread::Post([handover, result = std::string(result ? result : ""), exception = std::string(exception ? exception : "")] {
+                std::unique_ptr<Handover> owned(handover);
+                auto* self = owned->self;
+                if (!self || owned->generation != self->m_handover || !self->ViewValid()) return;
+                if (!exception.empty()) {
+                    spdlog::warn("Chronicle: Magelight panel state unreadable: {}", exception);
+                } else {
+                    // Only well-formed JSON reaches the HUD page, re-serialised.
+                    const auto state = nlohmann::json::parse(result, nullptr, false);
+                    if (state.is_object()) {
+                        const auto script = "importViewState(" + state.dump(-1, ' ', false,
+                            nlohmann::json::error_handler_t::replace) + ")";
+                        self->m_api->InvokeJS(self->m_hud, script.c_str());
+                    }
                 }
-            }
-            self->m_panelActive = false;
-            self->ApplyShown();
+                self->m_panelActive = false;
+                self->ApplyShown();
+            });
         }
 
         std::string LastError() const
@@ -410,25 +427,34 @@ namespace
             catch (...) { spdlog::error("Chronicle: listener failed"); }
         }
 
-        // Game thread (ModDesc.callbackThread).
+        // ModDesc.callbackThread GameThread: SKSE tasks, which some load orders
+        // run off the frame thread. The event is copied and handled on the pump,
+        // where Focus, Show and SetGameLoaded change the same state (CHRON-37).
         static void OnEvent(const EventData* ev, void* user)
         {
             auto* self = static_cast<MagelightHost*>(user);
             if (!ev || !self) return;
-            const std::string detail = ev->detail ? ev->detail : "";
-            switch (ev->type) {
+            GameThread::Post([self, type = ev->type, view = ev->view, detail = std::string(ev->detail ? ev->detail : "")] {
+                HandleEvent(self, type, view, detail);
+            });
+        }
+
+        // Game thread (the pump).
+        static void HandleEvent(MagelightHost* self, Event type, ViewId view, const std::string& detail)
+        {
+            switch (type) {
             case Event::ViewDomReady:
-                if (ev->view == self->m_hud) {
+                if (view == self->m_hud) {
                     // Before any listener exists, so before the handshake.
                     self->m_api->InvokeJS(self->m_hud, "setHostRole('hud')");
                     self->m_hudReady = true;
-                } else if (ev->view == self->m_panel) {
+                } else if (view == self->m_panel) {
                     self->m_api->InvokeJS(self->m_panel, "setHostRole('panel')");
                     self->m_panelReady = true;
                 } else {
                     return;
                 }
-                spdlog::info("Chronicle: Magelight {} page ready", ev->view == self->m_hud ? "hud" : "panel");
+                spdlog::info("Chronicle: Magelight {} page ready", view == self->m_hud ? "hud" : "panel");
                 // Both copies must hear the native bootstrap.
                 if (self->m_hudReady && self->m_panelReady && self->m_onDomReady) {
                     const auto ready = self->m_onDomReady;
@@ -437,10 +463,10 @@ namespace
                 }
                 // A copy loaded again (released for video memory, then shown)
                 // is handed its settings, character and visibility again.
-                if (self->m_loads.Loaded(ev->view)) {
+                if (self->m_loads.Loaded(view)) {
                     spdlog::info("Chronicle: Magelight {} page loaded again ({} reload(s) this session); its handshake is sent again",
-                        ev->view == self->m_hud ? "hud" : "panel", self->m_loads.Reloads());
-                    if (self->m_onReload) self->m_onReload(ev->view);
+                        view == self->m_hud ? "hud" : "panel", self->m_loads.Reloads());
+                    if (self->m_onReload) self->m_onReload(view);
                 }
                 break;
             case Event::ViewLoadFailed:

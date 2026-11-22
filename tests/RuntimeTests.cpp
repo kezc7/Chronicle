@@ -527,6 +527,17 @@ int main()
             s.keysFree = false;
             Require(DecideKey(0x0D, false, s) == Keep && DecideKey('W', false, s) == Keep);
             Require(DecideKey(0x1B, false, s) == Unfocus && DecideKey(0x77, false, s) == Unfocus);
+            // CHRON-32: with a list open on the page, Escape is the page's: it closes the list.
+            s.pageLayer = true;
+            Require(DecideKey(0x1B, false, s) == Keep && DecideKey(0x1B, true, s) == Keep);
+            Require(DecideKey(0x77, false, s) == Unfocus);  // the interact key still closes everything
+            s.pageLayer = false;
+            Require(DecideKey(0x1B, false, s) == Unfocus);
+            // Another mod's window never gets Escape kept for Chronicle's list.
+            KeyState other = s;
+            other.ownFocus = false;
+            other.pageLayer = true;
+            Require(DecideKey(0x1B, false, other) == Pass);
         }
         // Hidden by the show/hide key: that key and Shift + settings bring it back, nothing else opens.
         {
@@ -571,6 +582,14 @@ int main()
         gate.OnButton(P::kLB, true, true);
         gate.Reset();                                                     // a load forgets LB
         Require(gate.OnButton(P::kY, true, true) == Step::None);
+        // CHRON-36: a host kept the releases from the game while Chronicle had the
+        // pad; the interaction ending (ForceCloseInput) forgets what was held.
+        gate.OnButton(P::kLB, true, true);
+        Require(gate.OnButton(P::kY, true, true) == Step::Fire);
+        gate.Swallow();                                                   // releases never come
+        gate.Reset();
+        Require(gate.OnButton(P::kY, true, true) == Step::None);         // the next bare Y is the game's
+        Require(gate.OnButton(P::kY, false, false) == Step::None);       // and isn't swallowed
         gate.Set(ParsePadCombo("off"));
         gate.OnButton(P::kLB, true, true);
         Require(gate.OnButton(P::kY, true, true) == Step::None);         // off: never

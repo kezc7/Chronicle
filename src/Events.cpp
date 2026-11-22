@@ -480,8 +480,8 @@ std::string TranslateCapturedText(std::string_view a_text)
         static std::unordered_set<std::string> logged;
         std::lock_guard lock(mutex);
         if (logged.size() < 256 && logged.emplace(a_text).second) {
-            spdlog::info("Chronicle: translated '{}' -> '{}'{}", ChronicleUtf8::ReplaceInvalid(a_text.substr(0, 160)).value,
-                ChronicleUtf8::ReplaceInvalid(std::string_view(text).substr(0, 160)).value,
+            spdlog::info("Chronicle: translated '{}' -> '{}'{}", std::string(ChronicleUtf8::Cut(ChronicleUtf8::ReplaceInvalid(a_text).value, 160)),
+                std::string(ChronicleUtf8::Cut(ChronicleUtf8::ReplaceInvalid(text).value, 160)),
                 found ? "" : " (no translation; '$' dropped)");
         }
     }
@@ -649,12 +649,22 @@ void SubtitlePoller::PollOnce()
         std::unordered_set<std::string> current;
         bool managerSubtitleActive = false;
         const auto dialogueRadius = Chronicle::GetSingleton()->DialogueRadius();
-        if (mgr) for (const auto& info : mgr->subtitles) {
-            std::string text = info.subtitle.c_str();
+        // The game changes the list under the manager's own lock: copy it under
+        // that lock, briefly, and work on the copy (CHRON-36).
+        std::vector<std::pair<RE::ObjectRefHandle, std::string>> subtitles;
+        if (mgr) {
+            RE::BSSpinLockGuard locker(mgr->lock);
+            subtitles.reserve(mgr->subtitles.size());
+            for (const auto& info : mgr->subtitles) {
+                const char* line = info.subtitle.c_str();
+                subtitles.emplace_back(info.speaker, line ? line : "");
+            }
+        }
+        for (const auto& [speaker, text] : subtitles) {
             if (!text.empty()) {
                 managerSubtitleActive = true;
                 std::string speakerName;
-                auto speakerRef = info.speaker.get();
+                auto speakerRef = speaker.get();
                 if (speakerRef) {
                     if (auto* name = speakerRef->GetDisplayFullName()) {
                         speakerName = name;

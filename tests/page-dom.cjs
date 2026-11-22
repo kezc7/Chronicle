@@ -250,7 +250,10 @@ class Element extends Node {
     for (const [name, value] of Object.entries(attributes)) {
       if (name.startsWith('data-')) this.dataset[camel(name.slice(5))] = value;
     }
-    this.style = {setProperty() {}, removeProperty() {}, getPropertyValue: () => ''};
+    // Custom properties are kept, so a test can read what the page set.
+    const props = new Map();
+    this.style = {setProperty: (name, value) => props.set(name, String(value)), removeProperty: name => props.delete(name),
+      getPropertyValue: name => props.get(name) || ''};
     this._text = '';
     this._value = attributes.value ?? '';
     this._selected = null;

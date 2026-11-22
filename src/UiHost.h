@@ -57,6 +57,11 @@ public:
     using PageReloadFn = void (*)(std::uint64_t page);
     virtual void SetPageReloadHandler(PageReloadFn fn) = 0;
     virtual void InvokePage(std::uint64_t page, const char* script) = 0;
+
+    // CHRON-32: while a list is open on the page, Escape is the page's (it
+    // closes the list). A host that would otherwise leave its focus on Escape
+    // stops doing so; the others need nothing.
+    virtual void CaptureEscape(bool capture) = 0;
     virtual void Show(bool visible) = 0;
 
     // Input ownership. Focus() asks for keyboard/mouse; it may be granted

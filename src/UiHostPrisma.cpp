@@ -78,6 +78,9 @@ namespace
 
         void SetPageReloadHandler(PageReloadFn fn) override { s_onReload = fn; }
 
+        // PrismaUI leaves Escape to the page; Chronicle's own key sink keeps it.
+        void CaptureEscape(bool) override {}
+
         // One page: the view itself.
         void InvokePage(std::uint64_t page, const char* script) override
         {

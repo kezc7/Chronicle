@@ -164,8 +164,10 @@ namespace
     class NameReply final : public RE::BSScript::IStackCallbackFunctor
     {
     public:
-        NameReply(std::string a_text, std::string a_name, RE::FormID a_crosshair) :
-            m_text(std::move(a_text)), m_name(std::move(a_name)), m_crosshair(a_crosshair) {}
+        // a_world: the world the line was typed in. An answer that comes back
+        // after a load is dropped, as Chronicle's own lines are (CHRON-39).
+        NameReply(std::string a_text, std::string a_name, RE::FormID a_crosshair, std::uint64_t a_world) :
+            m_text(std::move(a_text)), m_name(std::move(a_name)), m_crosshair(a_crosshair), m_world(a_world) {}
 
         // Papyrus thread: copy the form ID, then pick the listener on the game thread.
         void operator()(RE::BSScript::Variable a_result) override
@@ -174,8 +176,12 @@ namespace
             if (a_result.IsObject()) {
                 if (auto* actor = a_result.Unpack<RE::Actor*>()) found = actor->GetFormID();
             }
-            GameThread::Post([text = m_text, name = m_name, crosshair = m_crosshair, found] {
-                if (!Chronicle::GetSingleton()->IsGameLoaded()) return;
+            GameThread::Post([text = m_text, name = m_name, crosshair = m_crosshair, world = m_world, found] {
+                auto* chronicle = Chronicle::GetSingleton();
+                if (!chronicle->IsGameLoaded() || chronicle->WorldRevision() != world) {
+                    spdlog::info("Chronicle: SkyrimNet line for '{}' dropped: a game was loaded since", name);
+                    return;
+                }
                 if (auto* actor = Listener(found, kNamedRange)) {
                     Deliver(text, actor, "named in the line");
                     return;
@@ -190,6 +196,7 @@ namespace
         std::string m_text;
         std::string m_name;
         RE::FormID m_crosshair;
+        std::uint64_t m_world;
     };
 
     // The NPC the player is in conversation with, if any.
@@ -259,7 +266,7 @@ namespace ChronicleSkyrimNet
         if (const auto name = ChronicleRuntime::AddressedName(text); !name.empty()) {
             RE::BSFixedString wanted(name.c_str());
             std::unique_ptr<RE::BSScript::IFunctionArguments> args{ RE::MakeFunctionArguments(std::move(wanted)) };
-            RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> reply{ new NameReply(text, name, crosshair) };
+            RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> reply{ new NameReply(text, name, crosshair, Chronicle::GetSingleton()->WorldRevision()) };
             if (vm->DispatchStaticCall("SkyrimNetApi", "FindActorByName", args.get(), reply)) {
                 spdlog::info("Chronicle: SkyrimNet listener lookup: '{}'", name);
                 return;

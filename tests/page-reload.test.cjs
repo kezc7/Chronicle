@@ -46,8 +46,12 @@ const RUNTIME = {loaded: true, profile: '17940456036136542', character: 'Dragonb
 // A freshly loaded page in its role ('panel', 'hud', or PrismaUI's 'full'),
 // with nothing from native yet. `stored` is the mod's storage, shared by the
 // copies and kept across a reload.
-function load(role, stored) {
+// options.fetch: the page's fetch (config.json); by default it fails, as a
+// Magelight page's does. Timers are kept so a test can see what still runs.
+function load(role, stored, options = {}) {
   const saves = [];
+  const timers = new Map();
+  let nextTimer = 1;
   const window = Object.assign(new Window(), {
     focusAcquired() {}, focusReleased() {}, uiReady() {}, diagnostics() {},
     settingsChanged: value => saves.push(JSON.parse(value)),
@@ -63,11 +67,13 @@ function load(role, stored) {
       setItem: (key, value) => stored.set(key, String(value)),
       removeItem: key => stored.delete(key),
     },
-    fetch: () => Promise.reject(new Error('no config.json in tests')),
+    fetch: options.fetch || (() => Promise.reject(new Error('no config.json in tests'))),
     getComputedStyle: () => ({getPropertyValue: () => ''}),
     requestAnimationFrame() {}, cancelAnimationFrame() {}, ResizeObserver: class { observe() {} },
     performance: {now: () => 0},
-    setTimeout() { return 0; }, clearTimeout() {}, setInterval() { return 0; }, clearInterval() {},
+    setTimeout() { return 0; }, clearTimeout() {},
+    setInterval: (fn, ms) => { const id = nextTimer++; timers.set(id, ms); return id; },
+    clearInterval: id => timers.delete(id),
   });
   for (const [name, source] of sources) vm.runInContext(source, context, {filename: name});
   if (role !== 'full') context.setHostRole(role);
@@ -77,7 +83,9 @@ function load(role, stored) {
   const connected = () => vm.runInContext('runtime.connected', context);
   // The panel's save timer, run now.
   const flush = () => vm.runInContext('flushHistory()', context);
-  return {context, document, saves, lines, config, connected, flush};
+  // The handshake's uiReady timer (500 ms) while it still runs.
+  const handshaking = () => [...timers.values()].includes(500);
+  return {context, document, saves, lines, config, connected, flush, handshaking};
 }
 
 // What native sends a page: the first handshake (Bootstrap) and, for a page
@@ -212,6 +220,36 @@ test('native sends a page loaded again the same handshake, to that page only', (
   const magelight = fs.readFileSync(path.join(ROOT, 'src/UiHostMagelight.cpp'), 'utf8');
   // The role goes first, before the handshake, on every load.
   const ready = magelight.indexOf('case Event::ViewDomReady:');
-  assert.ok(magelight.indexOf("setHostRole('hud')", ready) < magelight.indexOf('m_onReload(ev->view)', ready));
+  assert.ok(magelight.indexOf("setHostRole('hud')", ready) < magelight.indexOf('m_onReload(view)', ready));
   assert.doesNotMatch(magelight, /the native handshake is not repeated/);
+});
+
+// CHRON-33: on PrismaUI the page fetches its bundled config.json. On a page
+// loaded again the handshake can land first; the fetch answering after it must
+// not put the bundled defaults (or an old browser copy) over the player's
+// settings, nor start a second handshake.
+const settle = () => new Promise(resolve => setImmediate(resolve));
+const bundled = {general: {hide_in_dialogue: true}, window: {theme: 'skyrim', opacity: 0.9}, channels: {}};
+
+test('PrismaUI: config.json answering after the handshake leaves the settings and starts no second handshake', async () => {
+  const stored = new Map([['chronicle_config', JSON.stringify({window: {theme: 'daedric'}})]]);
+  let answer;
+  const page = load('full', stored, {fetch: () => new Promise(resolve => { answer = resolve; })});
+  handshake(page);
+  answer({ok: true, json: async () => bundled});
+  await settle();
+  assert.equal(page.config().window.theme, 'high-contrast', "the player's theme, not the bundled one or the old copy");
+  assert.equal(page.config().window.opacity, 0.65);
+  assert.equal(page.config().general.hide_in_dialogue, false);
+  assert.equal(page.handshaking(), false, 'no uiReady timer left running');
+});
+
+test('a first load still fetches its defaults, asks for the handshake, and stops asking once it comes', async () => {
+  const page = load('full', new Map(), {fetch: async () => ({ok: true, json: async () => bundled})});
+  await settle();
+  assert.equal(page.config().window.opacity, 0.9, 'the bundled defaults before any settings file');
+  assert.equal(page.handshaking(), true, 'uiReady is asked for');
+  handshake(page);
+  assert.equal(page.handshaking(), false);
+  assert.equal(page.config().window.theme, 'high-contrast');
 });

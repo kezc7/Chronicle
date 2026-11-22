@@ -163,6 +163,7 @@ private:
     void FlushPendingUI();
     void RequestFocus();
     void RequestUnfocus();
+    void SetEscapeLayer(bool open);  // game thread: the page's list opened or closed (CHRON-32)
     void ToggleUserHidden();
     void UpdateVisibility();
     void PublishInputGate();    // game thread: the snapshot OnHotkey and OnPadButton read
@@ -183,8 +184,6 @@ private:
 
     std::atomic<bool> m_hidden{ true };
     std::atomic<bool> m_gameLoaded{ false };  // set true by OnPostLoadGame
-    std::atomic<bool> m_hideInMenus{ true };
-    std::atomic<bool> m_hideInPhotoMode{ true };
     std::atomic<bool> m_viewReady{ false };
 
     std::mutex m_uiMutex;
@@ -221,6 +220,7 @@ private:
     std::atomic<bool> m_gateDialogueOnly{ false }; // only a conversation has it (State::DialogueOnly)
     std::atomic<std::int64_t> m_captureSince{ 0 }; // steady ms when m_keyboardCapture was last set
     std::atomic<bool> m_gateUserHidden{ false };
+    std::atomic<bool> m_escapeLayer{ false };  // read by the input sink on any thread
     std::mutex m_padMutex;                         // m_padGate: the input thread and the game thread
     std::string m_launcherHotkey{ "Shift+0" };   // game thread
     ChronicleRuntime::PadComboGate m_padGate;    // game thread

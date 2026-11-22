@@ -538,7 +538,7 @@ namespace ChronicleSelfTestRun
         if (!data.is_object()) return;
         const auto text = [&data](const char* key) {
             const auto it = data.find(key);
-            return it != data.end() && it->is_string() ? ChronicleUtf8::ReplaceInvalid(it->get<std::string>()).value.substr(0, 100) : std::string{};
+            return it != data.end() && it->is_string() ? std::string(ChronicleUtf8::Cut(ChronicleUtf8::ReplaceInvalid(it->get<std::string>()).value, 100)) : std::string{};
         };
         if (text("token") != std::to_string(g_run->pageToken)) return;  // an older run's answer
         PageReply reply;
@@ -554,7 +554,7 @@ namespace ChronicleSelfTestRun
             if (const auto it = pad->find("api"); it != pad->end() && it->is_boolean()) reply.padApi = it->get<bool>();
             if (const auto it = pad->find("connected"); it != pad->end() && it->is_number_unsigned()) reply.padsConnected = it->get<std::size_t>();
             if (const auto it = pad->find("id"); it != pad->end() && it->is_string()) {
-                reply.padId = ChronicleSelfTest::Detail(ChronicleUtf8::ReplaceInvalid(it->get<std::string>()).value.substr(0, 80));
+                reply.padId = ChronicleSelfTest::Detail(ChronicleUtf8::Cut(ChronicleUtf8::ReplaceInvalid(it->get<std::string>()).value, 80));
             }
         }
         g_run->page = std::move(reply);

@@ -46,6 +46,16 @@ namespace ChronicleUtf8
         return (a_byte & 0xC0u) == 0x80u;
     }
 
+    // At most a_limit bytes of a_text, never ending inside a character
+    // (CHRON-39). Valid UTF-8 in, valid UTF-8 out.
+    inline std::string_view Cut(std::string_view a_text, std::size_t a_limit)
+    {
+        if (a_text.size() <= a_limit) return a_text;
+        std::size_t cut = a_limit;
+        while (cut > 0 && IsContinuation(static_cast<std::uint8_t>(a_text[cut]))) --cut;
+        return a_text.substr(0, cut);
+    }
+
     // The character a byte stands for in Windows-1252, the code page of
     // English and other Western European plugins. 0 for the five bytes it
     // leaves undefined: 0x81, 0x8D, 0x8F, 0x90 and 0x9D.

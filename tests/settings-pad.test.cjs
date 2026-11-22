@@ -38,8 +38,9 @@ const A = 0, B = 1, LB = 4, RB = 5, UP = 12, DOWN = 13, LEFT = 14, RIGHT = 15;
 function setup({host = 'PrismaUI', settings = null} = {}) {
   const saves = [];
   const replies = [];
+  const layers = [];  // what the page tells native about an open list (CHRON-32)
   const window = Object.assign(new Window(), {
-    focusAcquired() {}, focusReleased() {}, uiReady() {}, diagnostics() {},
+    focusAcquired() {}, focusReleased() {}, uiReady() {}, diagnostics() {}, escapeLayer: value => layers.push(value),
     // The DLL writes the file and answers each save after the call returns.
     settingsChanged: value => { saves.push(JSON.parse(value)); replies.push(true); },
     playerInput() {}, consoleCommand() {}, exportHistory() {}, historyImport() {}, historyCleared() {},
@@ -121,7 +122,7 @@ function setup({host = 'PrismaUI', settings = null} = {}) {
     input(A);
     assert.equal(listOpen(), false);
   };
-  return {context, document, saves, config, press, type, input, openSettings, at, name, activeTab, walkTo, listOpen, choose};
+  return {context, document, saves, layers, config, press, type, input, openSettings, at, name, activeTab, walkTo, listOpen, choose};
 }
 
 // What a player can reach on the open tab, read from the page itself: every
@@ -313,4 +314,92 @@ test('every setting the pad can change, on every tab, survives a save and a relo
   const third = setup({settings: reloaded.saves.at(-1)});
   third.openSettings();
   assert.equal(third.document.getElementById('sp-anchor').value, anchor);
+});
+
+// CHRON-32: a list open when the window closes goes with it, and native hears
+// while one is open, so Escape (and B on Magelight) closes the list alone.
+for (const host of ['PrismaUI', 'Magelight']) {
+  test(`${host}: closing the window closes an open list and the channel menu, and native hears the list open and close`, () => {
+    const page = setup({host});
+    page.openSettings();
+    page.walkTo('sp-language');
+    page.input(A);
+    assert.equal(page.listOpen(), true);
+    page.context.syncEscapeLayer();  // the page's MutationObserver, which the stand-in doesn't run
+    assert.deepEqual([...page.layers], ['1']);
+    // A game menu, a load or the hotkey closes the interaction from native.
+    page.context.closeInteraction(false);
+    assert.equal(page.listOpen(), false, 'the list closed with the window');
+    assert.equal(page.document.querySelector('.wf-select-menu'), null, 'and is gone from the page');
+    assert.deepEqual([...page.layers], ['1', '0']);
+    // The next open starts clean: the pad moves the ring, not an old list.
+    page.openSettings();
+    assert.equal(page.listOpen(), false);
+    const before = page.name(page.at());
+    page.input(DOWN);
+    assert.notEqual(page.name(page.at()), before);
+
+    // The input bar's channel menu closes with it too.
+    page.context.closeInteraction(false);
+    page.context.openInput();
+    page.context.focusResult(true, 'focus.active');
+    page.document.getElementById('input-channel-label').click();
+    assert.equal(page.document.getElementById('input-channel-menu').classList.contains('hidden'), false);
+    page.context.closeInteraction(false);
+    assert.equal(page.document.getElementById('input-channel-menu').classList.contains('hidden'), true);
+    assert.equal(page.document.getElementById('input-channel-label').getAttribute('aria-expanded'), 'false');
+  });
+}
+
+// CHRON-34: the window's place and size settings keep working after a drag,
+// and the Anchor list, the Position button and the size fields stay in step.
+test('the window settings beat a drag or resize, and an anchored window moved with the sliders stays where it was put', () => {
+  const page = setup({settings: {general: {}, window: {anchor: 'bottom-right', width: 600, height: 300}, channels: {}}});
+  const win = page.document.getElementById('chronicle-window');
+  const root = page.document.documentElement;
+  // What a drag and a resize leave behind.
+  win.style.left = '700px'; win.style.top = '50px'; win.style.width = '900px'; win.style.height = '500px';
+  page.openSettings();
+  page.context.previewPosition('position_x', 120);
+  page.context.previewPosition('position_y', 340);
+  assert.equal(win.style.left, '', 'the drag no longer holds the window');
+  assert.equal(win.style.top, '');
+  assert.equal(root.style.getPropertyValue('--win-x'), '120px');
+  assert.equal(page.document.getElementById('sp-anchor').value, 'custom', 'the Anchor list shows it');
+  page.document.getElementById('sp-apply').click();
+  const saved = page.saves.at(-1).window;
+  assert.equal(saved.anchor, 'custom', 'Apply keeps the new place');
+  assert.equal(saved.position_x, 120);
+  assert.equal(saved.position_y, 340);
+  assert.equal(win.style.width, '', 'applied settings clear a resize too');
+  assert.equal(root.style.getPropertyValue('--win-width'), '600px');
+});
+
+test('Position in settings is a preview: Apply saves it, Close puts the window back', () => {
+  const page = setup({settings: {general: {}, window: {anchor: 'custom', position_x: 400, position_y: 500, width: 600, height: 300}, channels: {}}});
+  page.openSettings();
+  page.document.getElementById('sp-position').click();
+  assert.equal(page.saves.length, 0, 'nothing is saved before Apply');
+  assert.equal(page.document.getElementById('sp-position-x').value, '20', 'the form shows the reset');
+  assert.equal(page.document.getElementById('sp-anchor').value, 'custom');
+  page.document.getElementById('sp-apply').click();
+  assert.equal(page.saves.length, 1);
+  assert.equal(page.saves[0].window.position_x, 20, 'Apply saves the reset, not the old form');
+
+  const other = setup({settings: {general: {}, window: {anchor: 'custom', position_x: 400, position_y: 500, width: 600, height: 300}, channels: {}}});
+  other.openSettings();
+  other.document.getElementById('sp-position').click();
+  other.context.closeSettings();
+  assert.equal(other.saves.length, 0);
+  assert.equal(other.config().window.position_x, 400, 'Close puts it back');
+  assert.equal(other.document.documentElement.style.getPropertyValue('--win-x'), '400px');
+});
+
+test('the position sliders reach as far as the size typed allows', () => {
+  const page = setup({settings: {general: {}, window: {anchor: 'custom', position_x: 20, position_y: 20, width: 600, height: 300}, channels: {}}});
+  page.openSettings();
+  const width = page.document.getElementById('sp-width');
+  width.value = '1000';
+  width.dispatchEvent(new Event('input', {bubbles: true}));
+  assert.equal(Number(page.document.getElementById('sp-position-x').max), 1920 - 1000);
 });

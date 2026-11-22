@@ -131,6 +131,19 @@ int main()
     Require(once.First("Lydia"));
     Require(!once.First("Lydia") && !once.First("Laci"));
     Require(MessageBuilder::ShownForLog(std::string(159, 'a') + "\xC3\xA9tail") == std::string(159, 'a') + "...");
+    // CHRON-39: a byte cut never ends inside a character.
+    Require(ChronicleUtf8::Cut("abc", 5) == "abc" && ChronicleUtf8::Cut("abc", 3) == "abc" && ChronicleUtf8::Cut("abc", 2) == "ab");
+    Require(ChronicleUtf8::Cut("a\xC3\xA9", 2) == "a");                        // é is two bytes
+    Require(ChronicleUtf8::Cut("a\xC3\xA9", 3) == "a\xC3\xA9");
+    Require(ChronicleUtf8::Cut("\xE2\x80\x94x", 1).empty() && ChronicleUtf8::Cut("\xE2\x80\x94x", 2).empty());  // an em dash: three bytes
+    Require(ChronicleUtf8::Cut("\xE2\x80\x94x", 3) == "\xE2\x80\x94");
+    Require(ChronicleUtf8::Cut("\xF0\x9F\x90\x89!", 3).empty());             // four bytes: cut before it
+    {
+        // 199 ASCII bytes and a two-byte letter: a 200-byte cut keeps 199, still valid.
+        const auto help = std::string(199, 'h') + "\xC3\xA9";
+        const auto cut = ChronicleUtf8::Cut(help, 200);
+        Require(cut.size() == 199 && ChronicleUtf8::ReplaceInvalid(cut).value == cut);
+    }
     Require(nlohmann::json::parse(MessageBuilder::Build("dialogue", "Lydia", valid)).at("message") == valid);
 
     // Trailing "[REF]" markers are removed; other text is left alone.

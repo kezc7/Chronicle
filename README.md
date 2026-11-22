@@ -47,7 +47,8 @@ those mods show as written. `Chronicle.log` names each such speaker once.
 - A chat line starting with `/` is a command for Chronicle or another mod and is
   not sent to SkyrimNet: `/help` lists the commands mods have registered, and an
   unknown one says so in the Console channel.
-- **Escape** releases interaction and returns control to Skyrim.
+- **Escape** releases interaction and returns control to Skyrim. With a list open, Escape (or B
+  on a controller) closes the list first and leaves the window open.
 - While a game menu has the keyboard, Chronicle's keys do nothing and reach the menu.
   That covers crafting, barter, containers, inventory, message boxes, the console and
   another mod's window: Enter confirms there as usual. In a conversation Chronicle hides

@@ -205,7 +205,7 @@ namespace
         if (Reserved(prefix) || std::any_of(g_commands.begin(), g_commands.end(), [&](const auto& c) { return c.prefix == prefix; })) {
             return Api::Result::Duplicate;
         }
-        Command command{ g_nextId++, prefix, desc->help ? ChronicleUtf8::ReplaceInvalid(desc->help).value.substr(0, 200) : std::string{},
+        Command command{ g_nextId++, prefix, desc->help ? std::string(ChronicleUtf8::Cut(ChronicleUtf8::ReplaceInvalid(desc->help).value, 200)) : std::string{},
             desc->onCommand, desc->user };
         if (out) *out = command.id;
         spdlog::info("Chronicle API: command /{} registered", command.prefix);
