@@ -403,3 +403,74 @@ test('the position sliders reach as far as the size typed allows', () => {
   width.dispatchEvent(new Event('input', {bubbles: true}));
   assert.equal(Number(page.document.getElementById('sp-position-x').max), 1920 - 1000);
 });
+
+// CHRON-42: the visual settings show on the window while they change; Close or
+// B puts what was there back, and only Apply saves.
+test('theme, anchor, opacity, font size, size and channel colours preview live, and Close puts them back', () => {
+  const start = {general: {}, window: {theme: 'skyrim', anchor: 'custom', opacity: 0.65, font_size: 13, width: 520, height: 240,
+    position_x: 20, position_y: 20}, channels: {dialogue: {enabled: true, colour: '#aabbcc'}}};
+  for (const how of ['close', 'pad']) {
+    const page = setup({settings: start});
+    page.openSettings();
+    const doc = page.document;
+    const root = doc.documentElement.style;
+    const fire = (el, type) => el.dispatchEvent(new Event(type, {bubbles: true}));
+    doc.getElementById('sp-theme').value = 'daedric';
+    fire(doc.getElementById('sp-theme'), 'change');
+    assert.equal(doc.body.dataset.theme, 'daedric', 'the theme shows at once');
+    doc.getElementById('sp-anchor').value = 'bottom-left';
+    fire(doc.getElementById('sp-anchor'), 'change');
+    assert.equal(doc.body.dataset.anchor, 'bottom-left');
+    doc.getElementById('sp-opacity').value = '0.3';
+    fire(doc.getElementById('sp-opacity'), 'input');
+    assert.equal(root.getPropertyValue('--opacity'), '0.3');
+    doc.getElementById('sp-font-size').value = '18';
+    fire(doc.getElementById('sp-font-size'), 'input');
+    assert.equal(root.getPropertyValue('--font-size'), '18px');
+    const width = doc.getElementById('sp-width');
+    width.value = '9';
+    fire(width, 'input');
+    assert.equal(root.getPropertyValue('--win-width'), '520px', 'a half-typed width waits');
+    width.value = '900';
+    fire(width, 'change');
+    assert.equal(root.getPropertyValue('--win-width'), '900px', 'and shows when the box is left');
+    const colour = doc.querySelector('.sp-ch-row[data-channel="dialogue"] .ch-colour');
+    colour.value = '#112233';
+    fire(colour, 'input');
+    assert.match(doc.getElementById('chronicle-channel-colours').textContent, /\[data-channel="dialogue"\] \.speaker \{ color: #112233; \}/);
+    assert.equal(page.saves.length, 0, 'nothing is saved before Apply');
+
+    if (how === 'close') page.context.closeSettings();
+    else page.input(B);
+    assert.equal(vm.runInContext('settingsOpen', page.context), false);
+    assert.equal(doc.body.dataset.theme, 'skyrim', 'Close puts the theme back');
+    assert.equal(doc.body.dataset.anchor, 'custom');
+    assert.equal(root.getPropertyValue('--opacity'), '0.65');
+    assert.equal(root.getPropertyValue('--font-size'), '13px');
+    assert.equal(root.getPropertyValue('--win-width'), '520px');
+    assert.match(doc.getElementById('chronicle-channel-colours').textContent, /#aabbcc/);
+    assert.equal(page.saves.length, 0);
+  }
+});
+
+test('Apply keeps the previewed look and saves it', () => {
+  const page = setup({settings: {general: {}, window: {theme: 'skyrim'}, channels: {}}});
+  page.openSettings();
+  const theme = page.document.getElementById('sp-theme');
+  theme.value = 'dwemer';
+  theme.dispatchEvent(new Event('change', {bubbles: true}));
+  page.document.getElementById('sp-apply').click();
+  assert.equal(page.saves.length, 1);
+  assert.equal(page.saves[0].window.theme, 'dwemer');
+  page.context.closeSettings();
+  assert.equal(page.document.body.dataset.theme, 'dwemer', 'Close after Apply keeps it');
+});
+
+test('settings that are not about the look still wait for Apply', () => {
+  const page = setup({settings: {general: {max_messages: 100}, window: {}, channels: {}}});
+  page.openSettings();
+  const max = page.document.getElementById('sp-max-messages');
+  max.value = '5';
+  max.dispatchEvent(new Event('change', {bubbles: true}));
+  assert.equal(page.config().general.max_messages, 100);
+});

@@ -1011,10 +1011,38 @@ bindSlider('sp-fade-time', 'sp-fade-time-val', v => v);
 })();
 
 document.getElementById('sp-close').addEventListener('click', closeSettings);
+
+// CHRON-42: every visual setting shows on the window as it changes. Close (or
+// B) puts the snapshot taken on open back (discardSettingsPreview); Apply
+// keeps it. The other settings still wait for Apply. A typed width or height
+// shows when the box is left, not at each digit.
+const PREVIEW_LIVE = ['sp-theme', 'sp-anchor', 'sp-opacity', 'sp-font-size'];
+const PREVIEW_ON_CHANGE = ['sp-width', 'sp-height'];
+
+function isPreviewControl(el, type) {
+  if (!el) return false;
+  if (PREVIEW_LIVE.includes(el.id)) return true;
+  if (PREVIEW_ON_CHANGE.includes(el.id)) return type === 'change';
+  return !!(el.classList && el.classList.contains('ch-colour'));
+}
+
+function previewVisualSettings() {
+  if (!settingsOpen) return;
+  const form = collectSettingsFromForm();
+  const win = config.window;
+  for (const key of ['theme', 'anchor', 'opacity', 'font_size', 'width', 'height']) win[key] = form.window[key];
+  for (const [channel, value] of Object.entries(form.channels)) {
+    if (channel !== 'all' && config.channels[channel] && value.colour) config.channels[channel].colour = value.colour;
+  }
+  normalizeConfig();
+  applyConfig();
+}
+
 // Keep the theme's slider fills and toggle states in step with the form.
-['input', 'change'].forEach(type => document.getElementById('settings-panel').addEventListener(type, () => {
+['input', 'change'].forEach(type => document.getElementById('settings-panel').addEventListener(type, event => {
   paintSliders();
   syncToggles();
+  if (isPreviewControl(event && event.target, type)) previewVisualSettings();
 }));
 
 // Settings Apply / Reset
