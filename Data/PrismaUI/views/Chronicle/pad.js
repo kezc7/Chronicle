@@ -21,9 +21,10 @@
 // (html[data-meridian-input="gamepad"], from the theme kit).
 //
 // PrismaUI hands the focused page the controller as a standard browser
-// gamepad, read here. Magelight's gamepad layer types it as keys instead
-// (d-pad = arrows, A = Enter, B = Escape, right stick = wheel); script.js
-// sends those keys to padAction, so both hosts behave the same.
+// gamepad, read here. Magelight's gamepad layer hands the panel its actions
+// (navigation style, syncMagelightPad below), or, without its helper, types the
+// pad as keys (d-pad = arrows, A = Enter, B = Escape, right stick = wheel),
+// which script.js sends to padAction; either way both hosts behave the same.
 
 const PAD_REPEAT_DELAY = 380;
 const PAD_REPEAT_RATE = 90;
@@ -187,7 +188,7 @@ function padSettingsAction(action) {
   const el = controls.includes(padState.settingsAt) ? padState.settingsAt : null;
   if (!el && padState.settingsAt) padSettingsFocus(null);  // its tab was closed
   switch (action) {
-  case 'cancel': closeSettings(); return true;
+  case 'cancel': backFromSettings(); return true;  // one level back (CHRON-43)
   case 'up': case 'down':
     if (controls.length) padSettingsFocus(padStep(controls, el, action === 'down' ? 1 : -1));
     return true;
@@ -221,11 +222,12 @@ function padPrompt(keys, label) {
   return prompt;
 }
 
-// Magelight's layer has no shoulder buttons or X / Y for a page, so its prompts are the keys it types.
+// Magelight's keys style has no shoulder buttons or X / Y for a page, so its
+// prompts are the keys it types; its navigation style has them all (CHRON-43).
 function renderPadPrompts() {
   const bar = document.getElementById('pad-prompts');
   if (!bar) return;
-  const typed = runtime.host === 'Magelight';
+  const typed = runtime.host === 'Magelight' && !magelightPad.on;
   const tabs = typed ? ['←', '→'] : ['LB', 'RB'];
   // Most needed first: a narrow window shows the first ones and clips the rest.
   const prompts = inputOpen ? [
@@ -241,6 +243,42 @@ function renderPadPrompts() {
     ...(typed ? [] : [padPrompt(['Y'], 'pad.speaker'), padPrompt(['X'], 'pad.newest')]),
   ];
   bar.replaceChildren(...prompts);
+}
+
+// CHRON-43: Magelight's keys style types only the d-pad, A, B and the right
+// stick. Its navigation style (1.6.0) hands the page every button as an action
+// through window.magelight.gamepad; Chronicle takes them all (onAction returning
+// true), so the helper moves no focus of its own, and feeds them to padAction
+// as PrismaUI's pad is fed. The panel asks native for that style only once the
+// helper is there; without it (or with "magelight_pad_navigation": false in
+// Chronicle.json) the keys style stays. The right stick is left to Magelight.
+const MAGELIGHT_ACTIONS = new Set(['up', 'down', 'left', 'right', 'accept', 'cancel', 'previousTab', 'nextTab',
+  'secondary', 'tertiary']);
+const magelightPad = {on: false, dispose: null};
+
+function magelightPadAction(event) {
+  if (!event || typeof event !== 'object' || !MAGELIGHT_ACTIONS.has(event.action)) return false;
+  if (event.phase === 'press' || (event.phase === 'repeat' && PAD_REPEATS.has(event.action))) padFire(event.action);
+  return true;
+}
+
+function syncMagelightPad() {
+  if (runtime.host !== 'Magelight' || hostRole !== 'panel') return;
+  const helper = typeof window !== 'undefined' && window.magelight && window.magelight.gamepad;
+  const wanted = config.general.magelight_pad_navigation !== false && !!helper && typeof helper.onAction === 'function';
+  if (wanted && !magelightPad.on) {
+    try {
+      const dispose = helper.onAction(magelightPadAction);
+      magelightPad.dispose = typeof dispose === 'function' ? dispose : null;
+      magelightPad.on = true;
+    } catch (_) { magelightPad.on = false; }
+  } else if (!wanted && magelightPad.on) {
+    try { if (magelightPad.dispose) magelightPad.dispose(); } catch (_) {}
+    magelightPad.on = false;
+    magelightPad.dispose = null;
+  }
+  sendToGame('padStyle', magelightPad.on ? 'navigation' : 'keys');
+  renderPadPrompts();
 }
 
 function padFirstGamepad() {

@@ -38,6 +38,7 @@ const DEFAULT_CONFIG = {
     remember_hidden: true,     // keep the show/hide state across loads
     user_hidden: false,        // that state, saved when remember_hidden is on
     auto_hide: 0,              // seconds without new messages before the window fades; 0 = never
+    magelight_pad_navigation: true,  // Magelight: every pad button reaches the page (CHRON-43); false keeps the keys style
   },
   window: {
     position_x: 20,
@@ -137,6 +138,7 @@ function normalizeConfig() {
   g.remember_hidden = g.remember_hidden !== false;
   g.user_hidden = g.remember_hidden && g.user_hidden === true;
   g.auto_hide = clamp(Math.round(Number(g.auto_hide) || 0), 0, 300);
+  g.magelight_pad_navigation = g.magelight_pad_navigation !== false;
   for (const key of ['input_hotkey', 'config_hotkey', 'interact_hotkey']) {
     if (typeof g[key] !== 'string' || !g[key].trim()) g[key] = DEFAULT_CONFIG.general[key];
     if (!/^(Enter|[a-z0-9]|F([1-9]|1[0-2]))$/i.test(g[key])) g[key] = DEFAULT_CONFIG.general[key];
@@ -600,6 +602,7 @@ function openInput() {
   input.focus();
   keepListBottom(stick);
   if (typeof renderPadPrompts === 'function') renderPadPrompts();
+  syncEscapeLayer();
 
   return true;
 }
@@ -614,6 +617,7 @@ function closeInput() {
   document.getElementById('chat-input').blur();
   keepListBottom(stick);
   if (typeof renderPadPrompts === 'function') renderPadPrompts();
+  syncEscapeLayer();
 }
 
 // The recent commands, newest first: step 1 goes back one, -1 forward (to an empty bar).
@@ -674,6 +678,7 @@ function openSettings() {
   settingsSnapshot = deepMerge({}, config);
   settingsOpen = true;
   padSettingsFocus(null);
+  syncEscapeLayer();
 
   populateSettingsForm();
   document.getElementById('settings-overlay').classList.remove('hidden');
@@ -690,6 +695,27 @@ function closeSettings() {
   document.getElementById('settings-overlay').classList.add('hidden');
   closeInteraction();
 
+}
+
+// CHRON-43: Escape and B close one level at a time: an open list (the list
+// control takes Escape itself), then Settings or the chat bar, then the chat
+// window, back to the game. Settings closed this way leave the window open,
+// as the interact key opens it; the Close button still closes everything.
+function backFromSettings() {
+  if (!settingsOpen) return;
+  discardSettingsPreview();
+  settingsOpen = false;
+  padSettingsFocus(null);
+  document.getElementById('settings-overlay').classList.add('hidden');
+  syncEscapeLayer();
+  statusText(interactionHint());
+  if (typeof renderPadPrompts === 'function') renderPadPrompts();
+}
+
+function stepBack() {
+  if (settingsOpen) backFromSettings();
+  else if (inputOpen) closeInput();
+  else closeInteraction();
 }
 
 function discardSettingsPreview() {
@@ -1302,8 +1328,8 @@ document.addEventListener('keydown', e => {
   }
   if (!runtime.visible || !runtime.loaded || e.repeat) return;
   if (e.key === 'Escape' && interactionOpen) {
-    closeInteraction();
-    document.getElementById('copy-output').hidden = true;
+    stepBack();
+    if (!interactionOpen) document.getElementById('copy-output').hidden = true;
     e.preventDefault(); return;
   }
   const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);

@@ -239,6 +239,10 @@ void Chronicle::OnViewReady()
         const bool open = text && std::string_view(text) == "1";
         MainTask([open] { GetSingleton()->SetEscapeLayer(open); });
     });
+    host.RegisterListener("padStyle", [](const char* text) {
+        const bool navigation = text && std::string_view(text) == "navigation";
+        MainTask([navigation] { GetSingleton()->SetPadStyle(navigation); });
+    });
     host.RegisterListener("diagnostics", [](const char*) { MainTask([] { GetSingleton()->Diagnostics(); }); });
     host.RegisterListener("selfTestReply", [](const char* text) {
         if (text) MainTask([payload = std::string(text)] { ChronicleSelfTestRun::OnPageReply(payload); });
@@ -582,12 +586,18 @@ void Chronicle::ForceCloseInput()
     InvokeUI("closeInteraction(false)");
 }
 
-// Game thread. While the page has a list open, Escape (and B on Magelight)
-// closes the list there instead of the whole interaction (CHRON-32).
+// Game thread. While the page has a layer open above the chat window (a list,
+// Settings or the chat bar), Escape (and B on Magelight) closes that layer
+// there instead of the whole interaction (CHRON-32, CHRON-43).
 void Chronicle::SetEscapeLayer(bool open)
 {
     if (m_escapeLayer.exchange(open) == open) return;
     UiHost().CaptureEscape(open);
+}
+
+void Chronicle::SetPadStyle(bool navigation)
+{
+    UiHost().SetPadStyle(navigation);
 }
 
 void Chronicle::RequestFocus()

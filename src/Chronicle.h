@@ -163,7 +163,8 @@ private:
     void FlushPendingUI();
     void RequestFocus();
     void RequestUnfocus();
-    void SetEscapeLayer(bool open);  // game thread: the page's list opened or closed (CHRON-32)
+    void SetEscapeLayer(bool open);  // game thread: a layer above the window opened or closed (CHRON-32, CHRON-43)
+    void SetPadStyle(bool navigation);  // game thread: the page's pad style on Magelight (CHRON-43)
     void ToggleUserHidden();
     void UpdateVisibility();
     void PublishInputGate();    // game thread: the snapshot OnHotkey and OnPadButton read

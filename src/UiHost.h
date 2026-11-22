@@ -62,6 +62,10 @@ public:
     // closes the list). A host that would otherwise leave its focus on Escape
     // stops doing so; the others need nothing.
     virtual void CaptureEscape(bool capture) = 0;
+    // CHRON-43: the page has Magelight's gamepad helper and takes every pad
+    // button as an action (navigation style), or it hasn't (keys style). Hosts
+    // that hand the page the pad another way need nothing.
+    virtual void SetPadStyle(bool navigation) = 0;
     virtual void Show(bool visible) = 0;
 
     // Input ownership. Focus() asks for keyboard/mouse; it may be granted

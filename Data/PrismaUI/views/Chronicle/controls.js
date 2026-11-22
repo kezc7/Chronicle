@@ -133,6 +133,7 @@ function closeInteraction(release = true) {
   statusText(interactionHint());
   if (typeof keepListBottom === 'function') keepListBottom(!userScrolledUp); // the bars just closed
   if (typeof wakeWindow === 'function') wakeWindow(); // auto-hide counts from now
+  syncEscapeLayer();  // nothing is open above the game now
   if (release) sendToGame('focusReleased', '');
 }
 
@@ -140,8 +141,11 @@ function closeInteraction(release = true) {
 // the list alone: the page tells native, which then leaves Escape to the page
 // and, on Magelight, has the panel take Escape from the host (CHRON-32).
 let escapeLayer = false;
+// A layer above the chat window is open: a list (CHRON-32), Settings or the chat
+// bar (CHRON-43). Escape and B are then the page's, to close that one layer.
 function syncEscapeLayer() {
-  const open = typeof window !== 'undefined' && !!(window.DovahHubChoices && window.DovahHubChoices.isOpen());
+  const list = typeof window !== 'undefined' && !!(window.DovahHubChoices && window.DovahHubChoices.isOpen());
+  const open = list || (typeof settingsOpen !== 'undefined' && settingsOpen) || (typeof inputOpen !== 'undefined' && inputOpen);
   if (open === escapeLayer) return open;
   escapeLayer = open;
   sendToGame('escapeLayer', open ? '1' : '0');
@@ -295,6 +299,7 @@ function nativeBootstrap(data) {
   if (data.settings) config = deepMerge(deepMerge({}, DEFAULT_CONFIG), data.settings);
   normalizeConfig();
   applyConfig();
+  if (typeof syncMagelightPad === 'function') syncMagelightPad();  // CHRON-43
   statusText(data.warning ? t('settings.loadFailed', {detail: data.warning})
     : t('status.version', {version: data.version, hint: interactionHint()}));
   // Migrate existing browser preferences once if no native settings file exists.

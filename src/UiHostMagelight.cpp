@@ -176,12 +176,7 @@ namespace
                 spdlog::info("Chronicle: {}", m_padDetail);
                 return;
             }
-            GamepadConfig pad{};
-            pad.size = sizeof(pad);
-            pad.enabled = true;
-            pad.style = kGamepadStyleKeys;
-            pad.allowCursor = false;
-            pad.startInCursorMode = false;
+            const auto pad = PadConfig(kGamepadStyleKeys);
             if (const auto result = m_api->SetViewGamepad(m_panel, &pad); result != Result::Ok) {
                 m_padDetail = std::string("Magelight refused the gamepad layer: ") + ResultName(result) + " " + LastError();
                 spdlog::warn("Chronicle: {}", m_padDetail);
@@ -189,6 +184,35 @@ namespace
             }
             m_padLayer = true;
             spdlog::info("Chronicle: controller on Magelight's gamepad layer (d-pad, A, B, right stick)");
+        }
+
+        static GamepadConfig PadConfig(std::uint32_t style)
+        {
+            GamepadConfig pad{};
+            pad.size = sizeof(pad);
+            pad.enabled = true;
+            pad.style = style;
+            pad.allowCursor = false;
+            pad.startInCursorMode = false;
+            return pad;
+        }
+
+        // CHRON-43: the keys style types only the d-pad, A, B and the right stick.
+        // The panel asks for the navigation style once it has Magelight's gamepad
+        // helper, and then gets LB / RB, X and Y too, as actions; it asks for the
+        // keys style back when it hasn't. The style is kept across reloads.
+        void SetPadStyle(bool navigation) override
+        {
+            if (!m_padLayer || !ViewValid() || navigation == m_padNavigation) return;
+            const auto pad = PadConfig(navigation ? kGamepadStyleNavigation : kGamepadStyleKeys);
+            if (const auto result = m_api->SetViewGamepad(m_panel, &pad); result != Result::Ok) {
+                spdlog::warn("Chronicle: Magelight refused the {} pad style: {} {}", navigation ? "navigation" : "keys",
+                    ResultName(result), LastError());
+                return;
+            }
+            m_padNavigation = navigation;
+            spdlog::info("Chronicle: controller on Magelight's {} style{}", navigation ? "navigation" : "keys",
+                navigation ? " (every button reaches the page)" : " (d-pad, A, B, right stick)");
         }
 
         PadSupport Gamepad() override
@@ -516,6 +540,7 @@ namespace
         std::atomic<ViewId> m_panel{ 0 };
         std::atomic<ViewId> m_hud{ 0 };
         bool m_padLayer{ false };
+        bool m_padNavigation{ false };  // the panel has the navigation style (CHRON-43)
         std::string m_padDetail{ "the gamepad layer was not set up" };
         std::atomic<bool> m_renderDead{ false };
         DomReadyFn m_onDomReady{ nullptr };

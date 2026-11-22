@@ -1016,7 +1016,7 @@ namespace ChronicleRuntime
         bool keysFree{ false };   // State::KeysFree: no menu or other window has the keyboard
         bool dialogueOnly{ false };  // State::DialogueOnly: only a conversation has it; Chronicle's keys work
         bool userHidden{ false };
-        bool pageLayer{ false };  // a list is open on the page: Escape closes it there (CHRON-32)
+        bool pageLayer{ false };  // a list, Settings or the chat bar is open: Escape closes it there (CHRON-32, CHRON-43)
         std::uint32_t toggleKey{ 0 };
         std::uint32_t settingsKey{ '0' };
         std::uint32_t interactKey{ 0x77 };  // F8
@@ -1042,7 +1042,7 @@ namespace ChronicleRuntime
             if (!s.ownFocus) return Pass;  // another mod's window
             // Typing in Chronicle: the host routes keys to the page; the game gets none.
             const bool functionKey = vk >= 0x70 && vk <= 0x7B;  // F1..F12
-            if (vk == 0x1B && s.pageLayer) return Keep;  // the page closes its open list
+            if (vk == 0x1B && s.pageLayer) return Keep;  // the page closes its open layer
             if (vk == 0x1B || (functionKey && vk == s.interactKey)) return Unfocus;
             return Keep;
         }

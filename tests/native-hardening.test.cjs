@@ -81,7 +81,7 @@ test('CHRON-32: native leaves Escape to the page while it has a list open, and M
   assert.match(chronicle, /state\.pageLayer = m_escapeLayer;/);
   assert.match(body(chronicle, 'void Chronicle::SetEscapeLayer(bool open)'), /UiHost\(\)\.CaptureEscape\(open\);/);
   assert.match(body(src('UiHostMagelight.cpp'), 'void CaptureEscape(bool capture) override'), /m_api->SetEscapeCapture\(m_panel, capture\)/);
-  assert.match(fs.readFileSync(path.join(__dirname, '../Data/PrismaUI/views/Chronicle/bridge.js'), 'utf8'), /'escapeLayer'\]/);
+  assert.match(fs.readFileSync(path.join(__dirname, '../Data/PrismaUI/views/Chronicle/bridge.js'), 'utf8'), /'escapeLayer'[,\]]/);
 });
 
 test('CHRON-39: a SkyrimNet name answer from before a load is dropped, and byte cuts keep whole characters', () => {
