@@ -114,6 +114,7 @@ function normalizeConfig() {
     }
   }
   normalizeSpeakerColours();
+  config.custom_tabs = normalizeCustomTabs(config.custom_tabs);
   config.speaker_colour_mode = config.speaker_colour_mode === 'automatic' ? 'automatic' : 'white';
   config.hud_subtitle_paths = Array.isArray(config.hud_subtitle_paths)
     ? [...new Set(config.hud_subtitle_paths
@@ -173,6 +174,34 @@ function escapeHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+// CHRON-47: one or two tabs the player names, each showing a set of channels,
+// kept in Chronicle.json as custom_tabs: [{id, name, channels}]. A file
+// without the key has none; anything that doesn't fit is dropped on read.
+// The tab bar and the editor come with their mockup; this is the storage.
+const CUSTOM_TABS_MAX = 2;
+const CUSTOM_TAB_NAME_MAX = 24;
+
+function normalizeCustomTabs(tabs) {
+  if (!Array.isArray(tabs)) return [];
+  const known = Object.keys(DEFAULT_CONFIG.channels).filter(channel => channel !== 'all');
+  const kept = [];
+  for (const tab of tabs) {
+    if (kept.length >= CUSTOM_TABS_MAX) break;
+    if (!tab || typeof tab !== 'object' || typeof tab.name !== 'string') continue;
+    const name = tab.name.replace(/\s+/g, ' ').trim().slice(0, CUSTOM_TAB_NAME_MAX);
+    const channels = Array.isArray(tab.channels)
+      ? [...new Set(tab.channels.filter(channel => known.includes(channel)))] : [];
+    if (!name || !channels.length) continue;
+    kept.push({id: 'custom-' + (kept.length + 1), name, channels});
+  }
+  return kept;
+}
+
+// Whether a custom tab shows a line of this channel: its own list, and the channel on.
+function customTabShows(tab, channel) {
+  return !!(tab && Array.isArray(tab.channels) && tab.channels.includes(channel) && config.channels[channel]?.enabled);
 }
 
 function normalizeSpeakerColours() {
