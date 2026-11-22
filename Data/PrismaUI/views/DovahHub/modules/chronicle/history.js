@@ -426,6 +426,15 @@
         trim();
         updateChrome();
         list.scrollTop = list.scrollHeight;
+      }, () => {
+        // The call failed: lines pushed meanwhile still show, and the next
+        // reset or show loads again (CHRON-38).
+        if (ticket !== state.loading) return;
+        state.loading = 0;
+        const buffered = state.buffered;
+        state.buffered = [];
+        buffered.forEach(append);
+        updateChrome();
       });
     }
 
@@ -447,10 +456,14 @@
         const first = state.lines[0].row;
         const added = reply.lines.filter(validLine).map(line => ({ line, row: buildRow(line) }));
         added.forEach(entry => list.insertBefore(entry.row, first));
-        state.lines = added.concat(state.lines).slice(-MAX_LINES);
+        state.lines = added.concat(state.lines);
         state.more = reply.more === true;
+        trim();  // past the cap, the oldest go, rows and all (CHRON-38)
         updateChrome();
         list.scrollTop = list.scrollHeight - fromBottom;
+      }, () => {
+        state.olderPending = false;  // "Load older" works again (CHRON-38)
+        updateChrome();
       });
     }
 

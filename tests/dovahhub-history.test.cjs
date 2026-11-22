@@ -90,6 +90,10 @@ function setup(store, options = {}) {
         return {profile: options.profile || '42', lines: store.slice(start, end), more: start > 0, colours: options.colours || {},
           language: options.language};
       };
+      if (options.failNext) {  // the call fails (DovahHub times it out, or the DLL is gone)
+        options.failNext = false;
+        return Promise.reject(new Error('no answer'));
+      }
       if (options.holdNext) {
         options.holdNext = false;
         return new Promise(resolve => { hold = () => resolve(answer()); });
@@ -105,6 +109,7 @@ function setup(store, options = {}) {
     push: json => pushes.forEach(fn => fn(json)),
     event: name => events.forEach(fn => fn(name)),
     release: () => hold && hold(),
+    options,
     texts: () => page.list.children.filter(row => !row.hidden).map(row => row.children[2].textContent),
   };
 }
@@ -254,4 +259,47 @@ test('a search does not carry over to another character', async () => {
   assert.equal(tab.page.state.search, '');
   assert.equal(tab.page.query.value, '');
   assert.deepEqual(tab.texts(), ['Stay close.', 'A dragon?']);
+});
+
+// CHRON-38: a failed call leaves nothing stuck, and the cap removes rows with their lines.
+test('a failed load still shows pushed lines, and the next show loads again', async () => {
+  const tab = setup([line(1, 'dialogue', 'Lydia', 'Kept on disk')], {failNext: true});
+  tab.event('tabShown');
+  tab.push(JSON.stringify({line: line(2, 'dialogue', 'Lydia', 'Pushed while it failed')}));
+  await settle();
+  assert.deepEqual(tab.texts(), ['Pushed while it failed'], 'not held back for good');
+  tab.push(JSON.stringify({line: line(3, 'dialogue', 'Lydia', 'Pushed after')}));
+  assert.deepEqual(tab.texts(), ['Pushed while it failed', 'Pushed after']);
+  tab.push(JSON.stringify({reset: true}));
+  await settle();
+  assert.deepEqual(tab.texts(), ['Kept on disk'], 'a reset loads again');
+});
+
+test('a failed Load older can be tried again', async () => {
+  const store = Array.from({length: 450}, (_, i) => line(i + 1, 'dialogue', 'Lydia', 'Line ' + (i + 1)));
+  const tab = setup(store);
+  tab.event('tabShown');
+  await settle();
+  tab.options.failNext = true;
+  tab.page.older.dispatch('click');
+  await settle();
+  assert.equal(tab.list.children.length, 200);
+  assert.equal(tab.page.older.disabled, false, 'the button works again');
+  tab.page.older.dispatch('click');
+  await settle();
+  assert.equal(tab.calls.length, 3, 'a second try is sent');
+  assert.equal(tab.list.children.length, 400);
+});
+
+test('Load older past the cap drops the oldest rows from the list too', async () => {
+  const store = Array.from({length: 1300}, (_, i) => line(i + 1, 'dialogue', 'Lydia', 'Line ' + (i + 1)));
+  const tab = setup(store);
+  tab.event('tabShown');
+  await settle();
+  for (let i = 0; i < 4; ++i) { tab.page.older.dispatch('click'); await settle(); }
+  assert.equal(tab.list.children.length, 1000);
+  tab.page.older.dispatch('click');
+  await settle();
+  assert.equal(tab.list.children.length, 1000, 'no row stays behind without its line');
+  assert.equal(tab.list.children.at(-1).children[2].textContent, 'Line 1300');
 });
