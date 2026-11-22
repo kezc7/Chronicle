@@ -11,7 +11,10 @@ param(
     [ValidateSet('PrismaUI','Magelight')][string]$UiHost = 'PrismaUI',
     # Empty this host's build folder first, so everything in it is built again (a folder
     # configured with another compiler has to go). vcpkg's cache under out\work stays.
-    [switch]$Clean
+    [switch]$Clean,
+    # CHRON-40: build through a drive made for the build, so no folder on this machine is
+    # named in the DLL or its PDB (package.ps1 uses it for every Release). Implies -Clean.
+    [switch]$Neutral
 )
 
 # CMake, Ninja and vcpkg are tools, taken from the Visual Studio that has them.
@@ -60,12 +63,69 @@ function Assert-DependencyCompiler {
 
 # A clean never deletes a git worktree: one inside the build folder stops it.
 . "$src\tools\worktree-guard.ps1"
+# A neutral build always starts empty: the drive's letter can differ from one run to the next,
+# and a build folder remembers the paths it was configured with.
+if ($Neutral) { $Clean = $true }
 if ($Clean -and (Test-Path -LiteralPath $build)) {
     Assert-NoWorktreeInside -Folder $build -Repo $src
     Write-Host "[Chronicle] Emptying $build..."
     Remove-Item -LiteralPath $build -Recurse -Force -ErrorAction Stop
 }
 Assert-BuildFolderCompiler
+
+# CHRON-40. The compiler records every source and header it read (the log macros' file names
+# are in the DLL itself), and the linker records its own folder, its command line and every
+# object and library by full path; neither has an option that rewrites all of those. So a
+# neutral build works through a drive made for it, in the suite's layout (DovahHub's DHUB-142,
+# DovahHeraldry's DHR-77): the first free letter is mapped to "neutral-roots\Chronicle" at the
+# root of this drive, which holds one junction, src\Chronicle (this repository). Every path the
+# tools record then reads <drive>:\src\Chronicle\..., whatever the letter, vcpkg's dependency
+# builds included (they happen inside the build folder), and /PDBALTPATH:%_PDB% has the DLL name
+# its PDB by file name alone. The junction and the drive are made for each run and removed after
+# it; the repository is never touched.
+$neutralLink = $null
+$neutralDrive = $null
+function Remove-NeutralRoot {
+    if ($script:neutralDrive) {
+        & subst.exe $script:neutralDrive /D | Out-Null
+        $script:neutralDrive = $null
+    }
+    if ($script:neutralLink -and (Test-Path -LiteralPath $script:neutralLink)) {
+        # A junction is removed as a link: the folder it points at stays as it is.
+        [System.IO.Directory]::Delete($script:neutralLink, $false)
+        $script:neutralLink = $null
+    }
+}
+if ($Neutral) {
+    $holder = Join-Path ([System.IO.Path]::GetPathRoot($src)) 'neutral-roots\Chronicle'
+    New-Item -ItemType Directory -Path "$holder\src" -Force | Out-Null
+    $link = "$holder\src\Chronicle"
+    if (Test-Path -LiteralPath $link) {
+        # An earlier run's junction, left by a build that was stopped. Anything else there stops this one.
+        if (!((Get-Item -LiteralPath $link -Force).Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+            throw "[Chronicle] $link is a real folder, not the build's junction; move it away first"
+        }
+        [System.IO.Directory]::Delete($link, $false)
+    }
+    New-Item -ItemType Junction -Path $link -Target $src | Out-Null
+    $neutralLink = $link
+    # Another mod's release can take a letter at the same moment: a refused one is tried again with the next.
+    $used = @([System.IO.DriveInfo]::GetDrives() | ForEach-Object { $_.Name.Substring(0, 1).ToUpperInvariant() })
+    foreach ($letter in 'W', 'V', 'U', 'T', 'S', 'R', 'O', 'N', 'M', 'I') {
+        if ($used -contains $letter) { continue }
+        & subst.exe "${letter}:" $holder 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) { $neutralDrive = "${letter}:"; break }
+    }
+    if (!$neutralDrive) {
+        Remove-NeutralRoot
+        throw '[Chronicle] No free drive letter for the neutral build (W to I are all in use)'
+    }
+    $src = "$neutralDrive\src\Chronicle"
+    $build = "$src\out\build\x64-$Config"
+    if ($UiHost -ne 'PrismaUI') { $build += "-$UiHost" }
+    Write-Host "[Chronicle] Neutral build: $neutralDrive = $holder (src\Chronicle = the repository)"
+}
+try {
 
 Write-Host "[Chronicle] Loading MSVC environment..."
 
@@ -91,11 +151,13 @@ $env:VCPKG_VISUAL_STUDIO_PATH = $msvcBase
 # (vcpkg already builds its packages inside the build folder). CHRONICLE_BUILD_WORK
 # names another place. This comes after the MSVC environment, which is inherited.
 $work = if ($env:CHRONICLE_BUILD_WORK) { $env:CHRONICLE_BUILD_WORK } else { "$src\out\work" }
+# A neutral build keeps its own binary cache: a package built through the real folder names it.
+$archives = if ($Neutral) { 'archives-neutral' } else { 'archives' }
 $folders = [ordered]@{
     TMP                        = "$work\tmp"
     TEMP                       = "$work\tmp"
     VCPKG_DOWNLOADS            = "$work\vcpkg\downloads"
-    VCPKG_DEFAULT_BINARY_CACHE = "$work\vcpkg\archives"
+    VCPKG_DEFAULT_BINARY_CACHE = "$work\vcpkg\$archives"
     X_VCPKG_REGISTRIES_CACHE   = "$work\vcpkg\registries"
 }
 foreach ($name in $folders.Keys) {
@@ -116,6 +178,7 @@ Write-Host "[Chronicle] Configuring..."
     -DVCPKG_TARGET_TRIPLET=x64-windows-static `
     "-DCMAKE_BUILD_TYPE=$Config" `
     "-DCHRONICLE_UI_HOST=$UiHost" `
+    "-DCHRONICLE_NEUTRAL_PATHS=$(if ($Neutral) { 'ON' } else { 'OFF' })" `
     -DCHRONICLE_BUILD_TESTS=ON
 
 if ($LASTEXITCODE -ne 0) {
@@ -144,4 +207,9 @@ if (Test-Path $dll) {
     Write-Host ("[Chronicle] SUCCESS -- " + $dll)
 } else {
     Write-Warning ("[Chronicle] Build reported success but DLL not found at " + $dll)
+}
+
+} finally {
+    # The drive and the junction go however the build ended; the build folder keeps its files.
+    Remove-NeutralRoot
 }

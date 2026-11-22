@@ -89,7 +89,9 @@ test('a worktree is inside a folder only by whole folder names', windows, () => 
 });
 
 test('a real worktree inside the folder stops the clean, and the folder stays', windows, t => {
-  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'chronicle-guard-'));
+  // At its real path: a release builds through a drive made for it (CHRON-40), and git
+  // names a worktree on such a drive by the folder the drive stands for.
+  const repo = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'chronicle-guard-')));
   t.after(() => fs.rmSync(repo, {recursive: true, force: true}));
   git(repo, 'init', '-q');
   git(repo, '-c', 'user.name=test', '-c', 'user.email=test@example.invalid', 'commit', '-q', '--allow-empty', '-m', 'start');

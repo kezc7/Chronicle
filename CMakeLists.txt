@@ -20,6 +20,8 @@ project(
 )
 
 option(CHRONICLE_BUILD_TESTS "Build Chronicle regression tests" ON)
+# CHRON-40: build.ps1 -Neutral (every release) builds through a drive made for the build.
+option(CHRONICLE_NEUTRAL_PATHS "The DLL names its PDB by file name alone" OFF)
 
 # Sources are UTF-8 (translated native phrases contain accented letters).
 add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
@@ -111,6 +113,10 @@ if(MSVC)
     # /OPT:REF and /OPT:ICF keep the optimisations /DEBUG would otherwise turn off.
     target_compile_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:Release>:/Z7>)
     target_link_options(${PROJECT_NAME} PRIVATE $<$<CONFIG:Release>:/DEBUG /OPT:REF /OPT:ICF>)
+    # The DLL's debug directory names Chronicle.pdb without the folder it was linked in.
+    if(CHRONICLE_NEUTRAL_PATHS)
+        target_link_options(${PROJECT_NAME} PRIVATE "/PDBALTPATH:%_PDB%")
+    endif()
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE

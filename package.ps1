@@ -21,7 +21,10 @@ $projectRoot = $PSScriptRoot
 # anything is built; set-version.ps1 writes them.
 & node --test "$projectRoot\tests\version.test.cjs"
 if ($LASTEXITCODE -ne 0) { throw 'A version field disagrees with CMakeLists.txt; package not created' }
-& "$projectRoot\build.ps1" -Config $Config -UiHost $UiHost -Clean:$Clean
+# A release is built through a drive made for the build, so the DLL and its PDB name no
+# folder on this machine (CHRON-40); that build is always a clean one.
+$neutral = $Config -eq 'Release'
+& "$projectRoot\build.ps1" -Config $Config -UiHost $UiHost -Clean:$Clean -Neutral:$neutral
 if ($LASTEXITCODE -ne 0) { throw 'Build failed; package not created' }
 $cmakeText = Get-Content -LiteralPath "$projectRoot\CMakeLists.txt" -Raw
 if ($cmakeText -notmatch '\bproject\s*\(\s*Chronicle\s+VERSION\s+(\d+\.\d+\.\d+)\b') { throw 'Cannot find project version' }
@@ -69,6 +72,12 @@ if (!(Test-Path -LiteralPath "$buildDir\Chronicle.pdb")) { throw "Chronicle.pdb 
 Copy-Item -LiteralPath "$buildDir\Chronicle.pdb" -Destination "$stage\SKSE\Plugins\Chronicle.pdb"
 & python -I "$projectRoot\tools\pdb-match.py" "$stage\SKSE\Plugins\Chronicle.dll" "$stage\SKSE\Plugins\Chronicle.pdb"
 if ($LASTEXITCODE -ne 0) { throw 'Chronicle.pdb is not from the link that made Chronicle.dll; package not created' }
+# CHRON-40: a release's DLL and PDB name only the toolchain's folders and the build drive's
+# <drive>:\src\Chronicle (tools\pdb-paths.py lists every drive-letter path in both).
+if ($neutral) {
+    & python -I "$projectRoot\tools\pdb-paths.py" "$stage\SKSE\Plugins\Chronicle.dll" "$stage\SKSE\Plugins\Chronicle.pdb"
+    if ($LASTEXITCODE -ne 0) { throw 'Chronicle.dll or Chronicle.pdb names a folder on this machine; package not created' }
+}
 # Explicit file list: the page's own files, never preview or test assets. dropdowns.js and
 # dropdowns.css are DovahHub's list control, copied unchanged (CHRON-29).
 foreach ($file in 'index.html','script.js','controls.js','pad.js','bridge.js','i18n.js','styles.css','config.json','dropdowns.js','dropdowns.css') {

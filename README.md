@@ -291,6 +291,15 @@ under `out/work`, not in the user's folders, so no path from a user folder can r
 binary. Set `CHRONICLE_BUILD_WORK` to use another folder. The first build there
 downloads and compiles the dependencies, which takes a while.
 
+A release (`package.ps1 -Config Release`) is built through a drive made for it.
+`build.ps1 -Neutral` maps a free letter to `neutral-roots\Chronicle` at the root of the
+repository's drive, where `src\Chronicle` is a junction to the repository, and removes
+both when the build ends. Chronicle.dll and Chronicle.pdb then name `<drive>:\src\Chronicle`
+and the toolchain's own folders, never a folder of the machine that built them.
+`tools/pdb-paths.py` reads the staged DLL and PDB, and the package stops on any other
+path. A neutral build keeps its own vcpkg binary cache, so its first run compiles the
+dependencies again.
+
 Builds run C++ regression tests and Node.js bridge/history tests (Node.js required
 for development only). To build, test, and package matching DLL/UI assets:
 
