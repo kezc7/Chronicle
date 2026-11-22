@@ -38,7 +38,9 @@ namespace
     std::condition_variable g_wake;
     std::map<std::filesystem::path, Job> g_jobs;
     bool g_started = false;
-    std::set<std::filesystem::path> g_inFlight;  // taken by the writer and not finished (g_mutex)
+    // Taken by the writer and not finished (g_mutex). Kept whole until the write
+    // ends: a read meanwhile gets these lines, not the file being replaced (CHRON-35).
+    std::map<std::filesystem::path, std::shared_ptr<const Job>> g_inFlight;
 
     void Write(const std::filesystem::path& path, const std::vector<ChronicleHistory::Line>& lines)
     {
@@ -60,22 +62,27 @@ namespace
     void Run()
     {
         for (;;) {
-            std::map<std::filesystem::path, Job> jobs;
+            std::vector<std::pair<std::filesystem::path, std::shared_ptr<const Job>>> jobs;
             {
                 std::unique_lock lock(g_mutex);
                 g_wake.wait(lock, [] { return !g_jobs.empty(); });
-                jobs.swap(g_jobs);
-                for (const auto& entry : jobs) g_inFlight.insert(entry.first);
+                for (auto& [path, job] : g_jobs) {
+                    auto taken = std::make_shared<const Job>(std::move(job));
+                    g_inFlight[path] = taken;
+                    jobs.emplace_back(path, std::move(taken));
+                }
+                g_jobs.clear();
             }
             for (const auto& [path, job] : jobs) {
                 try {
-                    if (job) Write(path, *job);
+                    if (*job) Write(path, **job);
                     else std::filesystem::remove(path);
                 } catch (const std::exception& e) {
-                    spdlog::warn("Chronicle: history file '{}' not {}: {}", path.string(), job ? "saved" : "removed", e.what());
+                    spdlog::warn("Chronicle: history file '{}' not {}: {}", path.string(), *job ? "saved" : "removed", e.what());
                 }
                 std::lock_guard lock(g_mutex);
-                g_inFlight.erase(path);
+                // A newer job for the same file may have been taken since: only this one goes.
+                if (const auto it = g_inFlight.find(path); it != g_inFlight.end() && it->second == job) g_inFlight.erase(it);
             }
         }
     }
@@ -125,11 +132,14 @@ namespace HistoryWriter
     std::vector<ChronicleHistory::Line> Load(const std::filesystem::path& path)
     {
         try {
-            // A save still queued for this file is newer than the disk.
+            // A save still queued for this file, or one being written, is newer than the disk.
             {
                 std::lock_guard lock(g_mutex);
                 if (const auto it = g_jobs.find(path); it != g_jobs.end()) {
                     return it->second ? *it->second : std::vector<ChronicleHistory::Line>{};
+                }
+                if (const auto it = g_inFlight.find(path); it != g_inFlight.end()) {
+                    return *it->second ? **it->second : std::vector<ChronicleHistory::Line>{};
                 }
             }
             if (!std::filesystem::exists(path)) return {};
